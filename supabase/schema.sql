@@ -81,12 +81,15 @@ create table perfiles (
 
 -- Trigger para crear perfil automáticamente al registrar usuario
 create or replace function handle_new_user()
-returns trigger as $$
+returns trigger
+security definer
+set search_path = public
+as $$
 begin
-  insert into perfiles (id, rol) values (new.id, 'parcelero');
+  insert into public.perfiles (id, rol) values (new.id, 'parcelero');
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql;
 
 create trigger on_auth_user_created
   after insert on auth.users
@@ -94,7 +97,10 @@ create trigger on_auth_user_created
 
 -- Trigger para updated_at en cuentas_parcela
 create or replace function set_updated_at()
-returns trigger as $$
+returns trigger
+security definer
+set search_path = public
+as $$
 begin
   new.updated_at = now();
   return new;
