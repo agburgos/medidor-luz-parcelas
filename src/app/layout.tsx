@@ -5,8 +5,8 @@ import "./globals.css";
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Medidor Luz - Parcelas",
-  description: "Sistema de prorrateo de energía eléctrica para parcelas",
+  title: "Macrolote COPOSA",
+  description: "Sistema de prorrateo y cobranza eléctrica — Macrolote COPOSA",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

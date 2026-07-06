@@ -160,7 +160,7 @@ function emailVencimiento(d: {
 
   return `
 <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-  <h2 style="color:#1d4ed8;">⚡ Medidor Luz — Aviso de vencimiento</h2>
+  <h2 style="color:#1d4ed8;">⚡ Macrolote COPOSA — Aviso de vencimiento</h2>
   <p>Hola <strong>${d.nombre}</strong> (Parcela #${d.numeroParcela}),</p>
   <p>Tienes una cuenta pendiente del período <strong>${d.periodo}</strong>:</p>
   <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:16px 0;">
