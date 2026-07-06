@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
+import PagosCuenta from '@/components/comite/PagosCuenta'
 import { EstadoCuenta, CuentaParcela } from '@/types'
 
 type CuentaConParcela = CuentaParcela & {
@@ -56,25 +57,7 @@ export default function CuentasPage() {
     setGuardando(false)
   }
 
-  async function registrarPago(c: CuentaConParcela) {
-    const saldo = c.monto_prorrateado - c.monto_pagado
-    const input = window.prompt(
-      `Registrar pago de #${c.parcela.numero} ${c.parcela.nombre_dueno}\nSaldo pendiente: $${saldo.toLocaleString('es-CL')}\n\nMonto del pago:`,
-      String(saldo > 0 ? saldo : '')
-    )
-    if (!input) return
-    const monto = Number(input.replace(/[.$\s]/g, ''))
-    if (!monto || monto <= 0) { setMensaje('❌ Monto inválido'); return }
-    const res = await fetch(`/api/cuentas/${c.id}/pagos`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monto }),
-    })
-    const data = await res.json()
-    if (!res.ok) { setMensaje(`❌ ${data.error}`); return }
-    setMensaje(`✅ Pago de $${monto.toLocaleString('es-CL')} registrado. ${data.saldo > 0 ? `Saldo restante: $${data.saldo.toLocaleString('es-CL')}` : 'Cuenta saldada.'}`)
-    await cargarCuentas()
-  }
+  const [pagosDe, setPagosDe] = useState<CuentaConParcela | null>(null)
 
   async function enviarAlertas() {
     setEnviandoAlertas(true)
@@ -219,14 +202,12 @@ export default function CuentasPage() {
                     <td className="px-4 py-2"><EstadoBadge estado={c.estado} /></td>
                     <td className="px-4 py-2">
                       <div className="flex gap-2">
-                        {c.estado !== 'pagado' && (
-                          <button
-                            onClick={() => registrarPago(c)}
-                            className="text-xs bg-green-100 text-green-700 rounded px-2 py-1 hover:bg-green-200"
-                          >
-                            💰 Pago
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setPagosDe(c)}
+                          className="text-xs bg-green-100 text-green-700 rounded px-2 py-1 hover:bg-green-200"
+                        >
+                          💰 Pagos
+                        </button>
                         <button
                           onClick={() => iniciarEdicion(c)}
                           className="text-blue-600 hover:underline text-sm"
@@ -245,6 +226,18 @@ export default function CuentasPage() {
           </tbody>
         </table>
       </div>
+
+      {pagosDe && (
+        <PagosCuenta
+          cuentaId={pagosDe.id}
+          numero={pagosDe.parcela.numero}
+          nombre={pagosDe.parcela.nombre_dueno}
+          montoTotal={pagosDe.monto_prorrateado}
+          montoPagado={pagosDe.monto_pagado}
+          onCerrar={() => setPagosDe(null)}
+          onActualizado={cargarCuentas}
+        />
+      )}
     </div>
   )
 }

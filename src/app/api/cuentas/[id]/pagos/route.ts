@@ -13,13 +13,34 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json(data)
 }
 
-// Registrar un pago/abono: inserta el pago, recalcula monto_pagado y actualiza el estado
+// Registrar un pago/abono (comité): inserta el pago con comprobante opcional,
+// recalcula monto_pagado y actualiza el estado. Acepta FormData o JSON.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createServiceClient()
-  const body = await req.json()
 
-  const monto = Number(body.monto)
+  let monto = 0
+  let fecha: string | null = null
+  let metodo = 'transferencia'
+  let observacion: string | null = null
+  let comprobante: File | null = null
+
+  const contentType = req.headers.get('content-type') || ''
+  if (contentType.includes('multipart/form-data')) {
+    const fd = await req.formData()
+    monto = Number(fd.get('monto'))
+    fecha = (fd.get('fecha') as string) || null
+    metodo = (fd.get('metodo') as string) || 'transferencia'
+    observacion = (fd.get('observacion') as string) || null
+    comprobante = fd.get('comprobante') as File | null
+  } else {
+    const body = await req.json()
+    monto = Number(body.monto)
+    fecha = body.fecha || null
+    metodo = body.metodo || 'transferencia'
+    observacion = body.observacion || null
+  }
+
   if (!monto || monto <= 0) return NextResponse.json({ error: 'Monto inválido' }, { status: 400 })
 
   const { data: cuenta } = await supabase
@@ -29,12 +50,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single()
   if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
 
+  let comprobante_url = null
+  if (comprobante && comprobante.size > 0) {
+    const ext = comprobante.name.split('.').pop()
+    const path = `comprobantes/${id}-${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage
+      .from('archivos')
+      .upload(path, Buffer.from(await comprobante.arrayBuffer()), { contentType: comprobante.type })
+    if (!upErr) {
+      comprobante_url = supabase.storage.from('archivos').getPublicUrl(path).data.publicUrl
+    }
+  }
+
   const { error: pagoError } = await supabase.from('pagos').insert({
     cuenta_id: id,
     monto,
-    fecha: body.fecha || new Date().toISOString().slice(0, 10),
-    metodo: body.metodo || 'transferencia',
-    observacion: body.observacion || null,
+    fecha: fecha || new Date().toISOString().slice(0, 10),
+    metodo,
+    observacion,
+    comprobante_url,
     estado: 'validado', // registrado directamente por el comité
   })
   if (pagoError) return NextResponse.json({ error: pagoError.message }, { status: 400 })
@@ -50,7 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .update({
       monto_pagado: totalPagado,
       estado: nuevoEstado,
-      fecha_pago: body.fecha || new Date().toISOString().slice(0, 10),
+      fecha_pago: fecha || new Date().toISOString().slice(0, 10),
     })
     .eq('id', id)
   if (updError) return NextResponse.json({ error: updError.message }, { status: 400 })

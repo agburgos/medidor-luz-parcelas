@@ -271,11 +271,12 @@ export default async function ParceleroDashboard() {
               <th className="text-right px-4 py-3 font-medium text-gray-600">Monto</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Método</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Validación</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Comprobante</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Observación</th>
             </tr>
           </thead>
           <tbody>
-            {(pagos ?? []).map((p: { id: string; fecha: string; monto: number; metodo: string; estado?: string; observacion: string | null; cuenta: { periodo: { mes: number; anio: number } } }) => (
+            {(pagos ?? []).map((p: { id: string; fecha: string; monto: number; metodo: string; estado?: string; comprobante_url?: string | null; observacion: string | null; cuenta: { periodo: { mes: number; anio: number } } }) => (
               <tr key={p.id} className={`border-t ${p.estado === 'rechazado' ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-2">{new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                 <td className="px-4 py-2">{p.cuenta?.periodo ? `${meses[p.cuenta.periodo.mes - 1]} ${p.cuenta.periodo.anio}` : '—'}</td>
@@ -290,11 +291,16 @@ export default async function ParceleroDashboard() {
                     {p.estado === 'validado' ? '✓ Validado' : p.estado === 'rechazado' ? '✗ Rechazado' : '⏳ Por validar'}
                   </span>
                 </td>
+                <td className="px-4 py-2">
+                  {p.comprobante_url
+                    ? <a href={p.comprobante_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs">📎 Ver</a>
+                    : <span className="text-gray-300 text-xs">—</span>}
+                </td>
                 <td className="px-4 py-2 text-gray-500">{p.observacion || '—'}</td>
               </tr>
             ))}
             {(!pagos || pagos.length === 0) && (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Sin pagos registrados aún</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">Sin pagos registrados aún</td></tr>
             )}
           </tbody>
         </table>
