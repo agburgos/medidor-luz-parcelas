@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Recalcular la cuenta con SOLO los pagos validados
   const { data: cuenta } = await supabase
     .from('cuentas_parcela')
-    .select('id, monto_prorrateado, estado')
+    .select('id, monto_prorrateado, estado, periodo:periodos_facturacion(fecha_vencimiento)')
     .eq('id', pago.cuenta_id)
     .single()
 
@@ -46,10 +46,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('estado', 'validado')
 
   const totalPagado = (pagosValidados ?? []).reduce((s: number, p: { monto: number }) => s + Number(p.monto), 0)
+  // Con saldo pendiente: mora si el período venció, pago parcial si no.
+  const venc = (cuenta?.periodo as { fecha_vencimiento: string } | null)?.fecha_vencimiento
+  const vencido = venc ? new Date(venc + 'T23:59:59') < new Date() : false
   const nuevoEstado = cuenta && totalPagado >= cuenta.monto_prorrateado
     ? 'pagado'
-    : totalPagado > 0 ? 'pago_parcial'
-    : cuenta?.estado === 'mora' ? 'mora' : 'pendiente'
+    : totalPagado > 0 ? (vencido ? 'mora' : 'pago_parcial')
+    : vencido || cuenta?.estado === 'mora' ? 'mora' : 'pendiente'
 
   await supabase
     .from('cuentas_parcela')

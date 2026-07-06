@@ -45,6 +45,15 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
 
   for (const periodo of periodos) {
     const fechaVenc = periodo.fecha_vencimiento ? new Date(periodo.fecha_vencimiento + 'T00:00:00') : null
+
+    // Paso automático a mora: cuentas con saldo pendiente de períodos ya vencidos
+    if (fechaVenc && fechaVenc < hoy) {
+      await supabase
+        .from('cuentas_parcela')
+        .update({ estado: 'mora' })
+        .eq('periodo_id', periodo.id)
+        .in('estado', ['pendiente', 'pago_parcial'])
+    }
     const fechaCorte = periodo.fecha_corte ? new Date(periodo.fecha_corte + 'T00:00:00') : null
 
     const diasVenc = fechaVenc ? Math.ceil((fechaVenc.getTime() - hoy.getTime()) / 86400000) : null

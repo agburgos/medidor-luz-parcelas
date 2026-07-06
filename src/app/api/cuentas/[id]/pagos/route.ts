@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: cuenta } = await supabase
     .from('cuentas_parcela')
-    .select('id, monto_prorrateado, monto_pagado')
+    .select('id, monto_prorrateado, monto_pagado, periodo:periodos_facturacion(fecha_vencimiento)')
     .eq('id', id)
     .single()
   if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
@@ -77,7 +77,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { data: pagos } = await supabase.from('pagos').select('monto').eq('cuenta_id', id).eq('estado', 'validado')
   const totalPagado = (pagos ?? []).reduce((s: number, p: { monto: number }) => s + Number(p.monto), 0)
 
-  const nuevoEstado = totalPagado >= cuenta.monto_prorrateado ? 'pagado' : 'pago_parcial'
+  // Si pagó todo → pagado. Si queda saldo y el período ya venció → mora.
+  // Si queda saldo pero aún no vence → pago parcial.
+  const venc = (cuenta.periodo as { fecha_vencimiento: string } | null)?.fecha_vencimiento
+  const vencido = venc ? new Date(venc + 'T23:59:59') < new Date() : false
+  const nuevoEstado = totalPagado >= cuenta.monto_prorrateado
+    ? 'pagado'
+    : vencido ? 'mora' : 'pago_parcial'
 
   const { error: updError } = await supabase
     .from('cuentas_parcela')
