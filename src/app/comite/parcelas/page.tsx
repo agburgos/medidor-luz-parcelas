@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import MorasParcela from '@/components/comite/MorasParcela'
 
 interface Parcela {
   id: string
@@ -24,6 +25,7 @@ export default function ParcelasPage() {
   const [guardando, setGuardando] = useState(false)
   const [invitando, setInvitando] = useState<string | null>(null)
   const [mostrarInactivas, setMostrarInactivas] = useState(false)
+  const [morasDe, setMorasDe] = useState<Parcela | null>(null)
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/parcelas')
@@ -185,6 +187,7 @@ export default function ParcelasPage() {
                 <td className="px-4 py-2">
                   <div className="flex gap-3">
                     <button onClick={() => abrirEdicion(p)} className="text-blue-600 hover:underline">Editar</button>
+                    <button onClick={() => setMorasDe(p)} className="text-orange-600 hover:underline">Moras</button>
                     {p.activa
                       ? <button onClick={() => eliminar(p)} className="text-red-500 hover:underline">Eliminar</button>
                       : <button onClick={() => reactivar(p)} className="text-green-600 hover:underline">Reactivar</button>}
@@ -198,6 +201,15 @@ export default function ParcelasPage() {
           </tbody>
         </table>
       </div>
+
+      {morasDe && (
+        <MorasParcela
+          parcelaId={morasDe.id}
+          numero={morasDe.numero}
+          nombre={morasDe.nombre_dueno}
+          onCerrar={() => setMorasDe(null)}
+        />
+      )}
 
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setModalAbierto(false)}>

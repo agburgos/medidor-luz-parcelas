@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = createServiceClient()
-  const { data, error } = await supabase
+  const parcelaId = req.nextUrl.searchParams.get('parcela_id')
+
+  let query = supabase
     .from('moras_anteriores')
     .select('*, parcela:parcelas(numero,nombre_dueno)')
     .order('created_at', { ascending: false })
+  if (parcelaId) query = query.eq('parcela_id', parcelaId)
+
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)
 }
