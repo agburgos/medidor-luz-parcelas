@@ -1,9 +1,7 @@
 @import "tailwindcss";
 
-/* Tema claro fijo: la app usa fondos blancos explícitos,
-   por lo que el modo oscuro del sistema rompía el contraste. */
 :root {
-  --background: #ffffff;
+  --background: #f9fafb;
   --foreground: #171717;
   color-scheme: light;
 }
@@ -19,4 +17,95 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* ============================================================
+   MODO OSCURO
+   La app está construida con utilidades claras (bg-white, text-gray-*).
+   En vez de duplicar clases dark: en cada componente, se re-mapean
+   aquí las utilidades al detectar el esquema oscuro del sistema.
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f1115;
+    --foreground: #e5e7eb;
+    color-scheme: dark;
+  }
+
+  /* Superficies */
+  .bg-white { background-color: #1a1d23 !important; }
+  .bg-gray-50 { background-color: #14171c !important; }
+  .bg-gray-100 { background-color: #262a32 !important; }
+  .hover\:bg-gray-50:hover { background-color: #22262e !important; }
+  .hover\:bg-blue-50:hover { background-color: #1e2a45 !important; }
+
+  /* Bordes */
+  .border, .border-t, .border-b, .border-gray-200, .border-gray-300 {
+    border-color: #2e333d !important;
+  }
+
+  /* Textos grises → tonos claros legibles */
+  .text-gray-900 { color: #f3f4f6 !important; }
+  .text-gray-800 { color: #e5e7eb !important; }
+  .text-gray-700 { color: #d1d5db !important; }
+  .text-gray-600 { color: #b3b9c4 !important; }
+  .text-gray-500 { color: #9aa1ad !important; }
+  .text-gray-400 { color: #7d8490 !important; }
+
+  /* Paneles de color suave → versión oscura */
+  .bg-blue-50 { background-color: #172136 !important; }
+  .bg-red-50 { background-color: #2a1518 !important; }
+  .bg-green-50 { background-color: #12241a !important; }
+  .bg-yellow-50 { background-color: #2a2410 !important; }
+  .bg-purple-50 { background-color: #221733 !important; }
+  .bg-orange-50 { background-color: #2a1d10 !important; }
+  .border-blue-200 { border-color: #2c4a7c !important; }
+  .border-red-200, .border-red-300 { border-color: #7c2c35 !important; }
+  .border-green-200, .border-green-300 { border-color: #2c5c3f !important; }
+  .border-yellow-300 { border-color: #7c6a2c !important; }
+  .border-red-100 { border-color: #4a2228 !important; }
+
+  /* Textos sobre paneles de color */
+  .text-blue-800, .text-blue-900 { color: #93c5fd !important; }
+  .text-blue-700 { color: #7ab5fc !important; }
+  .text-red-800 { color: #fca5a5 !important; }
+  .text-green-700 { color: #6ee7a0 !important; }
+  .text-purple-700 { color: #c4b5fd !important; }
+  .text-yellow-800 { color: #fde68a !important; }
+  .text-orange-700 { color: #fdba74 !important; }
+
+  /* Badges de estado (fondo claro + texto oscuro → fondo oscuro + texto claro) */
+  .bg-yellow-100 { background-color: #3a3208 !important; }
+  .bg-green-100 { background-color: #103a22 !important; }
+  .bg-blue-100 { background-color: #14294d !important; }
+  .bg-red-100 { background-color: #451418 !important; }
+  .bg-purple-100 { background-color: #2e1e4d !important; }
+  .bg-orange-100 { background-color: #45280d !important; }
+  .text-yellow-700, .text-yellow-800 { color: #fde68a !important; }
+  .text-green-600, .text-green-700, .text-green-800 { color: #6ee7a0 !important; }
+  .text-blue-600, .text-blue-700, .text-blue-800 { color: #7ab5fc !important; }
+  .text-red-500, .text-red-600, .text-red-700, .text-red-800 { color: #fca5a5 !important; }
+  .text-purple-600, .text-purple-700 { color: #c4b5fd !important; }
+  .text-orange-600 { color: #fdba74 !important; }
+
+  /* Formularios */
+  input, select, textarea {
+    background-color: #14171c !important;
+    color: #e5e7eb !important;
+    border-color: #2e333d !important;
+  }
+  input::placeholder, textarea::placeholder { color: #6b7280 !important; }
+
+  /* Modal overlay ya es oscuro, mantener */
+  .bg-black\/40 { background-color: rgba(0, 0, 0, 0.7) !important; }
+}
+
+/* El reporte impreso siempre en claro, independiente del modo */
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #171717;
+    color-scheme: light;
+  }
+  body { background: #fff !important; color: #171717 !important; }
 }
