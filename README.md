@@ -1,4 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sistema de Prorrateo de Luz — Parcelas
+
+Web app para gestionar el consumo eléctrico compartido de 80 parcelas: lectura de medidores con OCR, prorrateo automático, estados de pago y alertas por correo.
+
+## Configuración inicial
+
+### 1. Supabase
+1. Crea cuenta en [supabase.com](https://supabase.com) → nuevo proyecto.
+2. SQL Editor → ejecutar `supabase/schema.sql` completo.
+3. Storage → crear bucket **`archivos`** (público).
+4. Settings → API → copiar URL, anon key y service_role key.
+
+### 2. Anthropic (OCR)
+Crear API key en [console.anthropic.com](https://console.anthropic.com).
+
+### 3. Resend (correos)
+Crear cuenta en [resend.com](https://resend.com) → generar API key → verificar dominio.
+
+### 4. Variables de entorno
+```bash
+cp .env.local.example .env.local
+# Completar todas las variables
+```
+
+### 5. Correr local
+```bash
+npm install && npm run dev
+```
+
+## Cargar las 80 parcelas
+1. Editar `scripts/parcelas.csv` con datos reales.
+2. `npx ts-node scripts/seed-parcelas.ts`
+
+## Crear usuario comité
+1. Supabase → Authentication → Users → crear usuario del comité.
+2. SQL: `UPDATE perfiles SET rol = 'comite' WHERE id = 'uuid';`
+
+## Flujo comité
+1. Nuevo período → subir factura → OCR sugiere monto/fechas → confirmar.
+2. Subir fotos de medidores → OCR sugiere lectura → confirmar/corregir.
+3. Calcular prorrateo → genera 80 cuentas automáticamente.
+4. Marcar pagos: Pagado / Pago parcial / Mora por parcela.
+5. Enviar alertas por correo a morosos/pendientes.
+
+## Cron de alertas (Vercel)
+`vercel.json` configura ejecución diaria a las 9 AM: envía correos de vencimiento (≤5 días) y corte (≤3 días).
 
 ## Getting Started
 
