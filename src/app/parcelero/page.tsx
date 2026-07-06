@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
+import InformarPago from '@/components/parcelero/InformarPago'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -46,12 +47,18 @@ export default async function ParceleroDashboard() {
   const cuentasOrd = ((cuentas ?? []) as Cuenta[]).sort((a, b) => claveP(b.periodo) - claveP(a.periodo))
   const lecturasOrd = ((lecturas ?? []) as Lectura[]).sort((a, b) => claveP(b.periodo) - claveP(a.periodo))
 
-  // Pagos de todas mis cuentas
-  const { data: pagos } = await supabase
-    .from('pagos')
-    .select('*, cuenta:cuentas_parcela(periodo:periodos_facturacion(mes,anio))')
-    .in('cuenta_id', cuentasOrd.map(c => c.id))
-    .order('fecha', { ascending: false })
+  // Pagos de todas mis cuentas + moras anteriores
+  const [{ data: pagos }, { data: moras }] = await Promise.all([
+    supabase
+      .from('pagos')
+      .select('*, cuenta:cuentas_parcela(periodo:periodos_facturacion(mes,anio))')
+      .in('cuenta_id', cuentasOrd.map(c => c.id))
+      .order('fecha', { ascending: false }),
+    supabase
+      .from('moras_anteriores')
+      .select('*')
+      .eq('parcela_id', parcela.id),
+  ])
 
   const cuentaActual = cuentasOrd[0]
   const hoy = new Date()
@@ -59,7 +66,11 @@ export default async function ParceleroDashboard() {
     ? Math.ceil((new Date(cuentaActual.periodo.fecha_vencimiento).getTime() - hoy.getTime()) / 86400000)
     : null
 
-  const deudaTotal = cuentasOrd.reduce((s, c) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
+  type Mora = { id: string; descripcion: string; monto: number; monto_pagado: number; estado: string; fecha_origen: string | null }
+  const morasPendientes = ((moras ?? []) as Mora[]).filter(m => m.estado !== 'pagado')
+  const deudaMoras = morasPendientes.reduce((s, m) => s + (Number(m.monto) - Number(m.monto_pagado)), 0)
+  const deudaCuentas = cuentasOrd.reduce((s, c) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
+  const deudaTotal = deudaCuentas + deudaMoras
   const consumoAcumulado = lecturasOrd.reduce((s, l) => s + (l.estado === 'normal' && l.consumo_kwh > 0 ? Number(l.consumo_kwh) : 0), 0)
 
   // Datos para gráfico: últimos 12 períodos, orden cronológico
@@ -83,6 +94,9 @@ export default async function ParceleroDashboard() {
           <p className={`text-2xl font-bold ${deudaTotal > 0 ? 'text-red-600' : 'text-green-600'}`}>
             {deudaTotal > 0 ? $(deudaTotal) : 'Al día ✓'}
           </p>
+          {deudaMoras > 0 && (
+            <p className="text-xs text-red-500 mt-0.5">incluye {$(deudaMoras)} de moras anteriores</p>
+          )}
         </div>
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Consumo acumulado</p>
@@ -133,6 +147,30 @@ export default async function ParceleroDashboard() {
               </div>
             )}
           </div>
+          {cuentaActual.estado !== 'pagado' && (
+            <InformarPago
+              cuentaId={cuentaActual.id}
+              saldo={Math.max(cuentaActual.monto_prorrateado - cuentaActual.monto_pagado, 0)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Moras anteriores */}
+      {morasPendientes.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-6">
+          <h2 className="text-lg font-semibold text-red-800 mb-2">⚠️ Deudas anteriores pendientes</h2>
+          <table className="w-full text-sm">
+            <tbody>
+              {morasPendientes.map(m => (
+                <tr key={m.id} className="border-t border-red-100">
+                  <td className="py-1.5">{m.descripcion}{m.fecha_origen ? ` (${new Date(m.fecha_origen + 'T00:00:00').toLocaleDateString('es-CL')})` : ''}</td>
+                  <td className="py-1.5 text-right font-medium text-red-700">{$(Number(m.monto) - Number(m.monto_pagado))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-red-600 mt-2">Contacta al comité para regularizar estas deudas.</p>
         </div>
       )}
 
@@ -232,21 +270,31 @@ export default async function ParceleroDashboard() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">Período</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Monto</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Método</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Validación</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Observación</th>
             </tr>
           </thead>
           <tbody>
-            {(pagos ?? []).map((p: { id: string; fecha: string; monto: number; metodo: string; observacion: string | null; cuenta: { periodo: { mes: number; anio: number } } }) => (
-              <tr key={p.id} className="border-t">
+            {(pagos ?? []).map((p: { id: string; fecha: string; monto: number; metodo: string; estado?: string; observacion: string | null; cuenta: { periodo: { mes: number; anio: number } } }) => (
+              <tr key={p.id} className={`border-t ${p.estado === 'rechazado' ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-2">{new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                 <td className="px-4 py-2">{p.cuenta?.periodo ? `${meses[p.cuenta.periodo.mes - 1]} ${p.cuenta.periodo.anio}` : '—'}</td>
                 <td className="px-4 py-2 text-right font-medium text-green-700">{$(p.monto)}</td>
                 <td className="px-4 py-2 capitalize">{p.metodo}</td>
+                <td className="px-4 py-2">
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                    p.estado === 'validado' ? 'bg-green-100 text-green-700'
+                    : p.estado === 'rechazado' ? 'bg-red-100 text-red-700'
+                    : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {p.estado === 'validado' ? '✓ Validado' : p.estado === 'rechazado' ? '✗ Rechazado' : '⏳ Por validar'}
+                  </span>
+                </td>
                 <td className="px-4 py-2 text-gray-500">{p.observacion || '—'}</td>
               </tr>
             ))}
             {(!pagos || pagos.length === 0) && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Sin pagos registrados aún</td></tr>
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Sin pagos registrados aún</td></tr>
             )}
           </tbody>
         </table>

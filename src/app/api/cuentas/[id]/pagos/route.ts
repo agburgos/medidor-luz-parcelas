@@ -35,11 +35,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     fecha: body.fecha || new Date().toISOString().slice(0, 10),
     metodo: body.metodo || 'transferencia',
     observacion: body.observacion || null,
+    estado: 'validado', // registrado directamente por el comité
   })
   if (pagoError) return NextResponse.json({ error: pagoError.message }, { status: 400 })
 
-  // Recalcular total pagado desde el libro de pagos
-  const { data: pagos } = await supabase.from('pagos').select('monto').eq('cuenta_id', id)
+  // Recalcular total pagado desde el libro de pagos (solo validados)
+  const { data: pagos } = await supabase.from('pagos').select('monto').eq('cuenta_id', id).eq('estado', 'validado')
   const totalPagado = (pagos ?? []).reduce((s: number, p: { monto: number }) => s + Number(p.monto), 0)
 
   const nuevoEstado = totalPagado >= cuenta.monto_prorrateado ? 'pagado' : 'pago_parcial'
