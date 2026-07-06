@@ -11,11 +11,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // Upsert lecturas (puede haber lecturas ya guardadas de antes)
-  const rows = lecturas.map((l: { parcela_id: string; lectura_actual: number; lectura_anterior: number }) => ({
+  const rows = lecturas.map((l: { parcela_id: string; lectura_actual: number; lectura_anterior: number; estado?: string }) => ({
     periodo_id,
     parcela_id: l.parcela_id,
-    lectura_actual: l.lectura_actual,
-    lectura_anterior: l.lectura_anterior,
+    lectura_actual: l.lectura_actual ?? 0,
+    lectura_anterior: l.lectura_anterior ?? 0,
+    estado: l.estado || 'normal',
     confirmado: true,
   }))
 

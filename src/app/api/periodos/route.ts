@@ -8,6 +8,10 @@ export async function POST(req: NextRequest) {
   const mes = Number(fd.get('mes'))
   const anio = Number(fd.get('anio'))
   const monto_total_factura = Number(fd.get('monto_total_factura'))
+  const costo_unitario_kwh = Number(fd.get('costo_unitario_kwh') || 0)
+  const cargo_fijo = Number(fd.get('cargo_fijo') || 5500)
+  const lectura_general_anterior = fd.get('lectura_general_anterior') ? Number(fd.get('lectura_general_anterior')) : null
+  const lectura_general_actual = fd.get('lectura_general_actual') ? Number(fd.get('lectura_general_actual')) : null
   const fecha_vencimiento = fd.get('fecha_vencimiento') as string
   const fecha_emision = fd.get('fecha_emision') as string || null
   const fecha_corte = fd.get('fecha_corte') as string || null
@@ -37,6 +41,8 @@ export async function POST(req: NextRequest) {
     .from('periodos_facturacion')
     .insert({
       mes, anio, monto_total_factura, fecha_vencimiento,
+      costo_unitario_kwh, cargo_fijo,
+      lectura_general_anterior, lectura_general_actual,
       fecha_emision: fecha_emision || undefined,
       fecha_corte: fecha_corte || undefined,
       archivo_factura_url,

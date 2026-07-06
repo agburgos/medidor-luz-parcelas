@@ -15,6 +15,10 @@ export default function NuevoPeriodoPage() {
     mes: hoy.getMonth() + 1,
     anio: hoy.getFullYear(),
     monto_total_factura: '',
+    costo_unitario_kwh: '',
+    cargo_fijo: '5500',
+    lectura_general_anterior: '',
+    lectura_general_actual: '',
     fecha_emision: '',
     fecha_vencimiento: '',
     fecha_corte: '',
@@ -131,6 +135,53 @@ export default function NuevoPeriodoPage() {
             className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="0"
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Costo unitario kWh ($) *</label>
+            <input
+              type="number"
+              value={form.costo_unitario_kwh}
+              onChange={e => setForm(f => ({ ...f, costo_unitario_kwh: e.target.value }))}
+              required
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: 316"
+            />
+            <p className="text-xs text-gray-400 mt-0.5">Según factura IEL S.A.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cargo fijo por parcela ($)</label>
+            <input
+              type="number"
+              value={form.cargo_fijo}
+              onChange={e => setForm(f => ({ ...f, cargo_fijo: e.target.value }))}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lect. medidor general anterior</label>
+            <input
+              type="number"
+              value={form.lectura_general_anterior}
+              onChange={e => setForm(f => ({ ...f, lectura_general_anterior: e.target.value }))}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: 144800"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lect. medidor general actual</label>
+            <input
+              type="number"
+              value={form.lectura_general_actual}
+              onChange={e => setForm(f => ({ ...f, lectura_general_actual: e.target.value }))}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ej: 149500"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

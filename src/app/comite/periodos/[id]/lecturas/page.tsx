@@ -9,6 +9,7 @@ interface LecturaFila {
   nombre_dueno: string
   lectura_anterior: number
   lectura_actual: string
+  estado: string
   foto: File | null
   fotoPreview: string | null
   ocrSugerido: number | null
@@ -30,12 +31,13 @@ export default function LecturasPage() {
     fetch(`/api/periodos/${id}/lecturas-iniciales`)
       .then(r => r.json())
       .then(data => {
-        setFilas(data.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; guardado: boolean }) => ({
+        setFilas(data.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean }) => ({
           parcela_id: p.parcela_id,
           numero: p.numero,
           nombre_dueno: p.nombre_dueno,
           lectura_anterior: p.lectura_anterior ?? 0,
           lectura_actual: p.lectura_actual != null ? String(p.lectura_actual) : '',
+          estado: p.estado || 'normal',
           foto: null,
           fotoPreview: null,
           ocrSugerido: null,
@@ -66,11 +68,12 @@ export default function LecturasPage() {
     setGuardando(true)
     setMensaje('')
     const payload = filas
-      .filter(f => f.lectura_actual !== '')
+      .filter(f => f.lectura_actual !== '' || f.estado !== 'normal')
       .map(f => ({
         parcela_id: f.parcela_id,
-        lectura_actual: Number(f.lectura_actual),
+        lectura_actual: f.lectura_actual !== '' ? Number(f.lectura_actual) : 0,
         lectura_anterior: f.lectura_anterior,
+        estado: f.estado,
       }))
     const res = await fetch(`/api/periodos/${id}/lecturas`, {
       method: 'POST',
@@ -99,7 +102,7 @@ export default function LecturasPage() {
 
   if (loading) return <div className="p-8 text-gray-500">Cargando parcelas...</div>
 
-  const completadas = filas.filter(f => f.lectura_actual !== '').length
+  const completadas = filas.filter(f => f.lectura_actual !== '' || f.estado !== 'normal').length
 
   return (
     <div>
@@ -137,6 +140,7 @@ export default function LecturasPage() {
               <th className="text-right px-3 py-3 font-medium text-gray-600">Lect. anterior</th>
               <th className="text-right px-3 py-3 font-medium text-gray-600">Lect. actual</th>
               <th className="text-right px-3 py-3 font-medium text-gray-600">Consumo</th>
+              <th className="px-3 py-3 font-medium text-gray-600">Estado</th>
               <th className="px-3 py-3 font-medium text-gray-600">Foto + OCR</th>
             </tr>
           </thead>
@@ -164,6 +168,21 @@ export default function LecturasPage() {
                   </td>
                   <td className="px-3 py-2 text-right font-medium">
                     {consumo != null ? (consumo >= 0 ? consumo : <span className="text-red-500">{consumo}</span>) : '—'}
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={fila.estado}
+                      onChange={e => setFilas(prev => prev.map(f =>
+                        f.parcela_id === fila.parcela_id ? { ...f, estado: e.target.value } : f
+                      ))}
+                      className={`border rounded px-1 py-1 text-xs ${fila.estado !== 'normal' ? 'bg-yellow-50 border-yellow-300' : ''}`}
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="s_info">S/INFO</option>
+                      <option value="nuevo">Nuevo</option>
+                      <option value="saldo_af">Saldo a favor</option>
+                      <option value="desconectado">Desconectado</option>
+                    </select>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">

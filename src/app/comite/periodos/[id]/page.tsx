@@ -72,6 +72,9 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
         <Link href={`/comite/periodos/${id}/cuentas`} className="border border-blue-600 text-blue-600 rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-50">
           Gestionar cuentas y pagos
         </Link>
+        <Link href={`/comite/periodos/${id}/reporte`} className="bg-emerald-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-emerald-700">
+          📄 Reporte de consumo
+        </Link>
         {periodo.archivo_factura_url && (
           <a href={periodo.archivo_factura_url} target="_blank" rel="noreferrer" className="text-gray-600 border rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50">
             Ver factura
