@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
 
   const { numero, nombre_dueno, email, telefono } = body
-  if (!numero || !nombre_dueno || !email) {
-    return NextResponse.json({ error: 'Número, nombre y email son requeridos' }, { status: 400 })
+  if (!numero || !nombre_dueno) {
+    return NextResponse.json({ error: 'Número y nombre son requeridos' }, { status: 400 })
   }
 
   // Asignar a la comunidad por defecto
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     .insert({
       numero: Number(numero),
       nombre_dueno,
-      email: email.toLowerCase().trim(),
+      email: email ? email.toLowerCase().trim() : null,
       telefono: telefono || null,
       comunidad_id: comunidad?.id ?? null,
     })

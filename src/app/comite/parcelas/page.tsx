@@ -6,7 +6,7 @@ interface Parcela {
   id: string
   numero: number
   nombre_dueno: string
-  email: string
+  email: string | null
   telefono: string | null
   user_id: string | null
   activa: boolean
@@ -45,7 +45,7 @@ export default function ParcelasPage() {
     setForm({
       numero: String(p.numero),
       nombre_dueno: p.nombre_dueno,
-      email: p.email,
+      email: p.email || '',
       telefono: p.telefono || '',
     })
     setModalAbierto(true)
@@ -89,6 +89,19 @@ export default function ParcelasPage() {
     })
     setMensaje('✅ Parcela reactivada')
     await cargar()
+  }
+
+  async function resetPassword(p: Parcela) {
+    if (!confirm(`¿Generar nueva contraseña temporal para ${p.nombre_dueno}? La actual dejará de funcionar.`)) return
+    setMensaje('')
+    const res = await fetch(`/api/parcelas/${p.id}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modo: 'temporal' }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setMensaje(`❌ ${data.error}`); return }
+    setMensaje(`🔑 Contraseña temporal de ${p.nombre_dueno} (parcela #${p.numero}): ${data.password_temporal} — cópiala ahora, no se volverá a mostrar.`)
   }
 
   async function invitar(p: Parcela) {
@@ -147,8 +160,19 @@ export default function ParcelasPage() {
                 <td className="px-4 py-2 text-gray-500">{p.telefono || '—'}</td>
                 <td className="px-4 py-2 text-center">
                   {p.user_id
-                    ? <span className="text-green-600 text-xs font-medium">✅ Activo</span>
-                    : (
+                    ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-green-600 text-xs font-medium">✅ Activo</span>
+                        <button
+                          onClick={() => resetPassword(p)}
+                          className="text-xs bg-orange-100 text-orange-700 rounded px-2 py-1 hover:bg-orange-200"
+                          title="Generar contraseña temporal"
+                        >
+                          🔑 Reset
+                        </button>
+                      </div>
+                    )
+                    : p.email ? (
                       <button
                         onClick={() => invitar(p)}
                         disabled={invitando === p.id}
@@ -156,7 +180,7 @@ export default function ParcelasPage() {
                       >
                         {invitando === p.id ? 'Enviando...' : '✉️ Invitar'}
                       </button>
-                    )}
+                    ) : <span className="text-xs text-gray-400" title="Agrega el email editando la parcela">sin email</span>}
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex gap-3">
@@ -201,12 +225,11 @@ export default function ParcelasPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email (necesario para invitar)</label>
                 <input
                   type="email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  required
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const update: Record<string, unknown> = {}
   if (body.numero !== undefined) update.numero = Number(body.numero)
   if (body.nombre_dueno !== undefined) update.nombre_dueno = body.nombre_dueno
-  if (body.email !== undefined) update.email = body.email.toLowerCase().trim()
+  if (body.email !== undefined) update.email = body.email ? body.email.toLowerCase().trim() : null
   if (body.telefono !== undefined) update.telefono = body.telefono || null
   if (body.activa !== undefined) update.activa = body.activa
 
