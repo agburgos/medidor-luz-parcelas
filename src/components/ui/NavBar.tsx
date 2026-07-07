@@ -82,7 +82,15 @@ function Dropdown({ label, items }: Grupo) {
   )
 }
 
-export default function NavBar({ rol }: { rol: Rol }) {
+export default function NavBar({
+  rol,
+  tieneParcelaPropia = false,
+  esComiteViendoSuParcela = false,
+}: {
+  rol: Rol
+  tieneParcelaPropia?: boolean
+  esComiteViendoSuParcela?: boolean
+}) {
   const router = useRouter()
   const [menuMovil, setMenuMovil] = useState(false)
   const grupos = rol === 'comite' ? GRUPOS_COMITE : GRUPOS_PARCELERO
@@ -114,6 +122,22 @@ export default function NavBar({ rol }: { rol: Rol }) {
         </div>
 
         <div className="flex items-center gap-3">
+          {rol === 'comite' && tieneParcelaPropia && (
+            <Link
+              href="/parcelero"
+              className="hidden md:inline-block text-sm bg-blue-50 text-blue-700 rounded-lg px-3 py-1.5 font-medium hover:bg-blue-100 whitespace-nowrap"
+            >
+              🏠 Ver mi parcela
+            </Link>
+          )}
+          {rol === 'parcelero' && esComiteViendoSuParcela && (
+            <Link
+              href="/comite"
+              className="hidden md:inline-block text-sm bg-purple-50 text-purple-700 rounded-lg px-3 py-1.5 font-medium hover:bg-purple-100 whitespace-nowrap"
+            >
+              ← Volver al panel comité
+            </Link>
+          )}
           <button
             onClick={logout}
             className="hidden md:block text-sm text-gray-500 hover:text-red-600 transition-colors whitespace-nowrap"
@@ -144,6 +168,16 @@ export default function NavBar({ rol }: { rol: Rol }) {
           {rol === 'comite' && (
             <Link href="/comite" onClick={() => setMenuMovil(false)} className="block px-4 py-3 text-sm font-medium text-gray-700 border-b hover:bg-gray-50">
               Dashboard
+            </Link>
+          )}
+          {rol === 'comite' && tieneParcelaPropia && (
+            <Link href="/parcelero" onClick={() => setMenuMovil(false)} className="block px-4 py-3 text-sm font-medium text-blue-700 bg-blue-50 border-b hover:bg-blue-100">
+              🏠 Ver mi parcela
+            </Link>
+          )}
+          {rol === 'parcelero' && esComiteViendoSuParcela && (
+            <Link href="/comite" onClick={() => setMenuMovil(false)} className="block px-4 py-3 text-sm font-medium text-purple-700 bg-purple-50 border-b hover:bg-purple-100">
+              ← Volver al panel comité
             </Link>
           )}
           {grupos.map(g => (
