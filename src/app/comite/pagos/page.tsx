@@ -16,12 +16,15 @@ interface PagoPendiente {
   tipo: 'luz' | 'gc'
   cuenta: {
     id: string
+    periodo_id?: string
+    periodo_gc_id?: string
     monto_prorrateado?: number
     monto?: number
     monto_pagado: number
     parcela: { numero: number; nombre_dueno: string }
-    periodo: { mes: number; anio: number }
+    periodo: { mes: number; anio: number; monto_total_factura?: number }
   }
+  recaudado_periodo?: number | null
 }
 
 const TIPO_BADGE: Record<string, string> = { luz: 'bg-yellow-100 text-yellow-800', gc: 'bg-purple-100 text-purple-700' }
@@ -111,6 +114,11 @@ export default function ValidarPagosPage() {
                   <p className="text-xl font-bold text-blue-700">{$(p.monto)}</p>
                   <p className="text-xs text-gray-500 capitalize">{p.metodo} · {new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</p>
                   <p className="text-xs text-gray-400">Saldo cuenta: {$(saldo)}</p>
+                  {p.tipo === 'luz' && p.recaudado_periodo != null && p.cuenta.periodo.monto_total_factura != null && (
+                    <p className="text-xs text-gray-400">
+                      Factura: falta {$(Math.max(p.cuenta.periodo.monto_total_factura - p.recaudado_periodo, 0))} de {$(p.cuenta.periodo.monto_total_factura)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {p.comprobante_url && (

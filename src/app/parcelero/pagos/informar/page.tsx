@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
+interface ResumenLuz { etiqueta: string | null; saldo: number; estado: string; totalFactura: number; recaudado: number; faltante: number }
+interface ResumenGC { etiqueta: string | null; saldo: number; estado: string }
 
 export default function InformarPagoPage() {
   const router = useRouter()
@@ -14,6 +17,13 @@ export default function InformarPagoPage() {
   const [comprobante, setComprobante] = useState<File | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const [resumen, setResumen] = useState<{ luz: ResumenLuz | null; gc: ResumenGC | null } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/pagos/mi-resumen').then(r => r.json()).then(setResumen)
+  }, [])
+
+  const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
@@ -42,6 +52,26 @@ export default function InformarPagoPage() {
       <p className="text-gray-500 text-sm mb-6">Indica a qué corresponde tu comprobante antes de subirlo</p>
 
       {mensaje && <p className="mb-4 text-sm bg-blue-50 text-blue-800 rounded p-2">{mensaje}</p>}
+
+      {resumen && (resumen.luz || resumen.gc) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {resumen.luz && (aplicaA === 'luz' || aplicaA === 'ambos') && (
+            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-yellow-900 mb-1">⚡ Luz — {resumen.luz.etiqueta}</p>
+              <p className="text-sm text-gray-700">Tu saldo pendiente: <strong>{$(resumen.luz.saldo)}</strong></p>
+              <p className="text-xs text-gray-500 mt-1">
+                Factura total {$(resumen.luz.totalFactura)} · recaudado por el macrolote {$(resumen.luz.recaudado)} · falta {resumen.luz.faltante > 0 ? $(resumen.luz.faltante) : '✓ cubierto'}
+              </p>
+            </div>
+          )}
+          {resumen.gc && (aplicaA === 'gc' || aplicaA === 'ambos') && (
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+              <p className="text-xs font-semibold text-purple-900 mb-1">🏘️ Gastos Comunes — {resumen.gc.etiqueta}</p>
+              <p className="text-sm text-gray-700">Tu saldo pendiente: <strong>{$(resumen.gc.saldo)}</strong></p>
+            </div>
+          )}
+        </div>
+      )}
 
       <form onSubmit={enviar} className="bg-white rounded-xl border p-6 space-y-5">
         <div>

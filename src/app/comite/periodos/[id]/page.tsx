@@ -24,7 +24,7 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
       .order('parcela(numero)', { ascending: true }),
     supabase
       .from('cuentas_parcela')
-      .select('estado')
+      .select('estado, monto_pagado')
       .eq('periodo_id', id),
   ])
 
@@ -33,6 +33,10 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
     mora: cuentas?.filter(c => c.estado === 'mora').length ?? 0,
     pendiente: cuentas?.filter(c => ['pendiente','pago_parcial'].includes(c.estado)).length ?? 0,
   }
+
+  const recaudado = (cuentas ?? []).reduce((s, c) => s + Number(c.monto_pagado), 0)
+  const faltante = Math.max((periodo.monto_total_factura ?? 0) - recaudado, 0)
+  const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
   return (
     <div>
@@ -46,10 +50,10 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Monto total</p>
-          <p className="text-xl font-bold text-blue-700">${periodo.monto_total_factura?.toLocaleString('es-CL')}</p>
+          <p className="text-xl font-bold text-blue-700">{$(periodo.monto_total_factura ?? 0)}</p>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Lecturas cargadas</p>
@@ -62,6 +66,24 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">En mora</p>
           <p className="text-xl font-bold text-red-600">{resumen.mora}</p>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-8">
+        <h2 className="text-sm font-semibold text-blue-900 mb-3">🔍 Cuánto falta para cubrir esta factura</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-gray-500">Valor factura total</p>
+            <p className="font-bold text-lg">{$(periodo.monto_total_factura ?? 0)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500">Recaudado hasta ahora</p>
+            <p className="font-bold text-lg text-green-700">{$(recaudado)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500">Falta por recaudar</p>
+            <p className={`font-bold text-lg ${faltante > 0 ? 'text-red-600' : 'text-green-600'}`}>{faltante > 0 ? $(faltante) : '✓ Cubierto'}</p>
+          </div>
         </div>
       </div>
 
