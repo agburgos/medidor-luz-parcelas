@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const body = await req.json()
 
-  const { numero, nombre_dueno, email, telefono } = body
+  const { numero, nombre_dueno, email, telefono, tiene_empalme } = body
   if (!numero || !nombre_dueno) {
     return NextResponse.json({ error: 'Número y nombre son requeridos' }, { status: 400 })
   }
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
       nombre_dueno,
       email: email ? email.toLowerCase().trim() : null,
       telefono: telefono || null,
+      tiene_empalme: tiene_empalme !== false,
       comunidad_id: comunidad?.id ?? null,
     })
     .select()

@@ -12,6 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.email !== undefined) update.email = body.email ? body.email.toLowerCase().trim() : null
   if (body.telefono !== undefined) update.telefono = body.telefono || null
   if (body.activa !== undefined) update.activa = body.activa
+  if (body.tiene_empalme !== undefined) update.tiene_empalme = body.tiene_empalme
 
   const { data, error } = await supabase
     .from('parcelas')

@@ -9,6 +9,16 @@ export async function GET() {
 
   const supabase = createServiceClient()
 
+  // Si la parcela no tiene empalme, no participa del cálculo de consumo
+  const { data: miParcela } = await supabase
+    .from('parcelas')
+    .select('tiene_empalme')
+    .eq('id', sesion.parcelaId)
+    .single()
+  if (miParcela && miParcela.tiene_empalme === false) {
+    return NextResponse.json({ periodo: null, sin_empalme: true })
+  }
+
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
     .select('id, mes, anio')
@@ -64,6 +74,17 @@ export async function POST(req: NextRequest) {
   if (!sesion || !sesion.parcelaId) return NextResponse.json({ error: 'Sin parcela vinculada' }, { status: 403 })
 
   const supabase = createServiceClient()
+
+  // Bloquear subida si la parcela no tiene empalme
+  const { data: miParcela } = await supabase
+    .from('parcelas')
+    .select('tiene_empalme')
+    .eq('id', sesion.parcelaId)
+    .single()
+  if (miParcela && miParcela.tiene_empalme === false) {
+    return NextResponse.json({ error: 'Tu parcela no tiene empalme eléctrico, no registra consumo' }, { status: 400 })
+  }
+
   const fd = await req.formData()
 
   const periodo_id = fd.get('periodo_id') as string

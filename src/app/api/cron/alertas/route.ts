@@ -87,7 +87,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
 
     if (debeRecordarLectura) {
       const [{ data: parcelasActivas }, { data: lecturasPeriodo }, { data: alertasLectura }] = await Promise.all([
-        supabase.from('parcelas').select('id, numero, nombre_dueno, email').eq('activa', true).not('email', 'is', null),
+        supabase.from('parcelas').select('id, numero, nombre_dueno, email').eq('activa', true).eq('tiene_empalme', true).not('email', 'is', null),
         supabase.from('lecturas').select('parcela_id, estado_validacion').eq('periodo_id', periodo.id),
         supabase.from('alertas_enviadas').select('parcela_id, ultima_vez').eq('periodo_id', periodo.id).eq('tipo', 'lectura'),
       ])

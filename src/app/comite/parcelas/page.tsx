@@ -11,9 +11,10 @@ interface Parcela {
   telefono: string | null
   user_id: string | null
   activa: boolean
+  tiene_empalme: boolean
 }
 
-const formVacio = { numero: '', nombre_dueno: '', email: '', telefono: '' }
+const formVacio = { numero: '', nombre_dueno: '', email: '', telefono: '', tiene_empalme: true }
 
 export default function ParcelasPage() {
   const [parcelas, setParcelas] = useState<Parcela[]>([])
@@ -49,6 +50,7 @@ export default function ParcelasPage() {
       nombre_dueno: p.nombre_dueno,
       email: p.email || '',
       telefono: p.telefono || '',
+      tiene_empalme: p.tiene_empalme,
     })
     setModalAbierto(true)
   }
@@ -80,6 +82,15 @@ export default function ParcelasPage() {
     const res = await fetch(`/api/parcelas/${p.id}`, { method: 'DELETE' })
     const data = await res.json()
     setMensaje(res.ok ? `✅ ${data.mensaje || 'Parcela eliminada'}` : `❌ ${data.error}`)
+    await cargar()
+  }
+
+  async function toggleEmpalme(p: Parcela) {
+    await fetch(`/api/parcelas/${p.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tiene_empalme: !p.tiene_empalme }),
+    })
     await cargar()
   }
 
@@ -149,6 +160,7 @@ export default function ParcelasPage() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">Dueño</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Teléfono</th>
+              <th className="text-center px-4 py-3 font-medium text-gray-600">Empalme</th>
               <th className="text-center px-4 py-3 font-medium text-gray-600">Usuario</th>
               <th className="px-4 py-3 font-medium text-gray-600">Acciones</th>
             </tr>
@@ -160,6 +172,15 @@ export default function ParcelasPage() {
                 <td className="px-4 py-2">{p.nombre_dueno}{!p.activa && <span className="ml-2 text-xs text-red-500">(desactivada)</span>}</td>
                 <td className="px-4 py-2 text-gray-500">{p.email}</td>
                 <td className="px-4 py-2 text-gray-500">{p.telefono || '—'}</td>
+                <td className="px-4 py-2 text-center">
+                  <button
+                    onClick={() => toggleEmpalme(p)}
+                    className={`text-xs rounded-full px-2.5 py-1 font-medium ${p.tiene_empalme ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                    title={p.tiene_empalme ? 'Tiene empalme: entra al cálculo de consumo' : 'Sin empalme: solo registro de personas y mascotas'}
+                  >
+                    {p.tiene_empalme ? '⚡ Sí' : '— No'}
+                  </button>
+                </td>
                 <td className="px-4 py-2 text-center">
                   {p.user_id
                     ? (
@@ -196,7 +217,7 @@ export default function ParcelasPage() {
               </tr>
             ))}
             {visibles.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Sin parcelas. Crea la primera con el botón &quot;+ Nueva parcela&quot;.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">Sin parcelas. Crea la primera con el botón &quot;+ Nueva parcela&quot;.</td></tr>
             )}
           </tbody>
         </table>
@@ -255,6 +276,15 @@ export default function ParcelasPage() {
                   placeholder="+569..."
                 />
               </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.tiene_empalme}
+                  onChange={e => setForm(f => ({ ...f, tiene_empalme: e.target.checked }))}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm text-gray-700">⚡ Tiene empalme eléctrico (entra al cálculo de consumo)</span>
+              </label>
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"

@@ -6,6 +6,7 @@ const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 
 interface Estado {
   periodo: { id: string; mes: number; anio: number } | null
+  sin_empalme?: boolean
   fecha_tope?: string
   lectura_anterior?: number
   mi_lectura?: {
@@ -49,6 +50,14 @@ export default function SubirLectura() {
   }
 
   if (!estado) return null
+  if (estado.sin_empalme) {
+    return (
+      <div className="bg-gray-50 border rounded-xl p-4 mb-6 text-sm text-gray-500">
+        Tu parcela no tiene empalme eléctrico, por lo que no registra consumo de luz.
+        Puedes usar la sección <strong>Mi registro</strong> para personas y mascotas.
+      </div>
+    )
+  }
   if (!estado.periodo) return null
 
   const { periodo, fecha_tope, lectura_anterior, mi_lectura } = estado

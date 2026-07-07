@@ -9,6 +9,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { data: parcelas } = await supabase
     .from('parcelas')
     .select('id, numero, nombre_dueno')
+    .eq('activa', true)
+    .eq('tiene_empalme', true)
     .order('numero')
 
   if (!parcelas) return NextResponse.json([])

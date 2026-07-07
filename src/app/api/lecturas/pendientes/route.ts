@@ -25,7 +25,7 @@ export async function GET() {
       .from('lecturas')
       .select('*, parcela:parcelas(id,numero,nombre_dueno,email)')
       .eq('periodo_id', periodo.id),
-    supabase.from('parcelas').select('id, numero, nombre_dueno').eq('activa', true),
+    supabase.from('parcelas').select('id, numero, nombre_dueno').eq('activa', true).eq('tiene_empalme', true),
   ])
 
   type Lect = NonNullable<typeof lecturas>[number]
