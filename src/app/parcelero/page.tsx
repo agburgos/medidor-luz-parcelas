@@ -28,20 +28,27 @@ export default async function ParceleroDashboard() {
     )
   }
 
-  const [{ data: cuentas }, { data: lecturas }] = await Promise.all([
+  const [{ data: cuentas }, { data: lecturas }, { data: cuentaGC }] = await Promise.all([
     supabase
       .from('cuentas_parcela')
-      .select('*, periodo:periodos_facturacion(mes,anio,fecha_vencimiento,fecha_corte,costo_unitario_kwh,cargo_fijo)')
+      .select('*, periodo:periodos_facturacion(mes,anio,fecha_vencimiento,fecha_corte,costo_unitario_kwh,cargo_fijo,monto_total_factura,archivo_factura_url)')
       .eq('parcela_id', parcela.id),
     supabase
       .from('lecturas')
       .select('*, periodo:periodos_facturacion(mes,anio)')
       .eq('parcela_id', parcela.id)
       .eq('confirmado', true),
+    supabase
+      .from('cuentas_gc')
+      .select('*, periodo:periodos_gc(mes,anio,fecha_vencimiento)')
+      .eq('parcela_id', parcela.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   type Cuenta = NonNullable<typeof cuentas>[number] & {
-    periodo: { mes: number; anio: number; fecha_vencimiento: string; fecha_corte: string | null; costo_unitario_kwh: number; cargo_fijo: number }
+    periodo: { mes: number; anio: number; fecha_vencimiento: string; fecha_corte: string | null; costo_unitario_kwh: number; cargo_fijo: number; monto_total_factura: number; archivo_factura_url: string | null }
   }
   type Lectura = NonNullable<typeof lecturas>[number] & { periodo: { mes: number; anio: number } }
 
@@ -68,6 +75,23 @@ export default async function ParceleroDashboard() {
     ? Math.ceil((new Date(cuentaActual.periodo.fecha_vencimiento).getTime() - hoy.getTime()) / 86400000)
     : null
 
+  // Transparencia: cuánto se ha recaudado en total del período actual vs. la factura real
+  let transparenciaLuz: { totalFactura: number; recaudado: number; faltante: number } | null = null
+  if (cuentaActual) {
+    const { data: todasCuentasPeriodo } = await supabase
+      .from('cuentas_parcela')
+      .select('monto_pagado')
+      .eq('periodo_id', cuentaActual.periodo_id)
+    const recaudado = (todasCuentasPeriodo ?? []).reduce((s, c) => s + Number(c.monto_pagado), 0)
+    transparenciaLuz = {
+      totalFactura: cuentaActual.periodo.monto_total_factura,
+      recaudado,
+      faltante: Math.max(cuentaActual.periodo.monto_total_factura - recaudado, 0),
+    }
+  }
+
+  type CuentaGCTipo = { id: string; monto: number; monto_pagado: number; estado: string; periodo: { mes: number; anio: number; fecha_vencimiento: string } | null } | null
+
   type Mora = { id: string; descripcion: string; monto: number; monto_pagado: number; estado: string; fecha_origen: string | null }
   const morasPendientes = ((moras ?? []) as Mora[]).filter(m => m.estado !== 'pagado')
   const deudaMoras = morasPendientes.reduce((s, m) => s + (Number(m.monto) - Number(m.monto_pagado)), 0)
@@ -93,6 +117,8 @@ export default async function ParceleroDashboard() {
 
       {/* Autolectura del período abierto */}
       <SubirLectura />
+
+      <h2 className="text-xl font-bold mb-3 flex items-center gap-2">⚡ Luz</h2>
 
       {/* Resumen superior */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -158,6 +184,35 @@ export default async function ParceleroDashboard() {
             <Link href="/parcelero/pagos/informar" className="inline-block mt-4 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
               💸 Informar un pago
             </Link>
+          )}
+        </div>
+      )}
+
+      {/* Transparencia: cuadre real con la factura de IEL */}
+      {transparenciaLuz && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-blue-900 mb-3">🔍 Transparencia — {meses[cuentaActual.periodo.mes - 1]} {cuentaActual.periodo.anio}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500">Valor factura total</p>
+              <p className="font-bold text-lg">{$(transparenciaLuz.totalFactura)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Recaudado por el macrolote</p>
+              <p className="font-bold text-lg text-green-700">{$(transparenciaLuz.recaudado)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500">Falta por recaudar</p>
+              <p className={`font-bold text-lg ${transparenciaLuz.faltante > 0 ? 'text-red-600' : 'text-green-600'}`}>{transparenciaLuz.faltante > 0 ? $(transparenciaLuz.faltante) : '✓ Cubierto'}</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 mt-3">
+            Costo por kWh este período: <strong>${cuentaActual.periodo.costo_unitario_kwh}</strong> · Cargo fijo: <strong>{$(cuentaActual.periodo.cargo_fijo)}</strong>
+          </p>
+          {cuentaActual.periodo.archivo_factura_url && (
+            <a href={cuentaActual.periodo.archivo_factura_url} target="_blank" rel="noreferrer" className="inline-block mt-2 text-sm text-blue-700 hover:underline">
+              📄 Ver la factura original de IEL
+            </a>
           )}
         </div>
       )}
@@ -311,6 +366,37 @@ export default async function ParceleroDashboard() {
           </tbody>
         </table>
       </div>
+
+      {/* GASTOS COMUNES */}
+      <h2 className="text-xl font-bold mt-10 mb-3 flex items-center gap-2">🏘️ Gastos Comunes</h2>
+      {cuentaGC ? (
+        <div className={`rounded-xl border p-5 ${(cuentaGC as NonNullable<CuentaGCTipo>).estado === 'mora' ? 'border-red-300 bg-red-50' : (cuentaGC as NonNullable<CuentaGCTipo>).estado === 'pagado' ? 'border-green-300 bg-green-50' : 'bg-white'}`}>
+          {(() => {
+            const gc = cuentaGC as NonNullable<CuentaGCTipo>
+            const saldoGC = Math.max(gc.monto - gc.monto_pagado, 0)
+            return (
+              <div className="flex items-start justify-between flex-wrap gap-3">
+                <div>
+                  {gc.periodo && <p className="text-sm text-gray-500 mb-1">{meses[gc.periodo.mes - 1]} {gc.periodo.anio}</p>}
+                  <p className="text-2xl font-bold">{$(gc.monto)}</p>
+                  {gc.monto_pagado > 0 && <p className="text-sm text-gray-500">Pagado: {$(gc.monto_pagado)} · Saldo: <strong className="text-red-600">{$(saldoGC)}</strong></p>}
+                </div>
+                <div className="text-right">
+                  <EstadoBadge estado={gc.estado as 'pendiente' | 'pagado' | 'pago_parcial' | 'mora'} />
+                  {gc.periodo?.fecha_vencimiento && (
+                    <p className="text-xs text-gray-500 mt-1">Vence: {new Date(gc.periodo.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL')}</p>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+          <Link href="/parcelero/gastos-comunes" className="inline-block mt-4 text-sm text-blue-700 hover:underline font-medium">
+            Ver historial completo de Gastos Comunes →
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border p-5 text-gray-400 text-sm">Sin cuentas de Gastos Comunes generadas aún</div>
+      )}
     </div>
   )
 }

@@ -26,6 +26,9 @@ export default function DetalleAsambleaPage() {
   const [parcelas, setParcelas] = useState<ParcelaOpcion[]>([])
   const [parcelaSel, setParcelaSel] = useState('')
   const [citando, setCitando] = useState(false)
+  const [nombreLibre, setNombreLibre] = useState('')
+  const [parcelaRepresenta, setParcelaRepresenta] = useState('')
+  const [agregandoLibre, setAgregandoLibre] = useState(false)
   const [descAcuerdo, setDescAcuerdo] = useState('')
   const [respAcuerdo, setRespAcuerdo] = useState('')
   const [resumen, setResumen] = useState('')
@@ -61,6 +64,25 @@ export default function DetalleAsambleaPage() {
       body: JSON.stringify({ nombre: `#${p.numero} ${p.nombre_dueno}`, parcela_id: p.id }),
     })
     setParcelaSel('')
+    await cargar()
+  }
+
+  async function agregarAsistenteLibre(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nombreLibre.trim()) return
+    setAgregandoLibre(true)
+    const p = parcelas.find(x => x.id === parcelaRepresenta)
+    await fetch(`/api/asambleas/${id}/asistentes`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nombre: nombreLibre.trim(),
+        parcela_id: parcelaRepresenta || null,
+        presente: true,
+        representado_por: p ? `#${p.numero} ${p.nombre_dueno}` : null,
+      }),
+    })
+    setNombreLibre(''); setParcelaRepresenta('')
+    setAgregandoLibre(false)
     await cargar()
   }
 
@@ -196,7 +218,10 @@ export default function DetalleAsambleaPage() {
             <tbody>
               {asistentes.map(a => (
                 <tr key={a.id} className="border-t">
-                  <td className="px-4 py-2">{a.nombre}</td>
+                  <td className="px-4 py-2">
+                    {a.nombre}
+                    {a.representado_por && <span className="text-xs text-gray-400"> (representa a {a.representado_por})</span>}
+                  </td>
                   <td className="px-4 py-2 text-center">
                     <div className="inline-flex rounded-lg border overflow-hidden text-xs">
                       <button
@@ -222,12 +247,27 @@ export default function DetalleAsambleaPage() {
             </tbody>
           </table>
         </div>
-        <form onSubmit={agregarAsistente} className="flex gap-2">
+        <form onSubmit={agregarAsistente} className="flex gap-2 mb-3">
           <select value={parcelaSel} onChange={e => setParcelaSel(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm">
-            <option value="">Seleccionar parcela para citar...</option>
+            <option value="">Citar por parcela (dueño registrado)...</option>
             {parcelas.map(p => <option key={p.id} value={p.id}>#{p.numero} — {p.nombre_dueno}</option>)}
           </select>
           <button type="submit" disabled={!parcelaSel} className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">+ Citar</button>
+        </form>
+
+        <p className="text-xs text-gray-500 mb-1">O registra a alguien que asistió y no está en la lista (puede o no representar a una parcela):</p>
+        <form onSubmit={agregarAsistenteLibre} className="flex gap-2 flex-wrap">
+          <input
+            type="text" value={nombreLibre} onChange={e => setNombreLibre(e.target.value)}
+            placeholder="Nombre de quien asistió" className="flex-1 min-w-40 border rounded-lg px-3 py-2 text-sm"
+          />
+          <select value={parcelaRepresenta} onChange={e => setParcelaRepresenta(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+            <option value="">Sin parcela asociada</option>
+            {parcelas.map(p => <option key={p.id} value={p.id}>Representa a #{p.numero} — {p.nombre_dueno}</option>)}
+          </select>
+          <button type="submit" disabled={agregandoLibre || !nombreLibre.trim()} className="bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+            {agregandoLibre ? '...' : '+ Registrar asistente'}
+          </button>
         </form>
       </section>
 

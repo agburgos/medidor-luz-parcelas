@@ -26,6 +26,7 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/asambleas', label: 'Asambleas y actas' },
     { href: '/comite/anuncios', label: 'Anuncios' },
     { href: '/comite/documentos', label: 'Documentos' },
+    { href: '/comite/informacion', label: 'Información fija' },
     { href: '/comite/registro', label: 'Registro personas/mascotas' },
   ]},
   { label: '⚙️ Administración', items: [
@@ -41,6 +42,7 @@ const GRUPOS_PARCELERO: Grupo[] = [
     { href: '/parcelero/gastos-comunes', label: '🏘️ Gastos Comunes' },
     { href: '/parcelero/asambleas', label: '🗓️ Asambleas y actas' },
     { href: '/parcelero/documentos', label: '📎 Documentos' },
+    { href: '/parcelero/informacion', label: 'ℹ️ Información' },
     { href: '/parcelero/registro', label: '👥 Mi registro' },
   ]},
 ]

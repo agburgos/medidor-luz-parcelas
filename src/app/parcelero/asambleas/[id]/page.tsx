@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 interface Asamblea {
   titulo: string; tipo: string; fecha: string; hora_inicio: string | null; lugar: string | null; estado: string; resumen: string | null
 }
-interface Asistente { id: string; nombre: string; parcela: { numero: number } | null }
+interface Asistente { id: string; nombre: string; presente: boolean; representado_por: string | null; parcela: { numero: number } | null }
 interface Acuerdo { id: string; descripcion: string; responsable: string | null; estado: string }
 interface Documento { id: string; nombre: string; categoria: string; archivo_url: string }
 interface Reacciones { likes: number; dislikes: number; mi_reaccion: 'like' | 'dislike' | null }
@@ -88,23 +88,29 @@ export default function DetalleAsambleaParceleroPage() {
         </button>
       </div>
 
-      {asistentes.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-2">👥 Asistencia ({asistentes.length})</h2>
-          <div className="bg-white rounded-xl border overflow-hidden">
-            <table className="w-full text-sm">
-              <tbody>
-                {asistentes.map(a => (
-                  <tr key={a.id} className="border-t">
-                    <td className="px-4 py-2">{a.nombre}</td>
-                    <td className="px-4 py-2 text-gray-500">{a.parcela ? `#${a.parcela.numero}` : ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      {(() => {
+        const asistieron = asistentes.filter(a => a.presente)
+        return asistieron.length > 0 && (
+          <section>
+            <h2 className="text-lg font-semibold mb-2">👥 Asistentes ({asistieron.length})</h2>
+            <div className="bg-white rounded-xl border overflow-hidden">
+              <table className="w-full text-sm">
+                <tbody>
+                  {asistieron.map(a => (
+                    <tr key={a.id} className="border-t">
+                      <td className="px-4 py-2">{a.nombre}</td>
+                      <td className="px-4 py-2 text-gray-500">
+                        {a.parcela ? `#${a.parcela.numero}` : ''}
+                        {a.representado_por && <span className="text-xs text-gray-400"> (representa a {a.representado_por})</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )
+      })()}
 
       {acuerdos.length > 0 && (
         <section>
