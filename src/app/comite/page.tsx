@@ -1,10 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
+const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+
 export default async function ComiteDashboard() {
   const supabase = await createClient()
 
-  const [{ count: totalParcelas }, { data: periodos }] = await Promise.all([
+  const [
+    { count: totalParcelas },
+    { data: periodos },
+    { data: cuentasLuz },
+    { data: cuentasGC },
+    { data: moras },
+    { data: anuncios },
+  ] = await Promise.all([
     supabase.from('parcelas').select('*', { count: 'exact', head: true }),
     supabase
       .from('periodos_facturacion')
@@ -12,15 +22,80 @@ export default async function ComiteDashboard() {
       .order('anio', { ascending: false })
       .order('mes', { ascending: false })
       .limit(5),
+    supabase.from('cuentas_parcela').select('monto_prorrateado, monto_pagado, periodo:periodos_facturacion(mes,anio)'),
+    supabase.from('cuentas_gc').select('monto, monto_pagado, periodo:periodos_gc(mes,anio)'),
+    supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').neq('estado', 'pagado'),
+    supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
   ])
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
 
-  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  type CLuz = { monto_prorrateado: number; monto_pagado: number; periodo: { mes: number; anio: number } | null }
+  type CGC = { monto: number; monto_pagado: number; periodo: { mes: number; anio: number } | null }
+  type Mora = { monto: number; monto_pagado: number; tipo: string }
+
+  const luz = (cuentasLuz ?? []) as unknown as CLuz[]
+  const gc = (cuentasGC ?? []) as unknown as CGC[]
+  const morasList = (moras ?? []) as Mora[]
+
+  const recaudadoLuz = luz.reduce((s, c) => s + Number(c.monto_pagado), 0)
+  const recaudadoGC = gc.reduce((s, c) => s + Number(c.monto_pagado), 0)
+  const deudaLuzCuentas = luz.reduce((s, c) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
+  const deudaGCCuentas = gc.reduce((s, c) => s + Math.max(c.monto - c.monto_pagado, 0), 0)
+  const deudaMorasLuz = morasList.filter(m => m.tipo === 'luz').reduce((s, m) => s + (m.monto - m.monto_pagado), 0)
+  const deudaMorasGC = morasList.filter(m => m.tipo === 'gc').reduce((s, m) => s + (m.monto - m.monto_pagado), 0)
+  const deudaMorasOtro = morasList.filter(m => m.tipo === 'otro').reduce((s, m) => s + (m.monto - m.monto_pagado), 0)
+
+  const totalRecaudado = recaudadoLuz + recaudadoGC
+  const totalDeudaLuz = deudaLuzCuentas + deudaMorasLuz
+  const totalDeudaGC = deudaGCCuentas + deudaMorasGC
+  const totalDeuda = totalDeudaLuz + totalDeudaGC + deudaMorasOtro
+
+  // Reporte por mes: combina luz y GC
+  const porMes = new Map<string, { facturadoLuz: number; recaudadoLuz: number; facturadoGC: number; recaudadoGC: number }>()
+  for (const c of luz) {
+    if (!c.periodo) continue
+    const key = `${c.periodo.anio}-${String(c.periodo.mes).padStart(2, '0')}`
+    const item = porMes.get(key) ?? { facturadoLuz: 0, recaudadoLuz: 0, facturadoGC: 0, recaudadoGC: 0 }
+    item.facturadoLuz += c.monto_prorrateado
+    item.recaudadoLuz += c.monto_pagado
+    porMes.set(key, item)
+  }
+  for (const c of gc) {
+    if (!c.periodo) continue
+    const key = `${c.periodo.anio}-${String(c.periodo.mes).padStart(2, '0')}`
+    const item = porMes.get(key) ?? { facturadoLuz: 0, recaudadoLuz: 0, facturadoGC: 0, recaudadoGC: 0 }
+    item.facturadoGC += c.monto
+    item.recaudadoGC += c.monto_pagado
+    porMes.set(key, item)
+  }
+  const filasMes = [...porMes.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+
+  const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard Comité</h1>
+
+      {/* Totales grandes */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+          <p className="text-sm text-green-700">💰 Total recaudado</p>
+          <p className="text-2xl font-bold text-green-700">{$(totalRecaudado)}</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+          <p className="text-sm text-red-700">🔴 Deuda total</p>
+          <p className="text-2xl font-bold text-red-700">{$(totalDeuda)}</p>
+        </div>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
+          <p className="text-sm text-yellow-800">⚡ Deuda por Luz</p>
+          <p className="text-2xl font-bold text-yellow-800">{$(totalDeudaLuz)}</p>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-5">
+          <p className="text-sm text-purple-700">🏘️ Deuda por GC</p>
+          <p className="text-2xl font-bold text-purple-700">{$(totalDeudaGC)}</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-xl border p-5">
@@ -28,7 +103,7 @@ export default async function ComiteDashboard() {
           <p className="text-3xl font-bold text-blue-700">{totalParcelas ?? 0}</p>
         </div>
         <div className="bg-white rounded-xl border p-5">
-          <p className="text-sm text-gray-500">Período activo</p>
+          <p className="text-sm text-gray-500">Período de luz activo</p>
           <p className="text-xl font-semibold">
             {periodoActivo
               ? `${meses[periodoActivo.mes - 1]} ${periodoActivo.anio}`
@@ -47,7 +122,7 @@ export default async function ComiteDashboard() {
 
       <div className="flex gap-4 flex-wrap mb-8">
         <Link href="/comite/periodos/nuevo" className="bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
-          + Nuevo período
+          + Nuevo período de luz
         </Link>
         {periodoActivo && (
           <Link href={`/comite/periodos/${periodoActivo.id}`} className="border border-blue-600 text-blue-600 rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-50 transition-colors">
@@ -56,7 +131,68 @@ export default async function ComiteDashboard() {
         )}
       </div>
 
-      <h2 className="text-lg font-semibold mb-3">Últimos períodos</h2>
+      {/* Reporte por meses */}
+      <h2 className="text-lg font-semibold mb-3">📊 Reporte de recaudación por mes</h2>
+      <div className="bg-white rounded-xl border overflow-auto mb-8">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Mes</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Facturado Luz</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Recaudado Luz</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Facturado GC</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Recaudado GC</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Total recaudado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filasMes.map(([key, m]) => {
+              const [anio, mes] = key.split('-').map(Number)
+              return (
+                <tr key={key} className="border-t">
+                  <td className="px-4 py-2 font-medium">{mesesCorto[mes - 1]} {anio}</td>
+                  <td className="px-4 py-2 text-right">{$(m.facturadoLuz)}</td>
+                  <td className="px-4 py-2 text-right text-green-700">{$(m.recaudadoLuz)}</td>
+                  <td className="px-4 py-2 text-right">{$(m.facturadoGC)}</td>
+                  <td className="px-4 py-2 text-right text-green-700">{$(m.recaudadoGC)}</td>
+                  <td className="px-4 py-2 text-right font-bold">{$(m.recaudadoLuz + m.recaudadoGC)}</td>
+                </tr>
+              )
+            })}
+            {filasMes.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Sin datos aún</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Anuncios recientes con reacciones */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">📢 Anuncios recientes</h2>
+        <Link href="/comite/anuncios" className="text-sm text-blue-600 hover:underline">Ver todos / Publicar →</Link>
+      </div>
+      <div className="bg-white rounded-xl border overflow-hidden mb-8">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Título</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Publicado</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">👍 Likes</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">👎 Dislikes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(anuncios ?? []).map(a => (
+              <AnuncioFila key={a.id} id={a.id} titulo={a.titulo} fecha={a.created_at} />
+            ))}
+            {(!anuncios || anuncios.length === 0) && (
+              <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Sin anuncios publicados</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="text-lg font-semibold mb-3">Últimos períodos de luz</h2>
       <div className="bg-white rounded-xl border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
@@ -91,5 +227,20 @@ export default async function ComiteDashboard() {
         </table>
       </div>
     </div>
+  )
+}
+
+async function AnuncioFila({ id, titulo, fecha }: { id: string; titulo: string; fecha: string }) {
+  const supabase = await createClient()
+  const { data: reacciones } = await supabase.from('anuncio_reacciones').select('tipo').eq('anuncio_id', id)
+  const likes = (reacciones ?? []).filter(r => r.tipo === 'like').length
+  const dislikes = (reacciones ?? []).filter(r => r.tipo === 'dislike').length
+  return (
+    <tr className="border-t">
+      <td className="px-4 py-2 font-medium">{titulo}</td>
+      <td className="px-4 py-2 text-gray-500">{new Date(fecha).toLocaleDateString('es-CL')}</td>
+      <td className="px-4 py-2 text-right text-green-700">{likes}</td>
+      <td className="px-4 py-2 text-right text-red-600">{dislikes}</td>
+    </tr>
   )
 }
