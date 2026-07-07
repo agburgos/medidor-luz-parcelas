@@ -9,7 +9,11 @@ interface Mora {
   monto_pagado: number
   estado: string
   fecha_origen: string | null
+  tipo: string
 }
+
+const TIPOS: Record<string, string> = { luz: '⚡ Luz', gc: '🏘️ GC', otro: '📄 Otro' }
+const TIPO_BADGE: Record<string, string> = { luz: 'bg-yellow-100 text-yellow-800', gc: 'bg-purple-100 text-purple-700', otro: 'bg-gray-100 text-gray-600' }
 
 export default function MorasParcela({
   parcelaId,
@@ -25,7 +29,7 @@ export default function MorasParcela({
   const [moras, setMoras] = useState<Mora[]>([])
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState('')
-  const [form, setForm] = useState({ descripcion: '', monto: '', fecha_origen: '' })
+  const [form, setForm] = useState({ descripcion: '', monto: '', fecha_origen: '', tipo: 'luz' })
   const [guardando, setGuardando] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -50,7 +54,7 @@ export default function MorasParcela({
     if (!res.ok) setMensaje(`❌ ${data.error}`)
     else {
       setMensaje('✅ Mora registrada')
-      setForm({ descripcion: '', monto: '', fecha_origen: '' })
+      setForm({ descripcion: '', monto: '', fecha_origen: '', tipo: 'luz' })
       await cargar()
     }
     setGuardando(false)
@@ -106,6 +110,7 @@ export default function MorasParcela({
               <table className="w-full text-sm mb-5">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="text-left px-3 py-2 font-medium text-gray-600">Tipo</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-600">Descripción</th>
                     <th className="text-left px-3 py-2 font-medium text-gray-600">Origen</th>
                     <th className="text-right px-3 py-2 font-medium text-gray-600">Monto</th>
@@ -119,6 +124,9 @@ export default function MorasParcela({
                     const saldo = m.monto - m.monto_pagado
                     return (
                       <tr key={m.id} className={`border-t ${m.estado === 'pagado' ? 'opacity-50' : ''}`}>
+                        <td className="px-3 py-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIPO_BADGE[m.tipo] ?? TIPO_BADGE.otro}`}>{TIPOS[m.tipo] ?? m.tipo}</span>
+                        </td>
                         <td className="px-3 py-2">{m.descripcion}</td>
                         <td className="px-3 py-2 text-gray-500">{m.fecha_origen ? new Date(m.fecha_origen + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
                         <td className="px-3 py-2 text-right">{$(m.monto)}</td>
@@ -151,6 +159,15 @@ export default function MorasParcela({
             <form onSubmit={agregar} className="border-t pt-4 space-y-3">
               <p className="text-sm font-medium">+ Agregar mora a esta parcela</p>
               <div className="flex flex-wrap gap-3">
+                <select
+                  value={form.tipo}
+                  onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}
+                  className="border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="luz">⚡ Luz</option>
+                  <option value="gc">🏘️ Gastos Comunes</option>
+                  <option value="otro">📄 Otro</option>
+                </select>
                 <input
                   type="text"
                   value={form.descripcion}

@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const body = await req.json()
 
-  const { parcela_id, descripcion, monto, fecha_origen } = body
+  const { parcela_id, descripcion, monto, fecha_origen, tipo } = body
   if (!parcela_id || !descripcion || !monto || Number(monto) <= 0) {
     return NextResponse.json({ error: 'Parcela, descripción y monto son requeridos' }, { status: 400 })
   }
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       descripcion,
       monto: Number(monto),
       fecha_origen: fecha_origen || null,
+      tipo: ['luz', 'gc', 'otro'].includes(tipo) ? tipo : 'luz',
     })
     .select()
     .single()

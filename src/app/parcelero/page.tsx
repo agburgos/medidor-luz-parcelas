@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
-import InformarPago from '@/components/parcelero/InformarPago'
+import Link from 'next/link'
 import SubirLectura from '@/components/parcelero/SubirLectura'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -152,10 +152,9 @@ export default async function ParceleroDashboard() {
             )}
           </div>
           {cuentaActual.estado !== 'pagado' && (
-            <InformarPago
-              cuentaId={cuentaActual.id}
-              saldo={Math.max(cuentaActual.monto_prorrateado - cuentaActual.monto_pagado, 0)}
-            />
+            <Link href="/parcelero/pagos/informar" className="inline-block mt-4 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
+              💸 Informar un pago
+            </Link>
           )}
         </div>
       )}

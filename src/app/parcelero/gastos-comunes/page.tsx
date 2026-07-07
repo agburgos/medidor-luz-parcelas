@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import { EstadoCuenta } from '@/types'
 
@@ -44,6 +45,11 @@ export default function MisGastosComunesPage() {
             <EstadoBadge estado={actual.estado} />
           </div>
           <p className="text-sm text-gray-500 mt-2">Vencimiento: {new Date(actual.periodo.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL')}</p>
+          {actual.estado !== 'pagado' && (
+            <Link href="/parcelero/pagos/informar" className="inline-block mt-4 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
+              💸 Informar un pago
+            </Link>
+          )}
         </div>
       )}
 

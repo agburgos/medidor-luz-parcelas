@@ -58,10 +58,13 @@ export default async function ReportesPage() {
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
   const deudaTotal = deudores.reduce((s, [, d]) => s + d.deuda, 0)
 
-  type Mora = { id: string; descripcion: string; monto: number; monto_pagado: number; estado: string; fecha_origen: string | null
+  type Mora = { id: string; descripcion: string; monto: number; monto_pagado: number; estado: string; fecha_origen: string | null; tipo: string
     parcela: { numero: number; nombre_dueno: string; telefono: string | null } }
   const morasList = ((moras ?? []) as Mora[]).sort((a, b) => (b.monto - b.monto_pagado) - (a.monto - a.monto_pagado))
   const deudaMorasTotal = morasList.reduce((s, m) => s + (m.monto - m.monto_pagado), 0)
+  const deudaMorasLuz = morasList.filter(m => m.tipo === 'luz').reduce((s, m) => s + (m.monto - m.monto_pagado), 0)
+  const deudaMorasGC = morasList.filter(m => m.tipo === 'gc').reduce((s, m) => s + (m.monto - m.monto_pagado), 0)
+  const TIPOS_MORA: Record<string, string> = { luz: '⚡ Luz', gc: '🏘️ GC', otro: '📄 Otro' }
 
   return (
     <div>
@@ -116,11 +119,22 @@ export default async function ReportesPage() {
       </div>
 
       <h2 className="text-lg font-semibold mb-3">📜 Moras anteriores (deuda histórica, previa al sistema)</h2>
+      <div className="grid grid-cols-2 gap-4 mb-3">
+        <div className="bg-white rounded-xl border p-4">
+          <p className="text-xs text-gray-500">⚡ Moras de Luz</p>
+          <p className="text-lg font-bold text-red-600">{$(deudaMorasLuz)}</p>
+        </div>
+        <div className="bg-white rounded-xl border p-4">
+          <p className="text-xs text-gray-500">🏘️ Moras de Gastos Comunes</p>
+          <p className="text-lg font-bold text-red-600">{$(deudaMorasGC)}</p>
+        </div>
+      </div>
       <div className="bg-white rounded-xl border overflow-auto mb-8">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Parcela</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Descripción</th>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Teléfono</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Saldo</th>
@@ -130,19 +144,20 @@ export default async function ReportesPage() {
             {morasList.map(m => (
               <tr key={m.id} className="border-t">
                 <td className="px-4 py-2 font-medium">#{m.parcela.numero} {m.parcela.nombre_dueno}</td>
+                <td className="px-4 py-2">{TIPOS_MORA[m.tipo] ?? m.tipo}</td>
                 <td className="px-4 py-2 text-gray-600">{m.descripcion}</td>
                 <td className="px-4 py-2 text-gray-500">{m.parcela.telefono || '—'}</td>
                 <td className="px-4 py-2 text-right font-bold text-red-600">{$(m.monto - m.monto_pagado)}</td>
               </tr>
             ))}
             {morasList.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Sin moras anteriores pendientes</td></tr>
+              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Sin moras anteriores pendientes</td></tr>
             )}
           </tbody>
           {morasList.length > 0 && (
             <tfoot>
               <tr className="border-t bg-gray-50 font-bold">
-                <td colSpan={3} className="px-4 py-2 text-right">Total moras anteriores</td>
+                <td colSpan={4} className="px-4 py-2 text-right">Total moras anteriores</td>
                 <td className="px-4 py-2 text-right text-red-600">{$(deudaMorasTotal)}</td>
               </tr>
             </tfoot>

@@ -11,15 +11,21 @@ interface PagoPendiente {
   metodo: string
   observacion: string | null
   comprobante_url: string | null
+  combinado: boolean
   created_at: string
+  tipo: 'luz' | 'gc'
   cuenta: {
     id: string
-    monto_prorrateado: number
+    monto_prorrateado?: number
+    monto?: number
     monto_pagado: number
     parcela: { numero: number; nombre_dueno: string }
     periodo: { mes: number; anio: number }
   }
 }
+
+const TIPO_BADGE: Record<string, string> = { luz: 'bg-yellow-100 text-yellow-800', gc: 'bg-purple-100 text-purple-700' }
+const TIPO_LABEL: Record<string, string> = { luz: '⚡ Luz', gc: '🏘️ Gastos Comunes' }
 
 export default function ValidarPagosPage() {
   const [pagos, setPagos] = useState<PagoPendiente[]>([])
@@ -28,9 +34,17 @@ export default function ValidarPagosPage() {
   const [procesando, setProcesando] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
-    const res = await fetch('/api/pagos/pendientes')
-    const data = await res.json()
-    setPagos(Array.isArray(data) ? data : [])
+    const [luzRes, gcRes] = await Promise.all([
+      fetch('/api/pagos/pendientes'),
+      fetch('/api/gc/pagos/pendientes'),
+    ])
+    const luz = await luzRes.json()
+    const gc = await gcRes.json()
+    const combinados = [
+      ...(Array.isArray(luz) ? luz.map((p: PagoPendiente) => ({ ...p, tipo: 'luz' as const })) : []),
+      ...(Array.isArray(gc) ? gc.map((p: PagoPendiente) => ({ ...p, tipo: 'gc' as const })) : []),
+    ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    setPagos(combinados)
     setLoading(false)
   }, [])
 
@@ -38,9 +52,10 @@ export default function ValidarPagosPage() {
 
   async function accion(pago: PagoPendiente, tipo: 'validar' | 'rechazar') {
     const verbo = tipo === 'validar' ? 'Validar' : 'RECHAZAR'
-    if (!confirm(`¿${verbo} el pago de $${pago.monto.toLocaleString('es-CL')} de #${pago.cuenta.parcela.numero} ${pago.cuenta.parcela.nombre_dueno}?`)) return
+    if (!confirm(`¿${verbo} el pago de $${pago.monto.toLocaleString('es-CL')} (${TIPO_LABEL[pago.tipo]}) de #${pago.cuenta.parcela.numero} ${pago.cuenta.parcela.nombre_dueno}?`)) return
     setProcesando(pago.id)
-    const res = await fetch(`/api/pagos/${pago.id}/validar`, {
+    const endpoint = pago.tipo === 'gc' ? `/api/gc/pagos/${pago.id}/validar` : `/api/pagos/${pago.id}/validar`
+    const res = await fetch(endpoint, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accion: tipo }),
@@ -77,10 +92,15 @@ export default function ValidarPagosPage() {
       ) : (
         <div className="space-y-3">
           {pagos.map(p => {
-            const saldo = p.cuenta.monto_prorrateado - p.cuenta.monto_pagado
+            const total = p.cuenta.monto_prorrateado ?? p.cuenta.monto ?? 0
+            const saldo = total - p.cuenta.monto_pagado
             return (
               <div key={p.id} className="bg-white rounded-xl border p-4 flex flex-wrap items-center gap-4">
                 <div className="flex-1 min-w-48">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIPO_BADGE[p.tipo]}`}>{TIPO_LABEL[p.tipo]}</span>
+                    {p.combinado && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">🔗 Combinado</span>}
+                  </div>
                   <p className="font-medium">#{p.cuenta.parcela.numero} — {p.cuenta.parcela.nombre_dueno}</p>
                   <p className="text-sm text-gray-500">
                     {meses[p.cuenta.periodo.mes - 1]} {p.cuenta.periodo.anio} · informado el {new Date(p.created_at).toLocaleDateString('es-CL')}
