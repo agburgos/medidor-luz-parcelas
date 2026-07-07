@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function GET() {
   const supabase = createServiceClient()
@@ -47,5 +49,9 @@ export async function POST(req: NextRequest) {
       : error.message
     return NextResponse.json({ error: msg }, { status: 400 })
   }
+
+  const sesion = await getSesion()
+  await registrar(sesion, 'crear_parcela', 'parcela', data.id, { numero, nombre_dueno })
+
   return NextResponse.json(data)
 }

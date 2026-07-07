@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 // Comité aprueba o rechaza una lectura enviada por el parcelero.
 // Aprobar la deja confirmada (entra al prorrateo). Rechazar permite reenvío.
@@ -39,5 +40,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  await registrar(sesion, accion === 'aprobar' ? 'aprobar_lectura' : 'rechazar_lectura', 'lectura', id, { motivo: accion === 'rechazar' ? motivo : undefined })
+
   return NextResponse.json(data)
 }

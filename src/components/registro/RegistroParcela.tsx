@@ -41,6 +41,11 @@ export default function RegistroParcela({ parcelaId, mostrarParcela = false }: {
   const [guardandoP, setGuardandoP] = useState(false)
   const [guardandoM, setGuardandoM] = useState(false)
 
+  const [editandoP, setEditandoP] = useState<string | null>(null)
+  const [editFormP, setEditFormP] = useState({ nombre: '', relacion: 'familiar', rut: '', telefono: '', email: '' })
+  const [editandoM, setEditandoM] = useState<string | null>(null)
+  const [editFormM, setEditFormM] = useState({ nombre: '', especie: 'perro', raza: '', color: '', chip: '' })
+
   const query = parcelaId ? `?parcela_id=${parcelaId}` : mostrarParcela ? '?todas=1' : ''
   // undefined = vista "todas las parcelas" (solo lectura); null o id = se puede agregar
   const puedeAgregar = parcelaId !== undefined
@@ -74,6 +79,23 @@ export default function RegistroParcela({ parcelaId, mostrarParcela = false }: {
     await cargar()
   }
 
+  function iniciarEdicionPersona(p: Persona) {
+    setEditandoP(p.id)
+    setEditFormP({ nombre: p.nombre, relacion: p.relacion, rut: p.rut || '', telefono: p.telefono || '', email: p.email || '' })
+  }
+
+  async function guardarEdicionPersona(id: string) {
+    const res = await fetch(`/api/registro/personas/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editFormP),
+    })
+    const data = await res.json()
+    setMensaje(res.ok ? '✅ Persona actualizada' : `❌ ${data.error}`)
+    if (res.ok) setEditandoP(null)
+    await cargar()
+  }
+
   async function agregarMascota(e: React.FormEvent) {
     e.preventDefault()
     setGuardandoM(true)
@@ -86,6 +108,23 @@ export default function RegistroParcela({ parcelaId, mostrarParcela = false }: {
     setMensaje(res.ok ? '✅ Mascota agregada' : `❌ ${data.error}`)
     if (res.ok) setFormM({ nombre: '', especie: 'perro', raza: '', color: '', chip: '' })
     setGuardandoM(false)
+    await cargar()
+  }
+
+  function iniciarEdicionMascota(m: Mascota) {
+    setEditandoM(m.id)
+    setEditFormM({ nombre: m.nombre, especie: m.especie, raza: m.raza || '', color: m.color || '', chip: m.chip || '' })
+  }
+
+  async function guardarEdicionMascota(id: string) {
+    const res = await fetch(`/api/registro/mascotas/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editFormM),
+    })
+    const data = await res.json()
+    setMensaje(res.ok ? '✅ Mascota actualizada' : `❌ ${data.error}`)
+    if (res.ok) setEditandoM(null)
     await cargar()
   }
 
@@ -120,17 +159,38 @@ export default function RegistroParcela({ parcelaId, mostrarParcela = false }: {
             </thead>
             <tbody>
               {personas.map(p => (
-                <tr key={p.id} className="border-t">
-                  {mostrarParcela && <td className="px-4 py-2 font-medium">#{p.parcela?.numero}</td>}
-                  <td className="px-4 py-2">{p.nombre}</td>
-                  <td className="px-4 py-2 text-gray-600">{RELACIONES[p.relacion] ?? p.relacion}</td>
-                  <td className="px-4 py-2 text-gray-500">{p.rut || '—'}</td>
-                  <td className="px-4 py-2 text-gray-500">{p.telefono || '—'}</td>
-                  <td className="px-4 py-2 text-gray-500">{p.email || '—'}</td>
-                  <td className="px-4 py-2">
-                    <button onClick={() => eliminar('personas', p.id, p.nombre)} className="text-xs text-red-500 hover:underline">Eliminar</button>
-                  </td>
-                </tr>
+                editandoP === p.id ? (
+                  <tr key={p.id} className="border-t bg-blue-50">
+                    <td colSpan={mostrarParcela ? 7 : 6} className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input type="text" value={editFormP.nombre} onChange={e => setEditFormP(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre" className="border rounded px-2 py-1 text-sm w-40" />
+                        <select value={editFormP.relacion} onChange={e => setEditFormP(f => ({ ...f, relacion: e.target.value }))} className="border rounded px-2 py-1 text-sm">
+                          {Object.entries(RELACIONES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <input type="text" value={editFormP.rut} onChange={e => setEditFormP(f => ({ ...f, rut: e.target.value }))} placeholder="RUT" className="border rounded px-2 py-1 text-sm w-28" />
+                        <input type="tel" value={editFormP.telefono} onChange={e => setEditFormP(f => ({ ...f, telefono: e.target.value }))} placeholder="Teléfono" className="border rounded px-2 py-1 text-sm w-32" />
+                        <input type="email" value={editFormP.email} onChange={e => setEditFormP(f => ({ ...f, email: e.target.value }))} placeholder="Email" className="border rounded px-2 py-1 text-sm w-44" />
+                        <button onClick={() => guardarEdicionPersona(p.id)} className="bg-green-600 text-white rounded px-3 py-1 text-xs font-medium hover:bg-green-700">Guardar</button>
+                        <button onClick={() => setEditandoP(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={p.id} className="border-t">
+                    {mostrarParcela && <td className="px-4 py-2 font-medium">#{p.parcela?.numero}</td>}
+                    <td className="px-4 py-2">{p.nombre}</td>
+                    <td className="px-4 py-2 text-gray-600">{RELACIONES[p.relacion] ?? p.relacion}</td>
+                    <td className="px-4 py-2 text-gray-500">{p.rut || '—'}</td>
+                    <td className="px-4 py-2 text-gray-500">{p.telefono || '—'}</td>
+                    <td className="px-4 py-2 text-gray-500">{p.email || '—'}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-2">
+                        <button onClick={() => iniciarEdicionPersona(p)} className="text-xs text-blue-600 hover:underline">Editar</button>
+                        <button onClick={() => eliminar('personas', p.id, p.nombre)} className="text-xs text-red-500 hover:underline">Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
               ))}
               {personas.length === 0 && (
                 <tr><td colSpan={mostrarParcela ? 7 : 6} className="px-4 py-5 text-center text-gray-400">Sin personas registradas</td></tr>
@@ -173,17 +233,38 @@ export default function RegistroParcela({ parcelaId, mostrarParcela = false }: {
             </thead>
             <tbody>
               {mascotas.map(m => (
-                <tr key={m.id} className="border-t">
-                  {mostrarParcela && <td className="px-4 py-2 font-medium">#{m.parcela?.numero}</td>}
-                  <td className="px-4 py-2">{m.nombre}</td>
-                  <td className="px-4 py-2">{ESPECIES[m.especie] ?? m.especie}</td>
-                  <td className="px-4 py-2 text-gray-500">{m.raza || '—'}</td>
-                  <td className="px-4 py-2 text-gray-500">{m.color || '—'}</td>
-                  <td className="px-4 py-2 text-gray-500">{m.chip || '—'}</td>
-                  <td className="px-4 py-2">
-                    <button onClick={() => eliminar('mascotas', m.id, m.nombre)} className="text-xs text-red-500 hover:underline">Eliminar</button>
-                  </td>
-                </tr>
+                editandoM === m.id ? (
+                  <tr key={m.id} className="border-t bg-blue-50">
+                    <td colSpan={mostrarParcela ? 7 : 6} className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input type="text" value={editFormM.nombre} onChange={e => setEditFormM(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre" className="border rounded px-2 py-1 text-sm w-32" />
+                        <select value={editFormM.especie} onChange={e => setEditFormM(f => ({ ...f, especie: e.target.value }))} className="border rounded px-2 py-1 text-sm">
+                          {Object.entries(ESPECIES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <input type="text" value={editFormM.raza} onChange={e => setEditFormM(f => ({ ...f, raza: e.target.value }))} placeholder="Raza" className="border rounded px-2 py-1 text-sm w-28" />
+                        <input type="text" value={editFormM.color} onChange={e => setEditFormM(f => ({ ...f, color: e.target.value }))} placeholder="Color" className="border rounded px-2 py-1 text-sm w-24" />
+                        <input type="text" value={editFormM.chip} onChange={e => setEditFormM(f => ({ ...f, chip: e.target.value }))} placeholder="N° chip" className="border rounded px-2 py-1 text-sm w-32" />
+                        <button onClick={() => guardarEdicionMascota(m.id)} className="bg-green-600 text-white rounded px-3 py-1 text-xs font-medium hover:bg-green-700">Guardar</button>
+                        <button onClick={() => setEditandoM(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={m.id} className="border-t">
+                    {mostrarParcela && <td className="px-4 py-2 font-medium">#{m.parcela?.numero}</td>}
+                    <td className="px-4 py-2">{m.nombre}</td>
+                    <td className="px-4 py-2">{ESPECIES[m.especie] ?? m.especie}</td>
+                    <td className="px-4 py-2 text-gray-500">{m.raza || '—'}</td>
+                    <td className="px-4 py-2 text-gray-500">{m.color || '—'}</td>
+                    <td className="px-4 py-2 text-gray-500">{m.chip || '—'}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex gap-2">
+                        <button onClick={() => iniciarEdicionMascota(m)} className="text-xs text-blue-600 hover:underline">Editar</button>
+                        <button onClick={() => eliminar('mascotas', m.id, m.nombre)} className="text-xs text-red-500 hover:underline">Eliminar</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
               ))}
               {mascotas.length === 0 && (
                 <tr><td colSpan={mostrarParcela ? 7 : 6} className="px-4 py-5 text-center text-gray-400">Sin mascotas registradas</td></tr>

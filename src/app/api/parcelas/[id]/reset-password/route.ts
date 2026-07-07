@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { randomBytes } from 'crypto'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,6 +28,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/bienvenida` },
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    const sesion = await getSesion()
+    await registrar(sesion, 'reset_password_correo', 'parcela', id, { email: parcela.email })
     return NextResponse.json({ enviado: true, mensaje: `Correo de recuperación enviado a ${parcela.email}` })
   }
 
@@ -35,6 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     password: tempPassword,
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  const sesion = await getSesion()
+  await registrar(sesion, 'reset_password_temporal', 'parcela', id, { nombre_dueno: parcela.nombre_dueno })
 
   return NextResponse.json({
     password_temporal: tempPassword,

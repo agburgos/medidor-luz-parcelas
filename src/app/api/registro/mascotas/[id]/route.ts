@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion, puedeEditarParcela } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 async function validar(id: string) {
   const supabase = createServiceClient()
-  const { data } = await supabase.from('mascotas').select('id, parcela_id').eq('id', id).single()
+  const { data } = await supabase.from('mascotas').select('id, parcela_id, nombre').eq('id', id).single()
   return { supabase, mascota: data }
 }
 
@@ -26,6 +27,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data, error } = await supabase.from('mascotas').update(update).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  await registrar(sesion, 'editar_mascota', 'mascota', id, { nombre: mascota.nombre, cambios: update })
   return NextResponse.json(data)
 }
 
@@ -41,5 +44,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { error } = await supabase.from('mascotas').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  await registrar(sesion, 'eliminar_mascota', 'mascota', id, { nombre: mascota.nombre })
   return NextResponse.json({ eliminada: true })
 }

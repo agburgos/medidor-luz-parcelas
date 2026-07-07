@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion, puedeEditarParcela } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function GET(req: NextRequest) {
   const sesion = await getSesion()
@@ -56,5 +57,10 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  if (sesion.rol === 'comite') {
+    await registrar(sesion, 'agregar_persona', 'persona', data.id, { nombre: body.nombre, parcela_id })
+  }
+
   return NextResponse.json(data)
 }

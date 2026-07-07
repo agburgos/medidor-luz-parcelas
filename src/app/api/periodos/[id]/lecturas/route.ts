@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: periodo_id } = await params
@@ -25,5 +27,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .upsert(rows, { onConflict: 'periodo_id,parcela_id' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  const sesion = await getSesion()
+  await registrar(sesion, 'guardar_lecturas_masivo', 'periodo_facturacion', periodo_id, { cantidad: rows.length })
+
   return NextResponse.json({ guardadas: rows.length })
 }

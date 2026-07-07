@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ acuerdoId: string }> }) {
   const { acuerdoId } = await params
@@ -16,5 +17,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ac
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  await registrar(sesion, 'cambiar_estado_acuerdo', 'asamblea_acuerdo', acuerdoId, { estado: body.estado })
+
   return NextResponse.json(data)
 }

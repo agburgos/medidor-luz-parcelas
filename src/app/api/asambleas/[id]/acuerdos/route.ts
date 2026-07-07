@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,5 +23,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  await registrar(sesion, 'crear_acuerdo', 'asamblea', id, { descripcion: body.descripcion })
+
   return NextResponse.json(data)
 }

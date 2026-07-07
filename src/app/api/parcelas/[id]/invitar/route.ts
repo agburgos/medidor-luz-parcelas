@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -30,6 +32,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       )
       if (existente) {
         await supabase.from('parcelas').update({ user_id: existente.id }).eq('id', id)
+        await registrarInvitacion(id, parcela.email)
         return NextResponse.json({ vinculado: true, mensaje: 'El usuario ya existía y fue vinculado a la parcela' })
       }
     }
@@ -38,6 +41,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   // Vincular el nuevo usuario a la parcela
   await supabase.from('parcelas').update({ user_id: inviteData.user.id }).eq('id', id)
+  await registrarInvitacion(id, parcela.email)
 
   return NextResponse.json({ invitado: true, email: parcela.email })
+}
+
+async function registrarInvitacion(parcelaId: string, email: string) {
+  const sesion = await getSesion()
+  await registrar(sesion, 'invitar_parcela', 'parcela', parcelaId, { email })
 }

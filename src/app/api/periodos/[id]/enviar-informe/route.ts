@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -64,6 +66,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       errores.push(`#${f.numero}: ${e instanceof Error ? e.message : 'error'}`)
     }
   }
+
+  const sesion = await getSesion()
+  await registrar(sesion, 'enviar_informe_consumo', 'periodo_facturacion', id, { enviados })
 
   return NextResponse.json({
     enviados,
