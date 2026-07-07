@@ -10,21 +10,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const update: Record<string, unknown> = {}
   if (body.estado) update.estado = body.estado
-  if (body.monto_pagado !== undefined) update.monto_pagado = Number(body.monto_pagado)
   if (body.observaciones !== undefined) update.observaciones = body.observaciones
-  if (body.fecha_pago) update.fecha_pago = body.fecha_pago
 
-  const { data, error } = await supabase
-    .from('cuentas_parcela')
-    .update(update)
-    .eq('id', id)
-    .select()
-    .single()
-
+  const { data, error } = await supabase.from('cuentas_gc').update(update).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   const sesion = await getSesion()
-  await registrar(sesion, 'editar_cuenta', 'cuenta_parcela', id, update)
+  await registrar(sesion, 'editar_cuenta_gc', 'cuenta_gc', id, update)
 
   return NextResponse.json(data)
 }

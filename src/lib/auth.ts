@@ -4,9 +4,11 @@ export interface Sesion {
   userId: string
   rol: 'comite' | 'parcelero'
   parcelaId: string | null
+  nombre: string | null
+  cargo: string | null
 }
 
-// Identifica al usuario actual, su rol y su parcela (si es parcelero).
+// Identifica al usuario actual, su rol, cargo y su parcela (si es parcelero).
 export async function getSesion(): Promise<Sesion | null> {
   const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
@@ -14,7 +16,7 @@ export async function getSesion(): Promise<Sesion | null> {
 
   const service = createServiceClient()
   const [{ data: perfil }, { data: parcela }] = await Promise.all([
-    service.from('perfiles').select('rol').eq('id', user.id).single(),
+    service.from('perfiles').select('rol, nombre, cargo').eq('id', user.id).single(),
     service.from('parcelas').select('id').eq('user_id', user.id).maybeSingle(),
   ])
 
@@ -22,6 +24,8 @@ export async function getSesion(): Promise<Sesion | null> {
     userId: user.id,
     rol: perfil?.rol === 'comite' ? 'comite' : 'parcelero',
     parcelaId: parcela?.id ?? null,
+    nombre: perfil?.nombre ?? null,
+    cargo: perfil?.cargo ?? null,
   }
 }
 

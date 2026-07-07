@@ -21,6 +21,7 @@ export default function PagosCuenta({
   montoPagado,
   onCerrar,
   onActualizado,
+  apiBase = '/api/cuentas',
 }: {
   cuentaId: string
   numero: number
@@ -29,6 +30,7 @@ export default function PagosCuenta({
   montoPagado: number
   onCerrar: () => void
   onActualizado: () => void
+  apiBase?: string
 }) {
   const [pagos, setPagos] = useState<Pago[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +46,7 @@ export default function PagosCuenta({
   const [guardando, setGuardando] = useState(false)
 
   const cargar = useCallback(async () => {
-    const res = await fetch(`/api/cuentas/${cuentaId}/pagos`)
+    const res = await fetch(`${apiBase}/${cuentaId}/pagos`)
     const data = await res.json()
     setPagos(Array.isArray(data) ? data : [])
     setLoading(false)
@@ -63,7 +65,7 @@ export default function PagosCuenta({
     fd.append('observacion', form.observacion)
     if (comprobante) fd.append('comprobante', comprobante)
 
-    const res = await fetch(`/api/cuentas/${cuentaId}/pagos`, { method: 'POST', body: fd })
+    const res = await fetch(`${apiBase}/${cuentaId}/pagos`, { method: 'POST', body: fd })
     const data = await res.json()
     if (!res.ok) {
       setMensaje(`❌ ${data.error}`)

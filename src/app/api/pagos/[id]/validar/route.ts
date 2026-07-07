@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 // El comité valida o rechaza un pago informado.
 // Solo los pagos VALIDADOS suman al saldo de la cuenta.
@@ -58,6 +60,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .from('cuentas_parcela')
     .update({ monto_pagado: totalPagado, estado: nuevoEstado })
     .eq('id', pago.cuenta_id)
+
+  const sesion = await getSesion()
+  await registrar(sesion, accion === 'validar' ? 'validar_pago' : 'rechazar_pago', 'pago', id, { cuenta_id: pago.cuenta_id })
 
   return NextResponse.json({ ok: true, monto_pagado: totalPagado, estado_cuenta: nuevoEstado })
 }

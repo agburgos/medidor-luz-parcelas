@@ -5,8 +5,8 @@ import "./globals.css";
 const geist = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Macrolote COPOSA",
-  description: "Sistema de prorrateo y cobranza eléctrica — Macrolote COPOSA",
+  title: "Sistema de Gestión Macrolote COPOSA",
+  description: "Gestión integral: luz, gastos comunes, asambleas y registro comunitario",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

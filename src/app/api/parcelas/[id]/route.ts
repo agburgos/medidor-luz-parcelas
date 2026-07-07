@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,12 +24,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  const sesion = await getSesion()
+  await registrar(sesion, 'editar_parcela', 'parcela', id, update)
+
   return NextResponse.json(data)
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createServiceClient()
+  const sesion = await getSesion()
 
   // Verificar si tiene historial; si lo tiene, solo desactivar
   const { count } = await supabase
@@ -41,10 +48,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       .update({ activa: false })
       .eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    await registrar(sesion, 'desactivar_parcela', 'parcela', id)
     return NextResponse.json({ desactivada: true, mensaje: 'La parcela tiene historial, se desactivó en vez de eliminar' })
   }
 
   const { error } = await supabase.from('parcelas').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  await registrar(sesion, 'eliminar_parcela', 'parcela', id)
   return NextResponse.json({ eliminada: true })
 }
