@@ -49,6 +49,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     comunidad_id: string; alertas_activas: boolean
     dias_aviso_vencimiento: number; dias_aviso_corte: number
     frecuencia_reenvio_dias: number; max_por_dia: number
+    dia_tope_lectura?: number; avisar_lectura_dias_antes?: number
   }
   const configPorComunidad = new Map<string, Config>(
     ((configs ?? []) as Config[]).map(c => [c.comunidad_id, c])
@@ -75,6 +76,70 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
         .eq('periodo_id', periodo.id)
         .in('estado', ['pendiente', 'pago_parcial'])
     }
+    // ---- Recordatorio de autolectura ----
+    // Se avisa a las parcelas que aún no envían su lectura cuando se acerca
+    // (o pasó) el día tope del mes del período.
+    const diaTope = config.dia_tope_lectura ?? 10
+    const fechaTope = new Date(periodo.anio, periodo.mes - 1, diaTope)
+    const diasParaTope = Math.ceil((fechaTope.getTime() - hoy.getTime()) / 86400000)
+    const debeRecordarLectura = forzar ||
+      (diasParaTope <= (config.avisar_lectura_dias_antes ?? 3) && diasParaTope >= -15)
+
+    if (debeRecordarLectura) {
+      const [{ data: parcelasActivas }, { data: lecturasPeriodo }, { data: alertasLectura }] = await Promise.all([
+        supabase.from('parcelas').select('id, numero, nombre_dueno, email').eq('activa', true).not('email', 'is', null),
+        supabase.from('lecturas').select('parcela_id, estado_validacion').eq('periodo_id', periodo.id),
+        supabase.from('alertas_enviadas').select('parcela_id, ultima_vez').eq('periodo_id', periodo.id).eq('tipo', 'lectura'),
+      ])
+
+      const conLectura = new Set(
+        (lecturasPeriodo ?? [])
+          .filter((l: { estado_validacion: string }) => l.estado_validacion !== 'rechazada')
+          .map((l: { parcela_id: string }) => l.parcela_id)
+      )
+      const msReenvioLect = (config.frecuencia_reenvio_dias ?? 0) > 0
+        ? config.frecuencia_reenvio_dias * 86400000
+        : Infinity
+      const yaAvisadas = new Set(
+        (alertasLectura ?? [])
+          .filter((a: { ultima_vez: string | null }) =>
+            !a.ultima_vez || Date.now() - new Date(a.ultima_vez).getTime() < msReenvioLect
+          )
+          .map((a: { parcela_id: string }) => a.parcela_id)
+      )
+
+      for (const p of (parcelasActivas ?? []) as { id: string; numero: number; nombre_dueno: string; email: string }[]) {
+        if (enviados >= config.max_por_dia && !forzar) break
+        if (conLectura.has(p.id)) continue
+        if (!forzar && yaAvisadas.has(p.id)) continue
+
+        await getResend().emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
+          to: p.email,
+          subject: diasParaTope >= 0
+            ? `📸 Recuerda subir la lectura de tu medidor (plazo: ${fechaTope.toLocaleDateString('es-CL')})`
+            : `⚠️ Aún no envías la lectura de tu medidor - ${meses[periodo.mes - 1]} ${periodo.anio}`,
+          html: emailLectura({
+            nombre: p.nombre_dueno,
+            numeroParcela: p.numero,
+            periodo: `${meses[periodo.mes - 1]} ${periodo.anio}`,
+            fechaTope: fechaTope.toLocaleDateString('es-CL'),
+            vencido: diasParaTope < 0,
+            appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
+          }),
+        })
+        if (!forzar) {
+          await supabase.from('alertas_enviadas').upsert({
+            tipo: 'lectura',
+            periodo_id: periodo.id,
+            parcela_id: p.id,
+            ultima_vez: new Date().toISOString(),
+          }, { onConflict: 'tipo,periodo_id,parcela_id' })
+        }
+        enviados++
+      }
+    }
+
     const fechaCorte = periodo.fecha_corte ? new Date(periodo.fecha_corte + 'T00:00:00') : null
 
     const diasVenc = fechaVenc ? Math.ceil((fechaVenc.getTime() - hoy.getTime()) / 86400000) : null
@@ -182,6 +247,23 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
   }
 
   return NextResponse.json({ enviados })
+}
+
+function emailLectura(d: {
+  nombre: string; numeroParcela: number; periodo: string;
+  fechaTope: string; vencido: boolean; appUrl: string
+}) {
+  return `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+  <h2 style="color:${d.vencido ? '#dc2626' : '#1d4ed8'};">📸 ${d.vencido ? 'Lectura de medidor atrasada' : 'Recuerda subir tu lectura de medidor'}</h2>
+  <p>Hola <strong>${d.nombre}</strong> (Parcela #${d.numeroParcela}),</p>
+  <p>${d.vencido
+    ? `El plazo para enviar la lectura de tu medidor del período <strong>${d.periodo}</strong> venció el <strong>${d.fechaTope}</strong>. Por favor súbela lo antes posible para que tu consumo quede bien calculado.`
+    : `Falta poco para el cierre de lecturas del período <strong>${d.periodo}</strong>. Tienes plazo hasta el <strong>${d.fechaTope}</strong>.`}</p>
+  <p>Es muy simple: entra al sistema, anota el número de tu medidor y sube una foto donde se vea claro.</p>
+  <a href="${d.appUrl}/parcelero" style="display:inline-block;background:#1d4ed8;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Subir mi lectura</a>
+  <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA — Recordatorio automático</p>
+</div>`
 }
 
 function emailVencimiento(d: {

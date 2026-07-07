@@ -21,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!periodo) return NextResponse.json({ error: 'Período no encontrado' }, { status: 404 })
 
-  const [{ data: lecturas }, { data: cuentas }, { data: todasLecturas }] = await Promise.all([
+  const [{ data: lecturas }, { data: cuentas }, { data: todasLecturas }, { data: morasData }] = await Promise.all([
     supabase
       .from('lecturas')
       .select('*, parcela:parcelas(id,numero,nombre_dueno,email)')
@@ -35,6 +35,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .from('lecturas')
       .select('parcela_id, consumo_kwh, estado, periodo:periodos_facturacion(anio,mes)')
       .eq('confirmado', true),
+    // Moras anteriores no regularizadas
+    supabase
+      .from('moras_anteriores')
+      .select('parcela_id, monto, monto_pagado, estado')
+      .neq('estado', 'pagado'),
   ])
 
   if (!lecturas || lecturas.length === 0) {
@@ -54,6 +59,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const cuentasMap = new Map(cuentas?.map((c: { parcela_id: string }) => [c.parcela_id, c]) ?? [])
 
+  // Mora anterior pendiente por parcela
+  const morasMap = new Map<string, number>()
+  for (const m of (morasData ?? []) as { parcela_id: string; monto: number; monto_pagado: number }[]) {
+    morasMap.set(m.parcela_id, (morasMap.get(m.parcela_id) ?? 0) + (Number(m.monto) - Number(m.monto_pagado)))
+  }
+
   type LecturaFila = {
     parcela: { id: string; numero: number; nombre_dueno: string; email: string | null }
     lectura_anterior: number
@@ -66,7 +77,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .sort((a, b) => a.parcela.numero - b.parcela.numero)
     .map(l => {
       const cuenta = cuentasMap.get(l.parcela.id) as { monto_consumo: number; monto_cargo_fijo: number; monto_prorrateado: number; estado: string } | undefined
+      const moraAnterior = morasMap.get(l.parcela.id) ?? 0
       return {
+        mora_anterior: moraAnterior,
+        total_con_mora: (cuenta?.monto_prorrateado ?? 0) + moraAnterior,
         numero: l.parcela.numero,
         nombre: l.parcela.nombre_dueno,
         email: l.parcela.email,

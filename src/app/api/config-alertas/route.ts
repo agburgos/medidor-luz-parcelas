@@ -29,6 +29,8 @@ export async function PUT(req: NextRequest) {
     dias_aviso_corte: Math.max(0, Number(body.dias_aviso_corte ?? 3)),
     frecuencia_reenvio_dias: Math.max(0, Number(body.frecuencia_reenvio_dias ?? 0)),
     max_por_dia: Math.max(1, Number(body.max_por_dia ?? 200)),
+    dia_tope_lectura: Math.min(28, Math.max(1, Number(body.dia_tope_lectura ?? 10))),
+    avisar_lectura_dias_antes: Math.max(0, Number(body.avisar_lectura_dias_antes ?? 3)),
     updated_at: new Date().toISOString(),
   }
 

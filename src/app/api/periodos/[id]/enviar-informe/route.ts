@@ -40,7 +40,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     <tr><td style="padding:6px;border:1px solid #e5e7eb;">Consumo acumulado</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${f.consumo_acumulado} kWh</td></tr>
     <tr><td style="padding:6px;border:1px solid #e5e7eb;">Costo consumo (${$(periodo.costo_unitario_kwh)}/kWh)</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${$(f.monto_consumo)}</td></tr>
     <tr><td style="padding:6px;border:1px solid #e5e7eb;">Cargo fijo</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${$(f.monto_cargo_fijo)}</td></tr>
-    <tr style="background:#eff6ff;"><td style="padding:6px;border:1px solid #e5e7eb;font-weight:bold;">TOTAL A PAGAR</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;font-weight:bold;color:#1d4ed8;">${$(f.total_pagar)}</td></tr>
+    <tr><td style="padding:6px;border:1px solid #e5e7eb;">Total del mes</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;">${$(f.total_pagar)}</td></tr>
+    ${f.mora_anterior > 0 ? `<tr><td style="padding:6px;border:1px solid #e5e7eb;color:#dc2626;">Mora anterior pendiente</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;color:#dc2626;font-weight:bold;">${$(f.mora_anterior)}</td></tr>` : ''}
+    <tr style="background:#eff6ff;"><td style="padding:6px;border:1px solid #e5e7eb;font-weight:bold;">TOTAL A PAGAR</td><td style="padding:6px;border:1px solid #e5e7eb;text-align:right;font-weight:bold;color:#1d4ed8;">${$(f.total_con_mora ?? f.total_pagar)}</td></tr>
   </table>
   ${f.estado_lectura ? `<p style="color:#b45309;background:#fef3c7;padding:8px;border-radius:6px;font-size:13px;">Nota: tu lectura este mes figura como <strong>${f.estado_lectura}</strong>.</p>` : ''}
   <p style="font-weight:bold;">Plazo para pagar: ${periodo.fecha_vencimiento ? new Date(periodo.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</p>

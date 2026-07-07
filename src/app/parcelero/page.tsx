@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import InformarPago from '@/components/parcelero/InformarPago'
+import SubirLectura from '@/components/parcelero/SubirLectura'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -86,6 +87,9 @@ export default async function ParceleroDashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-1">Mi cuenta — Parcela #{parcela.numero}</h1>
       <p className="text-gray-500 mb-6">{parcela.nombre_dueno}</p>
+
+      {/* Autolectura del período abierto */}
+      <SubirLectura />
 
       {/* Resumen superior */}
       <div className="grid grid-cols-3 gap-4 mb-6">

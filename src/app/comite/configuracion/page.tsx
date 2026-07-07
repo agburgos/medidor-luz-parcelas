@@ -9,6 +9,8 @@ interface Config {
   dias_aviso_corte: number
   frecuencia_reenvio_dias: number
   max_por_dia: number
+  dia_tope_lectura: number
+  avisar_lectura_dias_antes: number
   comunidad?: { nombre: string }
 }
 
@@ -114,6 +116,33 @@ export default function ConfiguracionPage() {
                 min={1} max={2000}
                 className="border rounded-lg px-3 py-2 text-sm w-24"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Día tope para subir lectura</label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">día</span>
+                <input
+                  type="number"
+                  value={config.dia_tope_lectura}
+                  onChange={e => setConfig(c => c && { ...c, dia_tope_lectura: Number(e.target.value) })}
+                  min={1} max={28}
+                  className="border rounded-lg px-3 py-2 text-sm w-20"
+                />
+                <span className="text-sm text-gray-500">de cada mes</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Recordar lectura con anticipación</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={config.avisar_lectura_dias_antes}
+                  onChange={e => setConfig(c => c && { ...c, avisar_lectura_dias_antes: Number(e.target.value) })}
+                  min={0} max={15}
+                  className="border rounded-lg px-3 py-2 text-sm w-20"
+                />
+                <span className="text-sm text-gray-500">días antes del tope</span>
+              </div>
             </div>
           </div>
         </div>

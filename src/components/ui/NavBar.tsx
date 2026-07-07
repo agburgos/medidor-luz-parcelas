@@ -25,6 +25,7 @@ export default function NavBar({ rol }: { rol: Rol }) {
             <Link href="/comite" className="text-sm text-gray-600 hover:text-blue-700">Dashboard</Link>
             <Link href="/comite/periodos" className="text-sm text-gray-600 hover:text-blue-700">Períodos</Link>
             <Link href="/comite/parcelas" className="text-sm text-gray-600 hover:text-blue-700">Parcelas</Link>
+            <Link href="/comite/lecturas" className="text-sm text-gray-600 hover:text-blue-700">Validar lecturas</Link>
             <Link href="/comite/pagos" className="text-sm text-gray-600 hover:text-blue-700">Validar pagos</Link>
             <Link href="/comite/reportes" className="text-sm text-gray-600 hover:text-blue-700">Reportes</Link>
             <Link href="/comite/registro" className="text-sm text-gray-600 hover:text-blue-700">Registro</Link>

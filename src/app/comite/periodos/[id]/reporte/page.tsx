@@ -6,6 +6,8 @@ import { useParams } from 'next/navigation'
 const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE']
 
 interface Fila {
+  mora_anterior: number
+  total_con_mora: number
   numero: number
   nombre: string
   email: string | null
@@ -107,6 +109,8 @@ function ReporteContenido({ periodo, filas, resumen, onEnviar, enviando, mensaje
               <th className="border px-2 py-1.5 bg-yellow-50">CONSUMO ACUMULADO</th>
               <th className="border px-2 py-1.5">COSTO CONSUMO</th>
               <th className="border px-2 py-1.5">CARGO FIJO</th>
+              <th className="border px-2 py-1.5">TOTAL MES</th>
+              <th className="border px-2 py-1.5 bg-red-50">MORA ANTERIOR</th>
               <th className="border px-2 py-1.5">TOTAL A PAGAR</th>
             </tr>
           </thead>
@@ -121,8 +125,12 @@ function ReporteContenido({ periodo, filas, resumen, onEnviar, enviando, mensaje
                 <td className="border px-2 py-1 text-right font-medium bg-yellow-50">{f.consumo_acumulado}</td>
                 <td className="border px-2 py-1 text-right">{$(f.monto_consumo)}</td>
                 <td className="border px-2 py-1 text-right">{$(f.monto_cargo_fijo)}</td>
+                <td className="border px-2 py-1 text-right">{f.estado_lectura === 'DESCONECTADO' ? '—' : $(f.total_pagar)}</td>
+                <td className={`border px-2 py-1 text-right ${f.mora_anterior > 0 ? 'text-red-600 font-medium bg-red-50' : 'text-gray-300'}`}>
+                  {f.mora_anterior > 0 ? $(f.mora_anterior) : '—'}
+                </td>
                 <td className="border px-2 py-1 text-right font-bold">
-                  {f.estado_lectura === 'DESCONECTADO' ? 'DESCONECTADO' : $(f.total_pagar)}
+                  {f.estado_lectura === 'DESCONECTADO' ? 'DESCONECTADO' : $(f.total_con_mora)}
                 </td>
               </tr>
             ))}
