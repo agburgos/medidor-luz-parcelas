@@ -19,6 +19,8 @@ interface Fila {
   monto_consumo: number
   monto_cargo_fijo: number
   total_pagar: number
+  monto_pagado: number
+  saldo_final: number
   estado_pago: string
 }
 
@@ -30,7 +32,7 @@ interface Reporte {
   }
   filas: Fila[]
   resumen: {
-    total_kwh: number; total_cobrado: number; excedente: number
+    total_kwh: number; total_cobrado: number; total_pagado: number; saldo_total: number; excedente: number
     consumo_general_kwh: number | null; perdida_kwh: number | null
     parcelas_con_consumo: number; parcelas_total: number
   }
@@ -112,6 +114,8 @@ function ReporteContenido({ periodo, filas, resumen, onEnviar, enviando, mensaje
               <th className="border px-2 py-1.5">TOTAL MES</th>
               <th className="border px-2 py-1.5 bg-red-50">MORA ANTERIOR</th>
               <th className="border px-2 py-1.5">TOTAL A PAGAR</th>
+              <th className="border px-2 py-1.5 bg-green-50">ABONO/PAGO</th>
+              <th className="border px-2 py-1.5">SALDO A PAGAR</th>
             </tr>
           </thead>
           <tbody>
@@ -131,6 +135,12 @@ function ReporteContenido({ periodo, filas, resumen, onEnviar, enviando, mensaje
                 </td>
                 <td className="border px-2 py-1 text-right font-bold">
                   {f.estado_lectura === 'DESCONECTADO' ? 'DESCONECTADO' : $(f.total_con_mora)}
+                </td>
+                <td className="border px-2 py-1 text-right text-green-700 bg-green-50">
+                  {f.monto_pagado > 0 ? $(f.monto_pagado) : '—'}
+                </td>
+                <td className={`border px-2 py-1 text-right font-bold ${f.saldo_final > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {f.estado_lectura === 'DESCONECTADO' ? '—' : f.saldo_final > 0 ? $(f.saldo_final) : '✓ Al día'}
                 </td>
               </tr>
             ))}
@@ -160,6 +170,8 @@ function ReporteContenido({ periodo, filas, resumen, onEnviar, enviando, mensaje
                 <tr className="border-t"><td className="py-0.5 font-bold">Factura a pagar (IEL S.A.)</td><td className="text-right font-bold">{$(periodo.monto_total_factura)}</td></tr>
                 <tr><td className="py-0.5 font-bold">Total cobrado a parcelas</td><td className="text-right font-bold">{$(resumen.total_cobrado)}</td></tr>
                 <tr><td className="py-0.5">Excedente</td><td className="text-right">{$(resumen.excedente)}</td></tr>
+                <tr className="border-t"><td className="py-0.5 font-bold text-green-700">Total abonado/pagado</td><td className="text-right font-bold text-green-700">{$(resumen.total_pagado)}</td></tr>
+                <tr><td className="py-0.5 font-bold text-red-600">Saldo total a pagar</td><td className="text-right font-bold text-red-600">{$(resumen.saldo_total)}</td></tr>
               </tbody>
             </table>
           </div>

@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .eq('periodo_id', id),
     supabase
       .from('cuentas_parcela')
-      .select('parcela_id, monto_consumo, monto_cargo_fijo, monto_prorrateado, estado')
+      .select('parcela_id, monto_consumo, monto_cargo_fijo, monto_prorrateado, monto_pagado, estado')
       .eq('periodo_id', id),
     // Todas las lecturas históricas confirmadas para calcular consumo acumulado
     supabase
@@ -76,11 +76,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const filas = (lecturas as unknown as LecturaFila[])
     .sort((a, b) => a.parcela.numero - b.parcela.numero)
     .map(l => {
-      const cuenta = cuentasMap.get(l.parcela.id) as { monto_consumo: number; monto_cargo_fijo: number; monto_prorrateado: number; estado: string } | undefined
+      const cuenta = cuentasMap.get(l.parcela.id) as { monto_consumo: number; monto_cargo_fijo: number; monto_prorrateado: number; monto_pagado: number; estado: string } | undefined
       const moraAnterior = morasMap.get(l.parcela.id) ?? 0
+      const totalConMora = (cuenta?.monto_prorrateado ?? 0) + moraAnterior
+      const montoPagado = cuenta?.monto_pagado ?? 0
       return {
         mora_anterior: moraAnterior,
-        total_con_mora: (cuenta?.monto_prorrateado ?? 0) + moraAnterior,
+        total_con_mora: totalConMora,
         numero: l.parcela.numero,
         nombre: l.parcela.nombre_dueno,
         email: l.parcela.email,
@@ -92,12 +94,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         monto_consumo: cuenta?.monto_consumo ?? 0,
         monto_cargo_fijo: cuenta?.monto_cargo_fijo ?? 0,
         total_pagar: cuenta?.monto_prorrateado ?? 0,
+        monto_pagado: montoPagado,
+        saldo_final: Math.max(totalConMora - montoPagado, 0),
         estado_pago: cuenta?.estado ?? 'sin_cuenta',
       }
     })
 
   const totalKwh = filas.reduce((s, f) => s + Number(f.consumo_kwh), 0)
   const totalCobrado = filas.reduce((s, f) => s + f.total_pagar, 0)
+  const totalPagado = filas.reduce((s, f) => s + f.monto_pagado, 0)
+  const saldoTotal = filas.reduce((s, f) => s + f.saldo_final, 0)
   const consumoGeneral = periodo.lectura_general_actual != null && periodo.lectura_general_anterior != null
     ? periodo.lectura_general_actual - periodo.lectura_general_anterior
     : null
@@ -118,6 +124,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     resumen: {
       total_kwh: totalKwh,
       total_cobrado: totalCobrado,
+      total_pagado: totalPagado,
+      saldo_total: saldoTotal,
       excedente: totalCobrado - (periodo.monto_total_factura ?? 0),
       consumo_general_kwh: consumoGeneral,
       perdida_kwh: consumoGeneral != null ? consumoGeneral - totalKwh : null,
