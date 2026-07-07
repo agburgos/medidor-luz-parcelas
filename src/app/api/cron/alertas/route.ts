@@ -41,9 +41,30 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     return NextResponse.json({ enviados: 0, mensaje: 'Sin períodos abiertos' })
   }
 
+  // Configuración de alertas por comunidad (macrolote)
+  const { data: configs } = await supabase
+    .from('config_alertas')
+    .select('*')
+  type Config = {
+    comunidad_id: string; alertas_activas: boolean
+    dias_aviso_vencimiento: number; dias_aviso_corte: number
+    frecuencia_reenvio_dias: number; max_por_dia: number
+  }
+  const configPorComunidad = new Map<string, Config>(
+    ((configs ?? []) as Config[]).map(c => [c.comunidad_id, c])
+  )
+  const configDefault: Config = {
+    comunidad_id: '', alertas_activas: true,
+    dias_aviso_vencimiento: 5, dias_aviso_corte: 3,
+    frecuencia_reenvio_dias: 0, max_por_dia: 200,
+  }
+
   let enviados = 0
 
   for (const periodo of periodos) {
+    const config = configPorComunidad.get(periodo.comunidad_id) ?? configDefault
+    if (!config.alertas_activas && !forzar) continue
+
     const fechaVenc = periodo.fecha_vencimiento ? new Date(periodo.fecha_vencimiento + 'T00:00:00') : null
 
     // Paso automático a mora: cuentas con saldo pendiente de períodos ya vencidos
@@ -59,10 +80,10 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     const diasVenc = fechaVenc ? Math.ceil((fechaVenc.getTime() - hoy.getTime()) / 86400000) : null
     const diasCorte = fechaCorte ? Math.ceil((fechaCorte.getTime() - hoy.getTime()) / 86400000) : null
 
-    // Enviar alerta de vencimiento si faltan ≤ 5 días o ya venció
-    const debeAlertarVenc = forzar || (diasVenc !== null && diasVenc <= 5)
-    // Enviar alerta de corte si faltan ≤ 3 días
-    const debeAlertarCorte = forzar || (diasCorte !== null && diasCorte <= 3 && diasCorte >= 0)
+    // Enviar alerta de vencimiento si faltan ≤ N días (configurable) o ya venció
+    const debeAlertarVenc = forzar || (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento)
+    // Enviar alerta de corte si faltan ≤ N días (configurable)
+    const debeAlertarCorte = forzar || (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0)
 
     if (!debeAlertarVenc && !debeAlertarCorte) continue
 
@@ -75,15 +96,27 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
 
     if (!cuentas || cuentas.length === 0) continue
 
-    // Verificar cuáles ya recibieron alerta (para no duplicar), excepto si se fuerza
+    // Verificar cuáles ya recibieron alerta (para no duplicar), excepto si se fuerza.
+    // Si hay frecuencia de reenvío configurada, una alerta "expira" pasados N días
+    // y se vuelve a enviar.
     const { data: alertasYaEnviadas } = await supabase
       .from('alertas_enviadas')
-      .select('tipo, parcela_id')
+      .select('tipo, parcela_id, ultima_vez')
       .eq('periodo_id', periodo.id)
 
-    const alertasSet = new Set(alertasYaEnviadas?.map((a: { tipo: string; parcela_id: string }) => `${a.tipo}:${a.parcela_id}`) || [])
+    const msReenvio = config.frecuencia_reenvio_dias > 0
+      ? config.frecuencia_reenvio_dias * 86400000
+      : Infinity
+    const alertasSet = new Set(
+      (alertasYaEnviadas ?? [])
+        .filter((a: { ultima_vez: string | null }) =>
+          !a.ultima_vez || Date.now() - new Date(a.ultima_vez).getTime() < msReenvio
+        )
+        .map((a: { tipo: string; parcela_id: string }) => `${a.tipo}:${a.parcela_id}`)
+    )
 
     for (const cuenta of cuentas) {
+      if (enviados >= config.max_por_dia && !forzar) break
       const parcela = cuenta.parcela as { nombre_dueno: string; email: string; numero: number }
       const saldo = cuenta.monto_prorrateado - cuenta.monto_pagado
       const nombrePeriodo = `${meses[periodo.mes - 1]} ${periodo.anio}`
@@ -114,7 +147,8 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
             tipo: 'vencimiento',
             periodo_id: periodo.id,
             parcela_id: cuenta.parcela_id,
-          }, { onConflict: 'tipo,periodo_id,parcela_id', ignoreDuplicates: true })
+            ultima_vez: new Date().toISOString(),
+          }, { onConflict: 'tipo,periodo_id,parcela_id' })
         }
         enviados++
       }
@@ -139,7 +173,8 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
             tipo: 'corte',
             periodo_id: periodo.id,
             parcela_id: cuenta.parcela_id,
-          }, { onConflict: 'tipo,periodo_id,parcela_id', ignoreDuplicates: true })
+            ultima_vez: new Date().toISOString(),
+          }, { onConflict: 'tipo,periodo_id,parcela_id' })
         }
         enviados++
       }

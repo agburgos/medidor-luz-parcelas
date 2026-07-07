@@ -27,10 +27,15 @@ export default function NavBar({ rol }: { rol: Rol }) {
             <Link href="/comite/parcelas" className="text-sm text-gray-600 hover:text-blue-700">Parcelas</Link>
             <Link href="/comite/pagos" className="text-sm text-gray-600 hover:text-blue-700">Validar pagos</Link>
             <Link href="/comite/reportes" className="text-sm text-gray-600 hover:text-blue-700">Reportes</Link>
+            <Link href="/comite/registro" className="text-sm text-gray-600 hover:text-blue-700">Registro</Link>
+            <Link href="/comite/configuracion" className="text-sm text-gray-600 hover:text-blue-700">Configuración</Link>
           </>
         )}
         {rol === 'parcelero' && (
-          <Link href="/parcelero" className="text-sm text-gray-600 hover:text-blue-700">Mi cuenta</Link>
+          <>
+            <Link href="/parcelero" className="text-sm text-gray-600 hover:text-blue-700">Mi cuenta</Link>
+            <Link href="/parcelero/registro" className="text-sm text-gray-600 hover:text-blue-700">Mi registro</Link>
+          </>
         )}
       </div>
       <button

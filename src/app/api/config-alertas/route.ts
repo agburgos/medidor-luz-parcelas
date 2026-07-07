@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
+
+export async function GET() {
+  const sesion = await getSesion()
+  if (!sesion || sesion.rol !== 'comite') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('config_alertas')
+    .select('*, comunidad:comunidades(nombre)')
+    .limit(1)
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(data)
+}
+
+export async function PUT(req: NextRequest) {
+  const sesion = await getSesion()
+  if (!sesion || sesion.rol !== 'comite') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+  const supabase = createServiceClient()
+  const body = await req.json()
+
+  const update = {
+    alertas_activas: !!body.alertas_activas,
+    dias_aviso_vencimiento: Math.max(0, Number(body.dias_aviso_vencimiento ?? 5)),
+    dias_aviso_corte: Math.max(0, Number(body.dias_aviso_corte ?? 3)),
+    frecuencia_reenvio_dias: Math.max(0, Number(body.frecuencia_reenvio_dias ?? 0)),
+    max_por_dia: Math.max(1, Number(body.max_por_dia ?? 200)),
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data, error } = await supabase
+    .from('config_alertas')
+    .update(update)
+    .eq('comunidad_id', body.comunidad_id)
+    .select()
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(data)
+}
