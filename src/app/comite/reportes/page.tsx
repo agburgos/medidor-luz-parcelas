@@ -31,7 +31,7 @@ export default async function ReportesPage() {
     c.periodo?.fecha_vencimiento && new Date(c.periodo.fecha_vencimiento) < hoy
   )
 
-  // Deuda acumulada por parcela
+  // Deuda acumulada por parcela (cuentas del período + moras anteriores)
   const deudaPorParcela = new Map<number, { nombre: string; telefono: string | null; periodos: string[]; deuda: number }>()
   for (const c of deudoras) {
     const saldo = c.monto_prorrateado - c.monto_pagado
@@ -40,6 +40,15 @@ export default async function ReportesPage() {
     const item = deudaPorParcela.get(key) ?? { nombre: c.parcela.nombre_dueno, telefono: c.parcela.telefono, periodos: [] as string[], deuda: 0 }
     item.deuda += saldo
     item.periodos.push(`${meses[c.periodo.mes - 1]} ${String(c.periodo.anio).slice(2)}`)
+    deudaPorParcela.set(key, item)
+  }
+  for (const m of ((moras ?? []) as { monto: number; monto_pagado: number; parcela: { numero: number; nombre_dueno: string; telefono: string | null } }[])) {
+    const saldo = m.monto - m.monto_pagado
+    if (saldo <= 0) continue
+    const key = m.parcela.numero
+    const item = deudaPorParcela.get(key) ?? { nombre: m.parcela.nombre_dueno, telefono: m.parcela.telefono, periodos: [] as string[], deuda: 0 }
+    item.deuda += saldo
+    if (!item.periodos.includes('Mora anterior')) item.periodos.push('Mora anterior')
     deudaPorParcela.set(key, item)
   }
   const deudores = [...deudaPorParcela.entries()].sort((a, b) => b[1].deuda - a[1].deuda)
