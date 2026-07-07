@@ -6,14 +6,26 @@ import { registrar } from '@/lib/bitacora'
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = createServiceClient()
-  const [{ data: asamblea }, { data: asistentes }, { data: acuerdos }, { data: documentos }] = await Promise.all([
+  const sesion = await getSesion()
+  const [{ data: asamblea }, { data: asistentes }, { data: acuerdos }, { data: documentos }, { data: reacciones }] = await Promise.all([
     supabase.from('asambleas').select('*').eq('id', id).single(),
     supabase.from('asamblea_asistentes').select('*, parcela:parcelas(numero)').eq('asamblea_id', id).order('created_at'),
     supabase.from('asamblea_acuerdos').select('*').eq('asamblea_id', id).order('created_at'),
     supabase.from('documentos').select('*').eq('asamblea_id', id).order('created_at'),
+    supabase.from('asamblea_reacciones').select('tipo, parcela_id').eq('asamblea_id', id),
   ])
   if (!asamblea) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
-  return NextResponse.json({ asamblea, asistentes: asistentes ?? [], acuerdos: acuerdos ?? [], documentos: documentos ?? [] })
+
+  const likes = (reacciones ?? []).filter((r: { tipo: string }) => r.tipo === 'like').length
+  const dislikes = (reacciones ?? []).filter((r: { tipo: string }) => r.tipo === 'dislike').length
+  const miReaccion = sesion?.parcelaId
+    ? (reacciones ?? []).find((r: { parcela_id: string }) => r.parcela_id === sesion.parcelaId)?.tipo ?? null
+    : null
+
+  return NextResponse.json({
+    asamblea, asistentes: asistentes ?? [], acuerdos: acuerdos ?? [], documentos: documentos ?? [],
+    reacciones: { likes, dislikes, mi_reaccion: miReaccion },
+  })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

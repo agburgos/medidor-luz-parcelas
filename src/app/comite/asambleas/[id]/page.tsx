@@ -10,6 +10,7 @@ interface Asamblea {
 interface Asistente { id: string; nombre: string; presente: boolean; representado_por: string | null; parcela: { numero: number } | null }
 interface Acuerdo { id: string; descripcion: string; responsable: string | null; fecha_limite: string | null; estado: string }
 interface Documento { id: string; nombre: string; categoria: string; archivo_url: string }
+interface Reacciones { likes: number; dislikes: number }
 
 export default function DetalleAsambleaPage() {
   const { id } = useParams() as { id: string }
@@ -17,6 +18,7 @@ export default function DetalleAsambleaPage() {
   const [asistentes, setAsistentes] = useState<Asistente[]>([])
   const [acuerdos, setAcuerdos] = useState<Acuerdo[]>([])
   const [documentos, setDocumentos] = useState<Documento[]>([])
+  const [reacciones, setReacciones] = useState<Reacciones>({ likes: 0, dislikes: 0 })
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState('')
 
@@ -36,6 +38,7 @@ export default function DetalleAsambleaPage() {
     setAsistentes(data.asistentes)
     setAcuerdos(data.acuerdos)
     setDocumentos(data.documentos)
+    setReacciones(data.reacciones)
     setResumen(data.asamblea.resumen || '')
     setLoading(false)
   }, [id])
@@ -110,7 +113,8 @@ export default function DetalleAsambleaPage() {
             {asamblea.lugar ? ` · ${asamblea.lugar}` : ''}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">👍 {reacciones.likes} · 👎 {reacciones.dislikes}</span>
           {asamblea.estado !== 'realizada' && (
             <button onClick={() => guardarEstado('realizada')} className="bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700">
               ✓ Marcar como realizada

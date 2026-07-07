@@ -1,9 +1,51 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Rol } from '@/types'
+
+interface ItemMenu { href: string; label: string }
+
+function Dropdown({ label, items }: { label: string; items: ItemMenu[] }) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickFuera(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false)
+    }
+    document.addEventListener('click', onClickFuera)
+    return () => document.removeEventListener('click', onClickFuera)
+  }, [])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setAbierto(a => !a)}
+        className="text-sm text-gray-600 hover:text-blue-700 flex items-center gap-1"
+      >
+        {label}
+        <span className={`text-xs transition-transform ${abierto ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+      {abierto && (
+        <div className="absolute left-0 top-full mt-2 bg-white border rounded-lg shadow-lg py-1 min-w-44 z-50">
+          {items.map(item => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setAbierto(false)}
+              className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-blue-700 whitespace-nowrap"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function NavBar({ rol }: { rol: Rol }) {
   const router = useRouter()
@@ -17,7 +59,7 @@ export default function NavBar({ rol }: { rol: Rol }) {
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-5 flex-wrap">
+        <div className="flex items-center gap-5">
           <Link href={rol === 'comite' ? '/comite' : '/parcelero'} className="font-bold text-blue-700 text-lg whitespace-nowrap">
             🏘️ COPOSA
           </Link>
@@ -25,31 +67,37 @@ export default function NavBar({ rol }: { rol: Rol }) {
           {rol === 'comite' && (
             <>
               <Link href="/comite" className="text-sm text-gray-600 hover:text-blue-700">Dashboard</Link>
-
-              <span className="text-xs text-gray-400 hidden lg:inline">⚡ Luz:</span>
-              <Link href="/comite/periodos" className="text-sm text-gray-600 hover:text-blue-700">Períodos</Link>
-              <Link href="/comite/lecturas" className="text-sm text-gray-600 hover:text-blue-700">Lecturas</Link>
-
-              <span className="text-xs text-gray-400 hidden lg:inline">🏘️ GC:</span>
-              <Link href="/comite/gastos-comunes" className="text-sm text-gray-600 hover:text-blue-700">Gastos Comunes</Link>
-
-              <Link href="/comite/pagos" className="text-sm text-gray-600 hover:text-blue-700">Validar pagos</Link>
-              <Link href="/comite/asambleas" className="text-sm text-gray-600 hover:text-blue-700">Asambleas</Link>
-              <Link href="/comite/reportes" className="text-sm text-gray-600 hover:text-blue-700">Reportes</Link>
-              <Link href="/comite/parcelas" className="text-sm text-gray-600 hover:text-blue-700">Parcelas</Link>
-              <Link href="/comite/registro" className="text-sm text-gray-600 hover:text-blue-700">Registro</Link>
-              <Link href="/comite/bitacora" className="text-sm text-gray-600 hover:text-blue-700">Bitácora</Link>
-              <Link href="/comite/configuracion" className="text-sm text-gray-600 hover:text-blue-700">Config</Link>
+              <Dropdown label="⚡ Luz" items={[
+                { href: '/comite/periodos', label: 'Períodos' },
+                { href: '/comite/lecturas', label: 'Validar lecturas' },
+              ]} />
+              <Dropdown label="🏘️ Gastos Comunes" items={[
+                { href: '/comite/gastos-comunes', label: 'Períodos y config' },
+              ]} />
+              <Dropdown label="💰 Cobranza" items={[
+                { href: '/comite/pagos', label: 'Validar pagos' },
+                { href: '/comite/reportes', label: 'Reportes' },
+              ]} />
+              <Dropdown label="🗓️ Comunidad" items={[
+                { href: '/comite/asambleas', label: 'Asambleas y actas' },
+                { href: '/comite/registro', label: 'Registro personas/mascotas' },
+              ]} />
+              <Dropdown label="⚙️ Administración" items={[
+                { href: '/comite/parcelas', label: 'Parcelas' },
+                { href: '/comite/bitacora', label: 'Bitácora' },
+                { href: '/comite/configuracion', label: 'Configuración' },
+              ]} />
             </>
           )}
 
           {rol === 'parcelero' && (
-            <>
-              <Link href="/parcelero" className="text-sm text-gray-600 hover:text-blue-700">Mi cuenta luz</Link>
-              <Link href="/parcelero/gastos-comunes" className="text-sm text-gray-600 hover:text-blue-700">Gastos Comunes</Link>
-              <Link href="/parcelero/registro" className="text-sm text-gray-600 hover:text-blue-700">Mi registro</Link>
-              <Link href="/parcelero/documentos" className="text-sm text-gray-600 hover:text-blue-700">Documentos</Link>
-            </>
+            <Dropdown label="Mi macrolote" items={[
+              { href: '/parcelero', label: '⚡ Cuenta de luz' },
+              { href: '/parcelero/gastos-comunes', label: '🏘️ Gastos Comunes' },
+              { href: '/parcelero/asambleas', label: '🗓️ Asambleas y actas' },
+              { href: '/parcelero/documentos', label: '📎 Documentos' },
+              { href: '/parcelero/registro', label: '👥 Mi registro' },
+            ]} />
           )}
         </div>
         <button
