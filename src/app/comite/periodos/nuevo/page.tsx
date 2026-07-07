@@ -15,7 +15,6 @@ export default function NuevoPeriodoPage() {
     mes: hoy.getMonth() + 1,
     anio: hoy.getFullYear(),
     monto_total_factura: '',
-    costo_unitario_kwh: '',
     cargo_fijo: '5500',
     lectura_general_anterior: '',
     lectura_general_actual: '',
@@ -137,28 +136,21 @@ export default function NuevoPeriodoPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Costo unitario kWh ($) *</label>
-            <input
-              type="number"
-              value={form.costo_unitario_kwh}
-              onChange={e => setForm(f => ({ ...f, costo_unitario_kwh: e.target.value }))}
-              required
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ej: 316"
-            />
-            <p className="text-xs text-gray-400 mt-0.5">Según factura IEL S.A.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cargo fijo por parcela ($)</label>
-            <input
-              type="number"
-              value={form.cargo_fijo}
-              onChange={e => setForm(f => ({ ...f, cargo_fijo: e.target.value }))}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+          <p className="text-sm text-blue-800">
+            💡 El <strong>costo por kWh se calcula automáticamente</strong>: (factura − cargos fijos) ÷ consumo total de todas las parcelas,
+            una vez que estén todas las lecturas del mes. No se ingresa a mano.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Cargo fijo por parcela ($)</label>
+          <input
+            type="number"
+            value={form.cargo_fijo}
+            onChange={e => setForm(f => ({ ...f, cargo_fijo: e.target.value }))}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

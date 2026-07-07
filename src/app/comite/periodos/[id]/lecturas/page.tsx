@@ -95,7 +95,7 @@ export default function LecturasPage() {
     })
     const data = await res.json()
     if (!res.ok) { setMensaje(data.error || 'Error'); setGuardando(false); return }
-    setMensaje(`✅ Prorrateo calculado para ${data.total} parcelas`)
+    setMensaje(`✅ Prorrateo calculado para ${data.total} parcelas — tarifa derivada: $${data.tarifa_calculada}/kWh (consumo total ${data.consumo_total_kwh} kWh)`)
     setGuardando(false)
     setTimeout(() => router.push(`/comite/periodos/${id}/cuentas`), 1200)
   }
