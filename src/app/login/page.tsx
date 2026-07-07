@@ -63,6 +63,9 @@ export default function LoginPage() {
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
+          <p className="text-center">
+            <a href="/auth/recuperar" className="text-sm text-blue-600 hover:underline">¿Olvidaste tu contraseña?</a>
+          </p>
         </form>
       </div>
     </div>
