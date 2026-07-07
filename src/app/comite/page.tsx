@@ -10,6 +10,7 @@ export default async function ComiteDashboard() {
   const [
     { count: totalParcelas },
     { data: periodos },
+    { data: periodosGC },
     { data: cuentasLuz },
     { data: cuentasGC },
     { data: moras },
@@ -18,6 +19,12 @@ export default async function ComiteDashboard() {
     supabase.from('parcelas').select('*', { count: 'exact', head: true }),
     supabase
       .from('periodos_facturacion')
+      .select('*')
+      .order('anio', { ascending: false })
+      .order('mes', { ascending: false })
+      .limit(5),
+    supabase
+      .from('periodos_gc')
       .select('*')
       .order('anio', { ascending: false })
       .order('mes', { ascending: false })
@@ -192,39 +199,80 @@ export default async function ComiteDashboard() {
         </table>
       </div>
 
-      <h2 className="text-lg font-semibold mb-3">Últimos períodos de luz</h2>
-      <div className="bg-white rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Período</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Monto factura</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Vencimiento</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {periodos?.map(p => (
-              <tr key={p.id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{meses[p.mes - 1]} {p.anio}</td>
-                <td className="px-4 py-3">${p.monto_total_factura?.toLocaleString('es-CL')}</td>
-                <td className="px-4 py-3">{p.fecha_vencimiento ? new Date(p.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${p.estado === 'abierto' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {p.estado === 'abierto' ? 'Abierto' : 'Cerrado'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <Link href={`/comite/periodos/${p.id}`} className="text-blue-600 hover:underline">Ver</Link>
-                </td>
-              </tr>
-            ))}
-            {(!periodos || periodos.length === 0) && (
-              <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Sin períodos registrados</td></tr>
-            )}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <h2 className="text-lg font-semibold mb-3">⚡ Últimos períodos de Luz</h2>
+          <div className="bg-white rounded-xl border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Período</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Factura</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Vence</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodos?.map(p => (
+                  <tr key={p.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium">{meses[p.mes - 1]} {p.anio}</td>
+                    <td className="px-4 py-3">${p.monto_total_factura?.toLocaleString('es-CL')}</td>
+                    <td className="px-4 py-3">{p.fecha_vencimiento ? new Date(p.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${p.estado === 'abierto' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {p.estado === 'abierto' ? 'Abierto' : 'Cerrado'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link href={`/comite/periodos/${p.id}`} className="text-blue-600 hover:underline">Ver</Link>
+                    </td>
+                  </tr>
+                ))}
+                {(!periodos || periodos.length === 0) && (
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Sin períodos registrados</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold mb-3">🏘️ Últimos períodos de Gastos Comunes</h2>
+          <div className="bg-white rounded-xl border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Período</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Valor</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Vence</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {periodosGC?.map(p => (
+                  <tr key={p.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium">{meses[p.mes - 1]} {p.anio}</td>
+                    <td className="px-4 py-3">${p.valor_mensual?.toLocaleString('es-CL')}</td>
+                    <td className="px-4 py-3">{p.fecha_vencimiento ? new Date(p.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${p.estado === 'abierto' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {p.estado === 'abierto' ? 'Abierto' : 'Cerrado'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link href={`/comite/gastos-comunes/${p.id}`} className="text-blue-600 hover:underline">Ver</Link>
+                    </td>
+                  </tr>
+                ))}
+                {(!periodosGC || periodosGC.length === 0) && (
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Sin períodos de GC registrados</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   )

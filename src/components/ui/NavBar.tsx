@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Notificaciones from '@/components/ui/Notificaciones'
 import { Rol } from '@/types'
 
 interface ItemMenu { href: string; label: string }
@@ -24,6 +25,7 @@ const GRUPOS_COMITE: Grupo[] = [
   { label: '🗓️ Comunidad', items: [
     { href: '/comite/asambleas', label: 'Asambleas y actas' },
     { href: '/comite/anuncios', label: 'Anuncios' },
+    { href: '/comite/documentos', label: 'Documentos' },
     { href: '/comite/registro', label: 'Registro personas/mascotas' },
   ]},
   { label: '⚙️ Administración', items: [
@@ -122,6 +124,7 @@ export default function NavBar({
         </div>
 
         <div className="flex items-center gap-3">
+          <Notificaciones />
           {rol === 'comite' && tieneParcelaPropia && (
             <Link
               href="/parcelero"

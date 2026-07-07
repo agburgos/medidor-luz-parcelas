@@ -7,6 +7,7 @@ interface Anuncio {
   id: string; titulo: string; contenido: string | null; created_at: string
   archivos: Archivo[]; likes: number; dislikes: number
 }
+interface Reaccion { tipo: string; created_at: string; parcela: { numero: number; nombre_dueno: string } | null }
 
 export default function AnunciosPage() {
   const [anuncios, setAnuncios] = useState<Anuncio[]>([])
@@ -17,6 +18,9 @@ export default function AnunciosPage() {
   const [fotos, setFotos] = useState<FileList | null>(null)
   const [documentos, setDocumentos] = useState<FileList | null>(null)
   const [publicando, setPublicando] = useState(false)
+  const [expandido, setExpandido] = useState<string | null>(null)
+  const [reacciones, setReacciones] = useState<Reaccion[]>([])
+  const [cargandoReacciones, setCargandoReacciones] = useState(false)
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/anuncios')
@@ -52,6 +56,16 @@ export default function AnunciosPage() {
     if (!confirm(`¿Eliminar el anuncio "${a.titulo}"?`)) return
     await fetch(`/api/anuncios/${a.id}`, { method: 'DELETE' })
     await cargar()
+  }
+
+  async function verQuienReacciono(a: Anuncio) {
+    if (expandido === a.id) { setExpandido(null); return }
+    setExpandido(a.id)
+    setCargandoReacciones(true)
+    const res = await fetch(`/api/anuncios/${a.id}/reacciones`)
+    const data = await res.json()
+    setReacciones(Array.isArray(data) ? data : [])
+    setCargandoReacciones(false)
   }
 
   if (loading) return <div className="p-8 text-gray-500">Cargando anuncios...</div>
@@ -115,7 +129,39 @@ export default function AnunciosPage() {
                 ))}
               </div>
             )}
-            <p className="text-xs text-gray-400 mt-3">👍 {a.likes} · 👎 {a.dislikes}</p>
+            <button
+              onClick={() => verQuienReacciono(a)}
+              className="text-xs text-gray-500 mt-3 hover:text-blue-700 hover:underline"
+            >
+              👍 {a.likes} · 👎 {a.dislikes} — {expandido === a.id ? 'ocultar' : 'ver quién'}
+            </button>
+
+            {expandido === a.id && (
+              <div className="mt-3 border-t pt-3">
+                {cargandoReacciones ? (
+                  <p className="text-xs text-gray-400">Cargando...</p>
+                ) : reacciones.length === 0 ? (
+                  <p className="text-xs text-gray-400">Nadie ha reaccionado aún</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-semibold text-green-700 mb-1">👍 Les gustó</p>
+                      {reacciones.filter(r => r.tipo === 'like').map((r, i) => (
+                        <p key={i} className="text-xs text-gray-600">#{r.parcela?.numero} {r.parcela?.nombre_dueno}</p>
+                      ))}
+                      {reacciones.filter(r => r.tipo === 'like').length === 0 && <p className="text-xs text-gray-300">—</p>}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-red-700 mb-1">👎 No les gustó</p>
+                      {reacciones.filter(r => r.tipo === 'dislike').map((r, i) => (
+                        <p key={i} className="text-xs text-gray-600">#{r.parcela?.numero} {r.parcela?.nombre_dueno}</p>
+                      ))}
+                      {reacciones.filter(r => r.tipo === 'dislike').length === 0 && <p className="text-xs text-gray-300">—</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
         {anuncios.length === 0 && (

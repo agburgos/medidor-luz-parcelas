@@ -7,19 +7,23 @@ export async function GET(req: NextRequest) {
   if (!sesion) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const supabase = createServiceClient()
-  const parcelaId = req.nextUrl.searchParams.get('parcela_id')
-    ?? (sesion.rol === 'parcelero' ? sesion.parcelaId : null)
+  const parcelaIdQuery = req.nextUrl.searchParams.get('parcela_id')
+  const todas = req.nextUrl.searchParams.get('todas') === '1'
 
   let query = supabase
     .from('personas')
     .select('*, parcela:parcelas(numero,nombre_dueno)')
     .order('created_at')
 
-  if (sesion.rol === 'parcelero') {
+  if (parcelaIdQuery) {
+    query = query.eq('parcela_id', parcelaIdQuery)
+  } else if (todas) {
+    if (sesion.rol !== 'comite') return NextResponse.json([])
+    // sin filtro: admin viendo todas las parcelas
+  } else {
+    // autoservicio: la parcela vinculada a mi propia cuenta (comité o parcelero)
     if (!sesion.parcelaId) return NextResponse.json([])
     query = query.eq('parcela_id', sesion.parcelaId)
-  } else if (parcelaId) {
-    query = query.eq('parcela_id', parcelaId)
   }
 
   const { data, error } = await query
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!sesion) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
-  const parcela_id = sesion.rol === 'parcelero' ? sesion.parcelaId : body.parcela_id
+  const parcela_id = body.parcela_id || sesion.parcelaId
   if (!parcela_id || !puedeEditarParcela(sesion, parcela_id)) {
     return NextResponse.json({ error: 'Parcela no válida' }, { status: 403 })
   }

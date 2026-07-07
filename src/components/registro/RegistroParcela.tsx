@@ -41,7 +41,7 @@ export default function RegistroParcela({ parcelaId, mostrarParcela = false }: {
   const [guardandoP, setGuardandoP] = useState(false)
   const [guardandoM, setGuardandoM] = useState(false)
 
-  const query = parcelaId ? `?parcela_id=${parcelaId}` : ''
+  const query = parcelaId ? `?parcela_id=${parcelaId}` : mostrarParcela ? '?todas=1' : ''
   // undefined = vista "todas las parcelas" (solo lectura); null o id = se puede agregar
   const puedeAgregar = parcelaId !== undefined
 
