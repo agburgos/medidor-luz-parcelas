@@ -21,11 +21,32 @@ export async function POST(req: NextRequest) {
   if (!sesion || sesion.rol !== 'comite') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const supabase = createServiceClient()
-  const body = await req.json()
-  const { mes, anio, valor_mensual, fecha_vencimiento, fecha_corte } = body
+  const fd = await req.formData()
+  const mes = Number(fd.get('mes'))
+  const anio = Number(fd.get('anio'))
+  const valor_mensual = fd.get('valor_mensual')
+  const fecha_vencimiento = fd.get('fecha_vencimiento') as string | null
+  const fecha_corte = fd.get('fecha_corte') as string | null
+  const archivo = fd.get('archivo') as File | null
 
   if (!mes || !anio || !valor_mensual || !fecha_vencimiento) {
     return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+  }
+
+  let documento_url: string | null = null
+  if (archivo && archivo.size > 0) {
+    const ext = archivo.name.split('.').pop()
+    const path = `gc/${anio}-${String(mes).padStart(2, '0')}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('archivos')
+      .upload(path, Buffer.from(await archivo.arrayBuffer()), {
+        contentType: archivo.type,
+        upsert: true,
+      })
+    if (!uploadError) {
+      const { data: urlData } = supabase.storage.from('archivos').getPublicUrl(path)
+      documento_url = urlData.publicUrl
+    }
   }
 
   const { data: comunidad } = await supabase.from('comunidades').select('id').eq('activa', true).limit(1).single()
@@ -38,6 +59,7 @@ export async function POST(req: NextRequest) {
       valor_mensual: Number(valor_mensual),
       fecha_vencimiento,
       fecha_corte: fecha_corte || null,
+      documento_url,
     })
     .select()
     .single()

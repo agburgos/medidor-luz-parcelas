@@ -38,7 +38,8 @@ const GRUPOS_COMITE: Grupo[] = [
 
 const GRUPOS_PARCELERO: Grupo[] = [
   { label: 'Mi macrolote', items: [
-    { href: '/parcelero', label: '⚡ Cuenta de luz' },
+    { href: '/parcelero', label: '🏠 Inicio' },
+    { href: '/parcelero/luz', label: '⚡ Cuenta de luz' },
     { href: '/parcelero/gastos-comunes', label: '🏘️ Gastos Comunes' },
     { href: '/parcelero/asambleas', label: '🗓️ Asambleas y actas' },
     { href: '/parcelero/documentos', label: '📎 Documentos' },

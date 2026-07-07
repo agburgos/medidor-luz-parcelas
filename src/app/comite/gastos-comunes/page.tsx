@@ -23,6 +23,7 @@ export default function GastosComunesPage() {
     valor_mensual: '', fecha_vencimiento: '', fecha_corte: '',
   })
   const [creando, setCreando] = useState(false)
+  const [archivoFile, setArchivoFile] = useState<File | null>(null)
 
   const cargar = useCallback(async () => {
     const [cRes, pRes] = await Promise.all([fetch('/api/config-gc'), fetch('/api/gc/periodos')])
@@ -52,14 +53,14 @@ export default function GastosComunesPage() {
     e.preventDefault()
     setCreando(true)
     setMensaje('')
-    const res = await fetch('/api/gc/periodos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevo),
-    })
+    const fd = new FormData()
+    Object.entries(nuevo).forEach(([k, v]) => fd.append(k, String(v)))
+    if (archivoFile) fd.append('archivo', archivoFile)
+    const res = await fetch('/api/gc/periodos', { method: 'POST', body: fd })
     const data = await res.json()
     setMensaje(res.ok ? `✅ Período creado, ${data.cuentas_generadas} cuentas generadas` : `❌ ${data.error}`)
     setCreando(false)
+    setArchivoFile(null)
     await cargar()
   }
 
@@ -106,6 +107,10 @@ export default function GastosComunesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="date" value={nuevo.fecha_vencimiento} onChange={e => setNuevo(n => ({ ...n, fecha_vencimiento: e.target.value }))} required className="border rounded-lg px-3 py-2 text-sm" title="Vencimiento" />
             <input type="date" value={nuevo.fecha_corte} onChange={e => setNuevo(n => ({ ...n, fecha_corte: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" title="Corte (opcional)" />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">Documento respaldo (opcional)</label>
+            <input type="file" onChange={e => setArchivoFile(e.target.files?.[0] ?? null)} className="w-full border rounded-lg px-3 py-2 text-sm" />
           </div>
           <button type="submit" disabled={creando} className="w-full bg-green-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50">
             {creando ? 'Creando...' : 'Crear período y generar cuentas'}

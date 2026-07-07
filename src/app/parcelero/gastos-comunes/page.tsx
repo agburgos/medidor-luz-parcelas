@@ -12,13 +12,20 @@ interface CuentaGC {
   periodo: { mes: number; anio: number; fecha_vencimiento: string; fecha_corte: string | null }
 }
 
+interface PeriodoGC { id: string; mes: number; anio: number; documento_url: string | null }
+
 export default function MisGastosComunesPage() {
   const [cuentas, setCuentas] = useState<CuentaGC[]>([])
+  const [facturas, setFacturas] = useState<PeriodoGC[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/gc/mi-cuenta').then(r => r.json()).then(data => {
-      setCuentas(Array.isArray(data) ? data : [])
+    Promise.all([
+      fetch('/api/gc/mi-cuenta').then(r => r.json()),
+      fetch('/api/gc/periodos').then(r => r.json()),
+    ]).then(([cuentasData, periodosData]) => {
+      setCuentas(Array.isArray(cuentasData) ? cuentasData : [])
+      setFacturas(Array.isArray(periodosData) ? periodosData.filter((p: PeriodoGC) => p.documento_url) : [])
       setLoading(false)
     })
   }, [])
@@ -75,6 +82,29 @@ export default function MisGastosComunesPage() {
             ))}
             {cuentas.length === 0 && (
               <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">Sin cuentas de gastos comunes aún</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="text-lg font-semibold mb-3 mt-8">📄 Facturas históricas</h2>
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium text-gray-600">Período</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {facturas.map(f => (
+              <tr key={f.id} className="border-t">
+                <td className="px-4 py-2">{meses[f.mes - 1]} {f.anio}</td>
+                <td className="px-4 py-2"><a href={f.documento_url!} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">📎 Ver / descargar</a></td>
+              </tr>
+            ))}
+            {facturas.length === 0 && (
+              <tr><td colSpan={2} className="px-4 py-6 text-center text-gray-400">Sin facturas disponibles aún</td></tr>
             )}
           </tbody>
         </table>
