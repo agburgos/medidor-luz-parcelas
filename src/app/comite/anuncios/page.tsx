@@ -72,7 +72,7 @@ export default function AnunciosPage() {
           value={contenido} onChange={e => setContenido(e.target.value)}
           rows={3} placeholder="Contenido..." className="w-full border rounded-lg px-3 py-2 text-sm"
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-600 mb-1">Fotos</label>
             <input type="file" accept="image/*" multiple onChange={e => setFotos(e.target.files)} className="text-sm w-full" />

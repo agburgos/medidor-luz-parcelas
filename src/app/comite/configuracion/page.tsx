@@ -67,7 +67,7 @@ export default function ConfiguracionPage() {
         </div>
 
         <div className={config.alertas_activas ? '' : 'opacity-40 pointer-events-none'}>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Avisar vencimiento con anticipación</label>
               <div className="flex items-center gap-2">

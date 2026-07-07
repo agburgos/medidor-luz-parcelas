@@ -75,7 +75,7 @@ export default function NuevoPeriodoPage() {
       <h1 className="text-2xl font-bold mb-6">Nuevo período de facturación</h1>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border p-6 space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mes</label>
             <select
@@ -153,7 +153,7 @@ export default function NuevoPeriodoPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Lect. medidor general anterior</label>
             <input
@@ -176,7 +176,7 @@ export default function NuevoPeriodoPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha emisión</label>
             <input

@@ -6,7 +6,7 @@ export default function ParceleroLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex flex-col">
       <NavBar rol="parcelero" />
       <TablasOrdenables />
-      <main className="flex-1 p-6 max-w-4xl mx-auto w-full">{children}</main>
+      <main className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full">{children}</main>
     </div>
   )
 }

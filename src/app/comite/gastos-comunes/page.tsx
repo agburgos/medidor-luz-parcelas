@@ -90,7 +90,7 @@ export default function GastosComunesPage() {
 
         <form onSubmit={crearPeriodo} className="bg-white rounded-xl border p-5 space-y-3">
           <h2 className="font-medium mb-1">+ Nuevo período de GC</h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <select value={nuevo.mes} onChange={e => setNuevo(n => ({ ...n, mes: Number(e.target.value) }))} className="border rounded-lg px-3 py-2 text-sm">
               {meses.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
@@ -103,7 +103,7 @@ export default function GastosComunesPage() {
             required
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input type="date" value={nuevo.fecha_vencimiento} onChange={e => setNuevo(n => ({ ...n, fecha_vencimiento: e.target.value }))} required className="border rounded-lg px-3 py-2 text-sm" title="Vencimiento" />
             <input type="date" value={nuevo.fecha_corte} onChange={e => setNuevo(n => ({ ...n, fecha_corte: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" title="Corte (opcional)" />
           </div>

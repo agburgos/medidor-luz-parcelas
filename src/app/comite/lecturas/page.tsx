@@ -96,7 +96,7 @@ export default function ValidarLecturasPage() {
       </div>
 
       {resumen && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-xl border p-4">
             <p className="text-xs text-gray-500">Aprobadas</p>
             <p className="text-2xl font-bold text-green-600">{resumen.aprobadas}/{resumen.total_parcelas}</p>

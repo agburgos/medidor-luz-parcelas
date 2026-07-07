@@ -93,7 +93,7 @@ export default function AsambleasPage() {
             <h2 className="text-lg font-bold mb-4">Nueva asamblea</h2>
             <form onSubmit={crear} className="space-y-4">
               <input type="text" value={form.titulo} onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))} required placeholder="Título (ej: Asamblea Ordinaria Julio 2026)" className="w-full border rounded-lg px-3 py-2 text-sm" />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm">
                   <option value="ordinaria">Ordinaria</option>
                   <option value="extraordinaria">Extraordinaria</option>
@@ -101,7 +101,7 @@ export default function AsambleasPage() {
                 </select>
                 <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} required className="border rounded-lg px-3 py-2 text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input type="time" value={form.hora_inicio} onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm" />
                 <input type="text" value={form.lugar} onChange={e => setForm(f => ({ ...f, lugar: e.target.value }))} placeholder="Lugar" className="border rounded-lg px-3 py-2 text-sm" />
               </div>

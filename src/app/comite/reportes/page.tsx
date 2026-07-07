@@ -119,7 +119,7 @@ export default async function ReportesPage() {
       </div>
 
       <h2 className="text-lg font-semibold mb-3">📜 Moras anteriores (deuda histórica, previa al sistema)</h2>
-      <div className="grid grid-cols-2 gap-4 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">⚡ Moras de Luz</p>
           <p className="text-lg font-bold text-red-600">{$(deudaMorasLuz)}</p>

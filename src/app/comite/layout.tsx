@@ -6,7 +6,7 @@ export default function ComiteLayout({ children }: { children: React.ReactNode }
     <div className="min-h-screen flex flex-col">
       <NavBar rol="comite" />
       <TablasOrdenables />
-      <main className="flex-1 p-6 max-w-7xl mx-auto w-full">{children}</main>
+      <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">{children}</main>
     </div>
   )
 }

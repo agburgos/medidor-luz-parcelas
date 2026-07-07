@@ -95,7 +95,7 @@ export default async function ParceleroDashboard() {
       <SubirLectura />
 
       {/* Resumen superior */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className={`rounded-xl border p-4 ${deudaTotal > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
           <p className="text-xs text-gray-500">Deuda total</p>
           <p className={`text-2xl font-bold ${deudaTotal > 0 ? 'text-red-600' : 'text-green-600'}`}>

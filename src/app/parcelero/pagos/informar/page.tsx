@@ -46,7 +46,7 @@ export default function InformarPagoPage() {
       <form onSubmit={enviar} className="bg-white rounded-xl border p-6 space-y-5">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Este comprobante corresponde a:</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {([
               { v: 'luz', l: '⚡ Solo Luz' },
               { v: 'gc', l: '🏘️ Solo Gastos Comunes' },
@@ -88,7 +88,7 @@ export default function InformarPagoPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha del pago</label>
             <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} required className="w-full border rounded-lg px-3 py-2 text-sm" />

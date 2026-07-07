@@ -100,7 +100,7 @@ export default function CuentasPage() {
 
       {mensaje && <p className="mb-4 text-sm text-blue-700 bg-blue-50 rounded p-2">{mensaje}</p>}
 
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Recaudado</p>
           <p className="text-lg font-bold text-green-600">${totales.pagado.toLocaleString('es-CL')}</p>

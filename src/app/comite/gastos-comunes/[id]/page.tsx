@@ -43,7 +43,7 @@ export default function CuentasGCPage() {
       <h1 className="text-2xl font-bold mb-1">Cuentas de Gastos Comunes</h1>
       {periodo && <p className="text-gray-500 text-sm mb-6">{meses[periodo.mes - 1]} {periodo.anio} — ${periodo.valor_mensual.toLocaleString('es-CL')} por parcela</p>}
 
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Recaudado</p>
           <p className="text-lg font-bold text-green-600">{$(totalRecaudado)}</p>
