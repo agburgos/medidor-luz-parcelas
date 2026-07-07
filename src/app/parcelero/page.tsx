@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import Link from 'next/link'
+import FeedAnuncios from '@/components/parcelero/FeedAnuncios'
 import SubirLectura from '@/components/parcelero/SubirLectura'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -87,6 +88,8 @@ export default async function ParceleroDashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-1">Mi cuenta — Parcela #{parcela.numero}</h1>
       <p className="text-gray-500 mb-6">{parcela.nombre_dueno}</p>
+
+      <FeedAnuncios />
 
       {/* Autolectura del período abierto */}
       <SubirLectura />

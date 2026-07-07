@@ -80,6 +80,7 @@ export default function NavBar({ rol }: { rol: Rol }) {
               ]} />
               <Dropdown label="🗓️ Comunidad" items={[
                 { href: '/comite/asambleas', label: 'Asambleas y actas' },
+                { href: '/comite/anuncios', label: 'Anuncios' },
                 { href: '/comite/registro', label: 'Registro personas/mascotas' },
               ]} />
               <Dropdown label="⚙️ Administración" items={[

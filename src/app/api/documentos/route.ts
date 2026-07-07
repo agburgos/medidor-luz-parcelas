@@ -4,6 +4,7 @@ import { getSesion } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
 
 export async function GET(req: NextRequest) {
+  const sesion = await getSesion()
   const supabase = createServiceClient()
   const asambleaId = req.nextUrl.searchParams.get('asamblea_id')
   const categoria = req.nextUrl.searchParams.get('categoria')
@@ -14,7 +15,16 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+
+  if (sesion?.rol === 'comite') return NextResponse.json(data)
+
+  // Ocultar documentos de asambleas de directiva a los parceleros
+  const idsAsamblea = [...new Set((data ?? []).map((d: { asamblea_id: string | null }) => d.asamblea_id).filter(Boolean))]
+  const { data: directivas } = idsAsamblea.length
+    ? await supabase.from('asambleas').select('id').in('id', idsAsamblea).eq('tipo', 'directiva')
+    : { data: [] }
+  const idsOcultos = new Set((directivas ?? []).map((a: { id: string }) => a.id))
+  return NextResponse.json((data ?? []).filter((d: { asamblea_id: string | null }) => !idsOcultos.has(d.asamblea_id)))
 }
 
 export async function POST(req: NextRequest) {

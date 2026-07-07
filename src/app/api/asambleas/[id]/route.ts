@@ -15,6 +15,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     supabase.from('asamblea_reacciones').select('tipo, parcela_id').eq('asamblea_id', id),
   ])
   if (!asamblea) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  if (asamblea.tipo === 'directiva' && sesion?.rol !== 'comite') {
+    return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  }
 
   const likes = (reacciones ?? []).filter((r: { tipo: string }) => r.tipo === 'like').length
   const dislikes = (reacciones ?? []).filter((r: { tipo: string }) => r.tipo === 'dislike').length

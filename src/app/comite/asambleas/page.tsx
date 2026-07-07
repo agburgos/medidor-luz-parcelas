@@ -72,7 +72,7 @@ export default function AsambleasPage() {
               <tr key={a.id} className="border-t">
                 <td className="px-4 py-2">{new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-CL')}{a.hora_inicio ? ` ${a.hora_inicio.slice(0,5)}` : ''}</td>
                 <td className="px-4 py-2 font-medium">{a.titulo}</td>
-                <td className="px-4 py-2 capitalize">{a.tipo}</td>
+                <td className="px-4 py-2 capitalize">{a.tipo === 'directiva' ? '🔒 Directiva' : a.tipo}</td>
                 <td className="px-4 py-2 text-gray-500">{a.lugar || '—'}</td>
                 <td className="px-4 py-2">
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ESTADOS[a.estado]}`}>{a.estado}</span>
@@ -97,6 +97,7 @@ export default function AsambleasPage() {
                 <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} className="border rounded-lg px-3 py-2 text-sm">
                   <option value="ordinaria">Ordinaria</option>
                   <option value="extraordinaria">Extraordinaria</option>
+                  <option value="directiva">🔒 Directiva (privada)</option>
                 </select>
                 <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} required className="border rounded-lg px-3 py-2 text-sm" />
               </div>

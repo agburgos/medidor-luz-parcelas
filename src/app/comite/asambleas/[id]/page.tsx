@@ -8,6 +8,7 @@ interface Asamblea {
   lugar: string | null; estado: string; resumen: string | null
 }
 interface Asistente { id: string; nombre: string; presente: boolean; representado_por: string | null; parcela: { numero: number } | null }
+interface ParcelaOpcion { id: string; numero: number; nombre_dueno: string }
 interface Acuerdo { id: string; descripcion: string; responsable: string | null; fecha_limite: string | null; estado: string }
 interface Documento { id: string; nombre: string; categoria: string; archivo_url: string }
 interface Reacciones { likes: number; dislikes: number }
@@ -22,7 +23,9 @@ export default function DetalleAsambleaPage() {
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState('')
 
-  const [nombreAsistente, setNombreAsistente] = useState('')
+  const [parcelas, setParcelas] = useState<ParcelaOpcion[]>([])
+  const [parcelaSel, setParcelaSel] = useState('')
+  const [citando, setCitando] = useState(false)
   const [descAcuerdo, setDescAcuerdo] = useState('')
   const [respAcuerdo, setRespAcuerdo] = useState('')
   const [resumen, setResumen] = useState('')
@@ -45,14 +48,43 @@ export default function DetalleAsambleaPage() {
 
   useEffect(() => { cargar() }, [cargar])
 
+  useEffect(() => {
+    fetch('/api/parcelas').then(r => r.json()).then(data => setParcelas(Array.isArray(data) ? data : []))
+  }, [])
+
   async function agregarAsistente(e: React.FormEvent) {
     e.preventDefault()
-    if (!nombreAsistente) return
+    const p = parcelas.find(x => x.id === parcelaSel)
+    if (!p) return
     await fetch(`/api/asambleas/${id}/asistentes`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre: nombreAsistente }),
+      body: JSON.stringify({ nombre: `#${p.numero} ${p.nombre_dueno}`, parcela_id: p.id }),
     })
-    setNombreAsistente('')
+    setParcelaSel('')
+    await cargar()
+  }
+
+  async function citarATodos() {
+    if (!confirm('¿Citar a todas las parcelas activas a esta asamblea?')) return
+    setCitando(true)
+    const res = await fetch(`/api/asambleas/${id}/asistentes/citar-todos`, { method: 'POST' })
+    const data = await res.json()
+    setMensaje(res.ok ? `✅ ${data.citados} parcelas citadas` : `❌ ${data.error}`)
+    setCitando(false)
+    await cargar()
+  }
+
+  async function marcarAsistencia(asistenteId: string, presente: boolean) {
+    await fetch(`/api/asambleas/${id}/asistentes/${asistenteId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ presente }),
+    })
+    await cargar()
+  }
+
+  async function eliminarAsistente(asistenteId: string) {
+    if (!confirm('¿Quitar a esta persona de la citación?')) return
+    await fetch(`/api/asambleas/${id}/asistentes/${asistenteId}`, { method: 'DELETE' })
     await cargar()
   }
 
@@ -140,23 +172,62 @@ export default function DetalleAsambleaPage() {
 
       {/* Asistencia */}
       <section>
-        <h2 className="text-lg font-semibold mb-2">👥 Asistencia ({asistentes.length})</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">
+            👥 Citación ({asistentes.length}) — asistieron {asistentes.filter(a => a.presente).length}
+          </h2>
+          <button
+            onClick={citarATodos}
+            disabled={citando}
+            className="text-sm bg-purple-100 text-purple-700 rounded-lg px-3 py-1.5 font-medium hover:bg-purple-200 disabled:opacity-50"
+          >
+            {citando ? 'Citando...' : '📣 Citar a todos'}
+          </button>
+        </div>
         <div className="bg-white rounded-xl border overflow-hidden mb-3">
           <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium text-gray-600">Persona</th>
+                <th className="text-center px-4 py-2 font-medium text-gray-600">Asistencia</th>
+                <th className="px-4 py-2"></th>
+              </tr>
+            </thead>
             <tbody>
               {asistentes.map(a => (
                 <tr key={a.id} className="border-t">
                   <td className="px-4 py-2">{a.nombre}</td>
-                  <td className="px-4 py-2 text-gray-500">{a.parcela ? `#${a.parcela.numero}` : ''}</td>
+                  <td className="px-4 py-2 text-center">
+                    <div className="inline-flex rounded-lg border overflow-hidden text-xs">
+                      <button
+                        onClick={() => marcarAsistencia(a.id, true)}
+                        className={`px-3 py-1 font-medium ${a.presente ? 'bg-green-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        ✓ Vino
+                      </button>
+                      <button
+                        onClick={() => marcarAsistencia(a.id, false)}
+                        className={`px-3 py-1 font-medium ${!a.presente ? 'bg-red-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        ✗ No vino
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button onClick={() => eliminarAsistente(a.id)} className="text-xs text-red-500 hover:underline">Quitar</button>
+                  </td>
                 </tr>
               ))}
-              {asistentes.length === 0 && <tr><td className="px-4 py-4 text-center text-gray-400">Sin asistentes registrados</td></tr>}
+              {asistentes.length === 0 && <tr><td colSpan={3} className="px-4 py-4 text-center text-gray-400">Sin personas citadas aún</td></tr>}
             </tbody>
           </table>
         </div>
         <form onSubmit={agregarAsistente} className="flex gap-2">
-          <input type="text" value={nombreAsistente} onChange={e => setNombreAsistente(e.target.value)} placeholder="Nombre del asistente" className="flex-1 border rounded-lg px-3 py-2 text-sm" />
-          <button type="submit" className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">+ Agregar</button>
+          <select value={parcelaSel} onChange={e => setParcelaSel(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm">
+            <option value="">Seleccionar parcela para citar...</option>
+            {parcelas.map(p => <option key={p.id} value={p.id}>#{p.numero} — {p.nombre_dueno}</option>)}
+          </select>
+          <button type="submit" disabled={!parcelaSel} className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">+ Citar</button>
         </form>
       </section>
 

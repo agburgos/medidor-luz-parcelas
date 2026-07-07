@@ -4,11 +4,11 @@ import { getSesion } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
 
 export async function GET() {
+  const sesion = await getSesion()
   const supabase = createServiceClient()
-  const { data, error } = await supabase
-    .from('asambleas')
-    .select('*')
-    .order('fecha', { ascending: false })
+  let query = supabase.from('asambleas').select('*').order('fecha', { ascending: false })
+  if (sesion?.rol !== 'comite') query = query.neq('tipo', 'directiva')
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data)
 }
