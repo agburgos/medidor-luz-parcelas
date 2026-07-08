@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     .single()
 
   const movs = movimientos || []
-  const saldoIni = saldoInicial?.saldo_final ?? 169158
+  const saldoIni = saldoInicial?.saldo_final ?? 0
 
   // 1. Registro cronológico detallado
   let saldoActual = saldoIni

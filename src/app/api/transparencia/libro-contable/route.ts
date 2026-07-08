@@ -24,7 +24,7 @@ export async function GET() {
     .single()
 
   const movs = movimientos || []
-  const saldoIni = saldoInicial?.saldo_final ?? 169158
+  const saldoIni = saldoInicial?.saldo_final ?? 0
 
   let saldoActual = saldoIni
   const registro = movs.map((m: { tipo: string; monto: number; fecha: string; concepto: string; id: string }) => {

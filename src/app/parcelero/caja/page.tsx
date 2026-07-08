@@ -20,6 +20,7 @@ export default function CajaPage() {
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'ingreso' | 'egreso'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
+  const [saldoInicial, setSaldoInicial] = useState<number | null>(null)
   const POR_PAGINA = 15
 
   const cargar = useCallback(async () => {
@@ -30,11 +31,14 @@ export default function CajaPage() {
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
+  useEffect(() => {
+    fetch('/api/caja/saldo-inicial').then(r => r.json()).then(d => setSaldoInicial(d.saldo_inicial ?? 0)).catch(() => setSaldoInicial(0))
+  }, [])
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
   const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
   const totalEgresos = movimientos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const saldoActual = 163658 + totalIngresos - totalEgresos
+  const saldoActual = (saldoInicial ?? 0) + totalIngresos - totalEgresos
 
   const q = busqueda.trim().toLowerCase()
   const filtrados = movimientos.filter(m =>
@@ -63,7 +67,7 @@ export default function CajaPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Saldo Inicial</p>
-          <p className="text-xl font-bold text-blue-700">$163.658</p>
+          <p className="text-xl font-bold text-blue-700">{saldoInicial === null ? '...' : $(saldoInicial)}</p>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Total Ingresos</p>

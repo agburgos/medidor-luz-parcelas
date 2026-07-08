@@ -36,6 +36,10 @@ export default function CajaPage() {
   const [pagina, setPagina] = useState(1)
   const POR_PAGINA = 15
   const [esSuperadmin, setEsSuperadmin] = useState(false)
+  const [saldoInicial, setSaldoInicial] = useState<number | null>(null)
+  const [editandoSaldo, setEditandoSaldo] = useState(false)
+  const [nuevoSaldo, setNuevoSaldo] = useState('')
+  const [guardandoSaldo, setGuardandoSaldo] = useState(false)
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/caja/movimientos')
@@ -44,13 +48,39 @@ export default function CajaPage() {
     setLoading(false)
   }, [])
 
+  const cargarSaldoInicial = useCallback(async () => {
+    const res = await fetch('/api/caja/saldo-inicial')
+    const data = await res.json()
+    setSaldoInicial(data.saldo_inicial ?? 0)
+  }, [])
+
   useEffect(() => {
     fetch('/api/sesion').then(r => r.json()).then(s => setEsSuperadmin(!!s.esSuperadmin)).catch(() => {})
   }, [])
 
   useEffect(() => {
     cargar()
-  }, [cargar])
+    cargarSaldoInicial()
+  }, [cargar, cargarSaldoInicial])
+
+  async function guardarSaldoInicial() {
+    const valor = Number(nuevoSaldo)
+    if (isNaN(valor)) { alert('Monto inválido'); return }
+    setGuardandoSaldo(true)
+    const res = await fetch('/api/caja/saldo-inicial', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ saldo_inicial: valor }),
+    })
+    if (res.ok) {
+      setEditandoSaldo(false)
+      await cargarSaldoInicial()
+    } else {
+      const data = await res.json()
+      alert('Error: ' + data.error)
+    }
+    setGuardandoSaldo(false)
+  }
 
   async function registrar(e: React.FormEvent) {
     e.preventDefault()
@@ -102,7 +132,7 @@ export default function CajaPage() {
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
   const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
   const totalEgresos = movimientos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const saldoActual = 163658 + totalIngresos - totalEgresos
+  const saldoActual = (saldoInicial ?? 0) + totalIngresos - totalEgresos
 
   // Filtrado + paginación de la grilla de movimientos
   const q = busqueda.trim().toLowerCase()
@@ -131,8 +161,45 @@ export default function CajaPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border p-4">
-          <p className="text-xs text-gray-500">Saldo Inicial</p>
-          <p className="text-xl font-bold text-blue-700">$163.658</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">Saldo Inicial</p>
+            {esSuperadmin && !editandoSaldo && (
+              <button
+                onClick={() => { setNuevoSaldo(String(saldoInicial ?? 0)); setEditandoSaldo(true) }}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                ✏️ Editar
+              </button>
+            )}
+          </div>
+          {editandoSaldo ? (
+            <div className="mt-1">
+              <input
+                type="number"
+                value={nuevoSaldo}
+                onChange={e => setNuevoSaldo(e.target.value)}
+                className="w-full border rounded px-2 py-1 text-sm mb-2"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={guardarSaldoInicial}
+                  disabled={guardandoSaldo}
+                  className="text-xs bg-blue-600 text-white rounded px-2 py-1 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {guardandoSaldo ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button
+                  onClick={() => setEditandoSaldo(false)}
+                  className="text-xs text-gray-500 hover:underline"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xl font-bold text-blue-700">{saldoInicial === null ? '...' : $(saldoInicial)}</p>
+          )}
         </div>
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Total Ingresos</p>
