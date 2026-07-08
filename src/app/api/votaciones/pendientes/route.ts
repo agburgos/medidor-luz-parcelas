@@ -5,8 +5,7 @@ import { getSesion } from '@/lib/auth'
 // GET: votaciones abiertas donde el parcelero aún no ha votado
 export async function GET() {
   const sesion = await getSesion()
-  if (!sesion || sesion.rol !== 'parcelero') return NextResponse.json([])
-  if (!sesion.parcelaId) return NextResponse.json([])
+  if (!sesion || !sesion.parcelaId) return NextResponse.json([])
 
   const supabase = createServiceClient()
   const ahora = new Date().toISOString()
