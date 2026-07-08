@@ -117,6 +117,18 @@ export default function ParcelasPage() {
     setMensaje(`🔑 Contraseña temporal de ${p.nombre_dueno} (parcela #${p.numero}): ${data.password_temporal} — cópiala ahora, no se volverá a mostrar.`)
   }
 
+  async function resetPasswordCorreo(p: Parcela) {
+    if (!confirm(`¿Enviar un correo a ${p.nombre_dueno} (${p.email}) con un link para restablecer su contraseña? La actual dejará de funcionar solo si la cambia.`)) return
+    setMensaje('')
+    const res = await fetch(`/api/parcelas/${p.id}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modo: 'correo' }),
+    })
+    const data = await res.json()
+    setMensaje(res.ok ? `✅ ${data.mensaje}` : `❌ ${data.error}`)
+  }
+
   async function invitar(p: Parcela) {
     setInvitando(p.id)
     setMensaje('')
@@ -189,10 +201,19 @@ export default function ParcelasPage() {
                         <button
                           onClick={() => resetPassword(p)}
                           className="text-xs bg-orange-100 text-orange-700 rounded px-2 py-1 hover:bg-orange-200"
-                          title="Generar contraseña temporal"
+                          title="Generar contraseña temporal (te la muestra a ti)"
                         >
                           🔑 Reset
                         </button>
+                        {p.email && (
+                          <button
+                            onClick={() => resetPasswordCorreo(p)}
+                            className="text-xs bg-blue-100 text-blue-700 rounded px-2 py-1 hover:bg-blue-200"
+                            title="Enviar link de restablecer contraseña por correo"
+                          >
+                            ✉️ Por correo
+                          </button>
+                        )}
                       </div>
                     )
                     : p.email ? (
