@@ -22,6 +22,10 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/pagos', label: 'Validar pagos' },
     { href: '/comite/reportes', label: 'Reportes' },
   ]},
+  { label: '🏦 Caja y Tesorería', items: [
+    { href: '/comite/caja', label: 'Caja' },
+    { href: '/comite/caja/libro-contable', label: 'Libro Contable' },
+  ]},
   { label: '🗓️ Comunidad', items: [
     { href: '/comite/asambleas', label: 'Asambleas y actas' },
     { href: '/comite/anuncios', label: 'Anuncios' },
