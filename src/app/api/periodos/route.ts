@@ -9,18 +9,21 @@ export async function POST(req: NextRequest) {
 
   const mes = Number(fd.get('mes'))
   const anio = Number(fd.get('anio'))
-  const monto_total_factura = Number(fd.get('monto_total_factura'))
+  const monto_total_factura = fd.get('monto_total_factura') ? Number(fd.get('monto_total_factura')) : 0
   const costo_unitario_kwh = Number(fd.get('costo_unitario_kwh') || 0)
   const cargo_fijo = Number(fd.get('cargo_fijo') || 5500)
   const lectura_general_anterior = fd.get('lectura_general_anterior') ? Number(fd.get('lectura_general_anterior')) : null
   const lectura_general_actual = fd.get('lectura_general_actual') ? Number(fd.get('lectura_general_actual')) : null
-  const fecha_vencimiento = fd.get('fecha_vencimiento') as string
+  const fecha_vencimiento = (fd.get('fecha_vencimiento') as string) || null
   const fecha_emision = fd.get('fecha_emision') as string || null
   const fecha_corte = fd.get('fecha_corte') as string || null
   const archivo = fd.get('archivo') as File | null
 
-  if (!mes || !anio || !monto_total_factura || !fecha_vencimiento) {
-    return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+  // El período se puede abrir apenas empieza el mes, sin factura todavía:
+  // la factura (monto, vencimiento, corte) se agrega después, cuando llega,
+  // y siempre debe completarse antes de calcular el prorrateo.
+  if (!mes || !anio) {
+    return NextResponse.json({ error: 'Mes y año son requeridos' }, { status: 400 })
   }
 
   let archivo_factura_url = null

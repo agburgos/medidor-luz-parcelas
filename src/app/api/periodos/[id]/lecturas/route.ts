@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { getSesion } from '@/lib/auth'
+import { getSesion, esSuperadmin } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +10,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!Array.isArray(lecturas) || lecturas.length === 0) {
     return NextResponse.json({ error: 'Sin lecturas' }, { status: 400 })
+  }
+
+  const sesion = await getSesion()
+  if (!sesion || sesion.rol !== 'comite') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
+  const { data: periodo } = await supabase
+    .from('periodos_facturacion')
+    .select('prorrateo_calculado')
+    .eq('id', periodo_id)
+    .single()
+
+  if (periodo?.prorrateo_calculado && !esSuperadmin(sesion)) {
+    return NextResponse.json({
+      error: 'Las lecturas de este período están cerradas porque ya se calculó el prorrateo. Solo un superadministrador puede reabrirlas.',
+    }, { status: 403 })
   }
 
   // Upsert lecturas (puede haber lecturas ya guardadas de antes)
@@ -28,7 +45,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  const sesion = await getSesion()
   await registrar(sesion, 'guardar_lecturas_masivo', 'periodo_facturacion', periodo_id, { cantidad: rows.length })
 
   return NextResponse.json({ guardadas: rows.length })

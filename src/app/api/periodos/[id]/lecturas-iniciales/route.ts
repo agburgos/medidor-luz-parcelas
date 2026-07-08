@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Obtener periodo anterior para tener lectura_anterior por defecto
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
-    .select('mes, anio')
+    .select('mes, anio, monto_total_factura, fecha_vencimiento, prorrateo_calculado')
     .eq('id', id)
     .single()
 
@@ -65,5 +65,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }
   })
 
-  return NextResponse.json(resultado)
+  return NextResponse.json({
+    filas: resultado,
+    periodo: {
+      montoTotalFactura: periodo?.monto_total_factura ?? 0,
+      fechaVencimiento: periodo?.fecha_vencimiento ?? null,
+      prorrateoCalculado: !!periodo?.prorrateo_calculado,
+    },
+  })
 }

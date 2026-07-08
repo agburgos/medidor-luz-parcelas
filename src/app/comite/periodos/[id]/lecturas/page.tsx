@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 
 interface LecturaFila {
@@ -18,20 +18,34 @@ interface LecturaFila {
   error: string
 }
 
+interface PeriodoInfo {
+  montoTotalFactura: number
+  fechaVencimiento: string | null
+  prorrateoCalculado: boolean
+}
+
 export default function LecturasPage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
   const [filas, setFilas] = useState<LecturaFila[]>([])
+  const [periodo, setPeriodo] = useState<PeriodoInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const [esSuperadmin, setEsSuperadmin] = useState(false)
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  useEffect(() => {
+  const [formFactura, setFormFactura] = useState({ monto_total_factura: '', fecha_vencimiento: '', fecha_emision: '', fecha_corte: '' })
+  const [guardandoFactura, setGuardandoFactura] = useState(false)
+  const [archivoFactura, setArchivoFactura] = useState<File | null>(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrSugeridoFactura, setOcrSugeridoFactura] = useState<{ monto: number; vencimiento: string; corte?: string } | null>(null)
+
+  const cargar = useCallback(() => {
     fetch(`/api/periodos/${id}/lecturas-iniciales`)
       .then(r => r.json())
       .then(data => {
-        setFilas(data.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean }) => ({
+        setFilas(data.filas.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean }) => ({
           parcela_id: p.parcela_id,
           numero: p.numero,
           nombre_dueno: p.nombre_dueno,
@@ -45,9 +59,20 @@ export default function LecturasPage() {
           guardado: p.guardado,
           error: '',
         })))
+        setPeriodo(data.periodo)
+        setFormFactura(f => ({
+          ...f,
+          monto_total_factura: data.periodo.montoTotalFactura ? String(data.periodo.montoTotalFactura) : '',
+          fecha_vencimiento: data.periodo.fechaVencimiento ?? '',
+        }))
         setLoading(false)
       })
   }, [id])
+
+  useEffect(() => { cargar() }, [cargar])
+  useEffect(() => {
+    fetch('/api/sesion').then(r => r.json()).then(s => setEsSuperadmin(!!s.esSuperadmin)).catch(() => {})
+  }, [])
 
   async function handleOcr(parcelaId: string) {
     const fila = filas.find(f => f.parcela_id === parcelaId)
@@ -62,6 +87,45 @@ export default function LecturasPage() {
         ? { ...f, ocrSugerido: data.lectura ?? null, lectura_actual: String(data.lectura ?? f.lectura_actual), error: res.ok ? '' : (data.error || 'Error OCR') }
         : f
     ))
+  }
+
+  async function handleOcrFactura() {
+    if (!archivoFactura) return
+    setOcrLoading(true)
+    setMensaje('')
+    try {
+      const fd = new FormData()
+      fd.append('file', archivoFactura)
+      const res = await fetch('/api/ocr/factura', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error OCR')
+      setOcrSugeridoFactura(data)
+      setFormFactura(f => ({
+        ...f,
+        monto_total_factura: String(data.monto ?? f.monto_total_factura),
+        fecha_vencimiento: data.vencimiento ?? f.fecha_vencimiento,
+        fecha_corte: data.corte ?? f.fecha_corte,
+      }))
+    } catch (e: unknown) {
+      setMensaje(`❌ ${e instanceof Error ? e.message : 'Error leyendo la factura'}`)
+    } finally {
+      setOcrLoading(false)
+    }
+  }
+
+  async function guardarFactura(e: React.FormEvent) {
+    e.preventDefault()
+    setGuardandoFactura(true)
+    setMensaje('')
+    const fd = new FormData()
+    Object.entries(formFactura).forEach(([k, v]) => fd.append(k, v))
+    if (archivoFactura) fd.append('archivo', archivoFactura)
+    const res = await fetch(`/api/periodos/${id}`, { method: 'PATCH', body: fd })
+    const data = await res.json()
+    if (!res.ok) { setMensaje(`❌ ${data.error}`); setGuardandoFactura(false); return }
+    setMensaje('✅ Factura guardada')
+    cargar()
+    setGuardandoFactura(false)
   }
 
   async function guardarTodas() {
@@ -81,20 +145,21 @@ export default function LecturasPage() {
       body: JSON.stringify({ lecturas: payload }),
     })
     const data = await res.json()
-    if (!res.ok) { setMensaje(data.error || 'Error guardando'); setGuardando(false); return }
+    if (!res.ok) { setMensaje(`❌ ${data.error}`); setGuardando(false); return }
     setMensaje(`✅ ${data.guardadas} lecturas guardadas`)
     setGuardando(false)
   }
 
   async function calcularProrrateo() {
     setGuardando(true)
+    setMensaje('')
     const res = await fetch(`/api/prorrateo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ periodo_id: id }),
     })
     const data = await res.json()
-    if (!res.ok) { setMensaje(data.error || 'Error'); setGuardando(false); return }
+    if (!res.ok) { setMensaje(`❌ ${data.error}`); setGuardando(false); return }
     setMensaje(`✅ Prorrateo calculado para ${data.total} parcelas — tarifa derivada: $${data.tarifa_calculada}/kWh (consumo total ${data.consumo_total_kwh} kWh)`)
     setGuardando(false)
     setTimeout(() => router.push(`/comite/periodos/${id}/cuentas`), 1200)
@@ -103,6 +168,9 @@ export default function LecturasPage() {
   if (loading) return <div className="p-8 text-gray-500">Cargando parcelas...</div>
 
   const completadas = filas.filter(f => f.lectura_actual !== '' || f.estado !== 'normal').length
+  const faltaFactura = !periodo?.montoTotalFactura || periodo.montoTotalFactura <= 0
+  const cerrado = !!periodo?.prorrateoCalculado
+  const bloqueado = cerrado && !esSuperadmin
 
   return (
     <div>
@@ -111,21 +179,108 @@ export default function LecturasPage() {
         <span className="text-sm text-gray-500">{completadas}/{filas.length} ingresadas</span>
       </div>
 
+      {cerrado && (
+        <div className={`mb-4 rounded-lg p-3 text-sm ${bloqueado ? 'bg-gray-100 text-gray-700 border border-gray-300' : 'bg-yellow-50 text-yellow-800 border border-yellow-300'}`}>
+          {bloqueado
+            ? '🔒 El prorrateo de este período ya fue calculado. Las lecturas quedaron cerradas para edición. Solo un superadministrador puede reabrirlas.'
+            : '⚠️ Estás editando un período con el prorrateo ya calculado (acceso de superadministrador). Si guardas o recalculas, se actualizarán los montos y cuentas ya generadas.'}
+        </div>
+      )}
+
+      {faltaFactura && !cerrado && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-amber-900 mb-1">📄 Falta agregar la factura</h2>
+          <p className="text-xs text-amber-700 mb-3">Puedes seguir cargando lecturas mientras llega. Antes de calcular el prorrateo, completa estos datos.</p>
+          <form onSubmit={guardarFactura} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="block text-xs text-gray-600 mb-1">Factura (imagen o PDF, opcional)</label>
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={e => setArchivoFactura(e.target.files?.[0] || null)}
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:bg-purple-50 file:text-purple-700"
+                />
+                <button
+                  type="button"
+                  onClick={handleOcrFactura}
+                  disabled={!archivoFactura || ocrLoading}
+                  className="bg-purple-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-purple-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {ocrLoading ? 'Leyendo...' : '🤖 Leer con IA'}
+                </button>
+              </div>
+              {ocrSugeridoFactura && (
+                <p className="mt-1 text-xs text-purple-700 bg-purple-50 rounded p-2">
+                  IA sugirió: monto ${ocrSugeridoFactura.monto?.toLocaleString('es-CL')}, vencimiento {ocrSugeridoFactura.vencimiento}. Revisa y corrige si es necesario.
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Monto total factura ($)</label>
+              <input
+                type="number"
+                value={formFactura.monto_total_factura}
+                onChange={e => setFormFactura(f => ({ ...f, monto_total_factura: e.target.value }))}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Fecha vencimiento</label>
+              <input
+                type="date"
+                value={formFactura.fecha_vencimiento}
+                onChange={e => setFormFactura(f => ({ ...f, fecha_vencimiento: e.target.value }))}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Fecha emisión</label>
+              <input
+                type="date"
+                value={formFactura.fecha_emision}
+                onChange={e => setFormFactura(f => ({ ...f, fecha_emision: e.target.value }))}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Fecha corte</label>
+              <input
+                type="date"
+                value={formFactura.fecha_corte}
+                onChange={e => setFormFactura(f => ({ ...f, fecha_corte: e.target.value }))}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                disabled={guardandoFactura}
+                className="bg-amber-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+              >
+                {guardandoFactura ? 'Guardando...' : 'Guardar factura'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="flex gap-3 mb-4">
         <button
           onClick={guardarTodas}
-          disabled={guardando || completadas === 0}
+          disabled={guardando || completadas === 0 || bloqueado}
           className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
         >
           {guardando ? 'Guardando...' : 'Guardar lecturas'}
         </button>
         <button
           onClick={calcularProrrateo}
-          disabled={guardando || completadas < filas.length}
+          disabled={guardando || completadas < filas.length || bloqueado || faltaFactura}
           className="bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-          title={completadas < filas.length ? `Faltan ${filas.length - completadas} lecturas` : ''}
+          title={faltaFactura ? 'Agrega la factura antes de calcular' : completadas < filas.length ? `Faltan ${filas.length - completadas} lecturas` : ''}
         >
-          Calcular prorrateo →
+          {cerrado ? '🔁 Recalcular prorrateo →' : 'Calcular prorrateo →'}
         </button>
       </div>
 
@@ -156,10 +311,11 @@ export default function LecturasPage() {
                     <input
                       type="number"
                       value={fila.lectura_actual}
+                      disabled={bloqueado}
                       onChange={e => setFilas(prev => prev.map(f =>
                         f.parcela_id === fila.parcela_id ? { ...f, lectura_actual: e.target.value } : f
                       ))}
-                      className="w-24 border rounded px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-24 border rounded px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
                       placeholder="0"
                     />
                     {fila.ocrSugerido != null && (
@@ -172,10 +328,11 @@ export default function LecturasPage() {
                   <td className="px-3 py-2">
                     <select
                       value={fila.estado}
+                      disabled={bloqueado}
                       onChange={e => setFilas(prev => prev.map(f =>
                         f.parcela_id === fila.parcela_id ? { ...f, estado: e.target.value } : f
                       ))}
-                      className={`border rounded px-1 py-1 text-xs ${fila.estado !== 'normal' ? 'bg-yellow-50 border-yellow-300' : ''}`}
+                      className={`border rounded px-1 py-1 text-xs disabled:bg-gray-100 disabled:text-gray-400 ${fila.estado !== 'normal' ? 'bg-yellow-50 border-yellow-300' : ''}`}
                     >
                       <option value="normal">Normal</option>
                       <option value="s_info">S/INFO</option>
@@ -191,6 +348,7 @@ export default function LecturasPage() {
                         type="file"
                         accept="image/*"
                         className="hidden"
+                        disabled={bloqueado}
                         onChange={e => {
                           const file = e.target.files?.[0] || null
                           const preview = file ? URL.createObjectURL(file) : null
@@ -201,8 +359,9 @@ export default function LecturasPage() {
                       />
                       <button
                         type="button"
+                        disabled={bloqueado}
                         onClick={() => fileRefs.current[fila.parcela_id]?.click()}
-                        className="text-xs border rounded px-2 py-1 hover:bg-gray-50"
+                        className="text-xs border rounded px-2 py-1 hover:bg-gray-50 disabled:opacity-40"
                       >
                         {fila.fotoPreview ? '📷 Cambiar' : '📷 Foto'}
                       </button>

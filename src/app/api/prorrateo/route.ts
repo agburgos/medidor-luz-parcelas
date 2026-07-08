@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { getSesion } from '@/lib/auth'
+import { getSesion, esSuperadmin } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
 
 /**
@@ -28,17 +28,29 @@ export async function POST(req: NextRequest) {
   const { periodo_id } = await req.json()
   if (!periodo_id) return NextResponse.json({ error: 'periodo_id requerido' }, { status: 400 })
 
+  const sesion = await getSesion()
+  if (!sesion || sesion.rol !== 'comite') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
   const supabase = createServiceClient()
 
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
-    .select('monto_total_factura, cargo_fijo')
+    .select('monto_total_factura, cargo_fijo, prorrateo_calculado')
     .eq('id', periodo_id)
     .single()
 
   if (!periodo) return NextResponse.json({ error: 'Período no encontrado' }, { status: 404 })
   if (!periodo.monto_total_factura || periodo.monto_total_factura <= 0) {
     return NextResponse.json({ error: 'Define el monto total de la factura en el período antes de calcular' }, { status: 400 })
+  }
+
+  // Una vez calculado, el prorrateo queda cerrado: solo el superadmin puede recalcularlo.
+  if (periodo.prorrateo_calculado && !esSuperadmin(sesion)) {
+    return NextResponse.json({
+      error: 'El prorrateo de este período ya fue calculado y está cerrado. Solo un superadministrador puede recalcularlo.',
+    }, { status: 403 })
   }
 
   const { data: lecturas } = await supabase
@@ -100,16 +112,15 @@ export async function POST(req: NextRequest) {
     .upsert(cuentas, { onConflict: 'periodo_id,parcela_id' })
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  // Registrar la tarifa calculada en el período (para mostrarla en reportes)
+  // Registrar la tarifa calculada y cerrar el período contra nuevas ediciones de lectura
   await supabase
     .from('periodos_facturacion')
-    .update({ costo_unitario_kwh: Math.round(tarifa * 100) / 100 })
+    .update({ costo_unitario_kwh: Math.round(tarifa * 100) / 100, prorrateo_calculado: true })
     .eq('id', periodo_id)
 
   const totalFinal = cuentas.reduce((s, c) => s + c.monto_prorrateado, 0)
 
-  const sesion = await getSesion()
-  await registrar(sesion, 'calcular_prorrateo', 'periodo_facturacion', periodo_id, {
+  await registrar(sesion, periodo.prorrateo_calculado ? 'recalcular_prorrateo' : 'calcular_prorrateo', 'periodo_facturacion', periodo_id, {
     tarifa_calculada: Math.round(tarifa * 100) / 100, consumo_total: consumoTotal, parcelas: cuentas.length,
   })
 
