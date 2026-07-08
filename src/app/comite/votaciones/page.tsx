@@ -15,16 +15,11 @@ interface Votacion {
   estado: 'abierta' | 'cerrada'
 }
 
-interface Opcion {
-  id: string
-  texto: string
-  foto_url: string | null
-}
-
 export default function VotacionesPage() {
   const [votaciones, setVotaciones] = useState<Votacion[]>([])
   const [loading, setLoading] = useState(true)
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
+  const [editando, setEditando] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     titulo: '',
     descripcion: '',
@@ -48,11 +43,10 @@ export default function VotacionesPage() {
     setLoading(false)
   }
 
-  async function crearVotacion(e: React.FormEvent) {
+  async function guardar(e: React.FormEvent) {
     e.preventDefault()
     setEnviando(true)
 
-    // Subir fotos a Storage primero
     const opcionesConFotos = await Promise.all(
       formData.opciones.map(async (op) => {
         let foto_url = null
@@ -68,25 +62,30 @@ export default function VotacionesPage() {
       })
     )
 
-    // Crear votación
-    const res = await fetch('/api/votaciones', {
-      method: 'POST',
+    const payload = {
+      titulo: formData.titulo,
+      descripcion: formData.descripcion || null,
+      tipo_conteo: formData.tipo_conteo,
+      es_secreta: formData.es_secreta,
+      visibilidad_resultados: formData.visibilidad_resultados,
+      fecha_inicio: formData.fecha_inicio,
+      fecha_cierre: formData.fecha_cierre,
+      opciones: opcionesConFotos,
+    }
+
+    const url = editando ? `/api/votaciones/${editando}` : '/api/votaciones'
+    const method = editando ? 'PUT' : 'POST'
+
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        titulo: formData.titulo,
-        descripcion: formData.descripcion || null,
-        tipo_conteo: formData.tipo_conteo,
-        es_secreta: formData.es_secreta,
-        visibilidad_resultados: formData.visibilidad_resultados,
-        fecha_inicio: formData.fecha_inicio,
-        fecha_cierre: formData.fecha_cierre,
-        opciones: opcionesConFotos,
-      }),
+      body: JSON.stringify(payload),
     })
 
     if (res.ok) {
-      alert('Votación creada exitosamente')
+      alert(editando ? 'Votación actualizada' : 'Votación creada exitosamente')
       setMostrarFormulario(false)
+      setEditando(null)
       setFormData({
         titulo: '',
         descripcion: '',
@@ -100,9 +99,52 @@ export default function VotacionesPage() {
       cargarVotaciones()
     } else {
       const error = await res.json()
-      alert('Error: ' + (error.error || 'no se pudo crear'))
+      alert('Error: ' + (error.error || 'no se pudo guardar'))
     }
     setEnviando(false)
+  }
+
+  async function eliminarVotacion(v: Votacion) {
+    if (!confirm(`¿Eliminar votación "${v.titulo}"?`)) return
+    
+    const res = await fetch(`/api/votaciones/${v.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      alert('Votación eliminada')
+      cargarVotaciones()
+    } else {
+      const error = await res.json()
+      alert('Error: ' + (error.error || 'no se pudo eliminar'))
+    }
+  }
+
+  function abrirEdicion(v: Votacion) {
+    setFormData({
+      titulo: v.titulo,
+      descripcion: v.descripcion || '',
+      tipo_conteo: v.tipo_conteo,
+      es_secreta: v.es_secreta,
+      visibilidad_resultados: v.visibilidad_resultados,
+      fecha_inicio: v.fecha_inicio,
+      fecha_cierre: v.fecha_cierre,
+      opciones: [{ texto: '', foto: null }],
+    })
+    setEditando(v.id)
+    setMostrarFormulario(true)
+  }
+
+  function cerrarFormulario() {
+    setMostrarFormulario(false)
+    setEditando(null)
+    setFormData({
+      titulo: '',
+      descripcion: '',
+      tipo_conteo: 'unica',
+      es_secreta: true,
+      visibilidad_resultados: 'en_vivo',
+      fecha_inicio: new Date().toISOString(),
+      fecha_cierre: '',
+      opciones: [{ texto: '', foto: null }],
+    })
   }
 
   function agregarOpcion() {
@@ -137,10 +179,9 @@ export default function VotacionesPage() {
 
       {mostrarFormulario && (
         <div className="bg-white rounded-xl border p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Crear nueva votación</h2>
+          <h2 className="text-lg font-semibold mb-4">{editando ? 'Editar' : 'Crear nueva'} votación</h2>
 
-          <form onSubmit={crearVotacion} className="space-y-4">
-            {/* Título */}
+          <form onSubmit={guardar} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Título *</label>
               <input
@@ -153,7 +194,6 @@ export default function VotacionesPage() {
               />
             </div>
 
-            {/* Descripción */}
             <div>
               <label className="block text-sm font-medium mb-1">Descripción</label>
               <textarea
@@ -165,47 +205,88 @@ export default function VotacionesPage() {
               />
             </div>
 
-            {/* Tipo de conteo */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Tipo de conteo *</label>
-              <div className="flex gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="unica"
-                    checked={formData.tipo_conteo === 'unica'}
-                    onChange={e => setFormData(f => ({ ...f, tipo_conteo: e.target.value as 'unica' | 'multiple' }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">Una opción (única)</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="multiple"
-                    checked={formData.tipo_conteo === 'multiple'}
-                    onChange={e => setFormData(f => ({ ...f, tipo_conteo: e.target.value as 'unica' | 'multiple' }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">Múltiples opciones</span>
-                </label>
-              </div>
-            </div>
+            {!editando && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Tipo de conteo *</label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="unica"
+                        checked={formData.tipo_conteo === 'unica'}
+                        onChange={e => setFormData(f => ({ ...f, tipo_conteo: e.target.value as any }))}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">Una opción (única)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="multiple"
+                        checked={formData.tipo_conteo === 'multiple'}
+                        onChange={e => setFormData(f => ({ ...f, tipo_conteo: e.target.value as any }))}
+                        className="mr-2"
+                      />
+                      <span className="text-sm">Múltiples opciones</span>
+                    </label>
+                  </div>
+                </div>
 
-            {/* Secreta */}
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.es_secreta}
-                  onChange={e => setFormData(f => ({ ...f, es_secreta: e.target.checked }))}
-                  className="mr-2 rounded"
-                />
-                <span className="text-sm font-medium">Votación secreta (no se vé quién votó qué)</span>
-              </label>
-            </div>
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.es_secreta}
+                      onChange={e => setFormData(f => ({ ...f, es_secreta: e.target.checked }))}
+                      className="mr-2 rounded"
+                    />
+                    <span className="text-sm font-medium">Votación secreta (anónima)</span>
+                  </label>
+                </div>
 
-            {/* Visibilidad de resultados */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Opciones de votación *</label>
+                  <div className="space-y-3">
+                    {formData.opciones.map((op, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={op.texto}
+                            onChange={e => {
+                              const nuevas = [...formData.opciones]
+                              nuevas[idx].texto = e.target.value
+                              setFormData(f => ({ ...f, opciones: nuevas }))
+                            }}
+                            placeholder={`Opción ${idx + 1}`}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            required
+                          />
+                        </div>
+                        {formData.opciones.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => eliminarOpcion(idx)}
+                            className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={agregarOpcion}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    + Agregar opción
+                  </button>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-sm font-medium mb-2">Visibilidad de resultados *</label>
               <select
@@ -219,7 +300,6 @@ export default function VotacionesPage() {
               </select>
             </div>
 
-            {/* Fecha de cierre */}
             <div>
               <label className="block text-sm font-medium mb-1">Fecha y hora de cierre *</label>
               <input
@@ -232,73 +312,17 @@ export default function VotacionesPage() {
               />
             </div>
 
-            {/* Opciones */}
-            <div>
-              <label className="block text-sm font-medium mb-2">Opciones de votación *</label>
-              <div className="space-y-3">
-                {formData.opciones.map((op, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={op.texto}
-                        onChange={e => {
-                          const nuevas = [...formData.opciones]
-                          nuevas[idx].texto = e.target.value
-                          setFormData(f => ({ ...f, opciones: nuevas }))
-                        }}
-                        placeholder={`Opción ${idx + 1}`}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="flex items-center px-3 py-2 border rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100">
-                        <span className="text-xs text-gray-600">📷 Foto</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={e => {
-                            const nuevas = [...formData.opciones]
-                            nuevas[idx].foto = e.target.files?.[0] || null
-                            setFormData(f => ({ ...f, opciones: nuevas }))
-                          }}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                    {formData.opciones.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => eliminarOpcion(idx)}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={agregarOpcion}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                + Agregar opción
-              </button>
-            </div>
-
             <div className="flex gap-2 pt-4">
               <button
                 type="submit"
                 disabled={enviando}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {enviando ? 'Creando...' : 'Crear votación'}
+                {enviando ? 'Guardando...' : editando ? 'Actualizar' : 'Crear votación'}
               </button>
               <button
                 type="button"
-                onClick={() => setMostrarFormulario(false)}
+                onClick={cerrarFormulario}
                 className="flex-1 px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50"
               >
                 Cancelar
@@ -308,12 +332,11 @@ export default function VotacionesPage() {
         </div>
       )}
 
-      {/* Listado de votaciones */}
+      {/* Listado */}
       <div className="space-y-4">
         {votaciones.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed">
             <p className="text-gray-500">Sin votaciones creadas aún</p>
-            <p className="text-xs text-gray-400 mt-1">Crea la primera votación para la comunidad</p>
           </div>
         ) : (
           votaciones.map(v => (
@@ -353,12 +376,30 @@ export default function VotacionesPage() {
                 </div>
               </div>
 
-              <Link
-                href={`/comite/votaciones/${v.id}`}
-                className="inline-block px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium"
-              >
-                Ver detalles y resultados →
-              </Link>
+              <div className="flex gap-2">
+                <Link
+                  href={`/comite/votaciones/${v.id}`}
+                  className="px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium"
+                >
+                  📊 Ver resultados
+                </Link>
+                {v.estado === 'abierta' && (
+                  <>
+                    <button
+                      onClick={() => abrirEdicion(v)}
+                      className="px-4 py-2 text-sm bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 font-medium"
+                    >
+                      ✏️ Editar
+                    </button>
+                    <button
+                      onClick={() => eliminarVotacion(v)}
+                      className="px-4 py-2 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 font-medium"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ))
         )}
