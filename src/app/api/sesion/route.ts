@@ -7,6 +7,7 @@ export async function GET() {
   const sesion = await getSesion()
   if (!sesion) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   return NextResponse.json({
+    userId: sesion.userId,
     rol: sesion.rol,
     nombre: sesion.nombre,
     esSuperadmin: sesion.esSuperadmin,
