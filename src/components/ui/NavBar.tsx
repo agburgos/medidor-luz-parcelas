@@ -48,9 +48,10 @@ const GRUPOS_PARCELERO: Grupo[] = [
     { href: '/parcelero/luz', label: '⚡ Cuenta de luz' },
     { href: '/parcelero/gastos-comunes', label: '🏘️ Gastos Comunes' },
   ]},
-  { label: '💰 Transparencia', items: [
-    { href: '/parcelero/estado-resultados', label: 'Estado de resultados' },
-    { href: '/parcelero/flujo-caja', label: 'Flujo de caja' },
+  { label: '🏦 Caja y Tesorería', items: [
+    { href: '/parcelero/caja', label: 'Caja' },
+    { href: '/parcelero/caja/libro-contable', label: 'Libro Contable' },
+    { href: '/parcelero/estados-cuenta', label: 'Estados de cuenta' },
   ]},
   { label: '🗳️ Comunidad', items: [
     { href: '/parcelero/votaciones', label: 'Votaciones' },
