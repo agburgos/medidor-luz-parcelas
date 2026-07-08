@@ -8,7 +8,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!sesion) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const { id: votacion_id } = await params
-
   const supabase = createServiceClient()
 
   // Verificar que la votación existe
