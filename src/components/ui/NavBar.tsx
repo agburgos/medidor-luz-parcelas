@@ -25,6 +25,7 @@ const GRUPOS_COMITE: Grupo[] = [
   { label: '🏦 Caja y Tesorería', items: [
     { href: '/comite/caja', label: 'Caja' },
     { href: '/comite/caja/libro-contable', label: 'Libro Contable' },
+    { href: '/comite/estados-cuenta', label: 'Estados de cuenta' },
   ]},
   { label: '🗓️ Comunidad', items: [
     { href: '/comite/asambleas', label: 'Asambleas y actas' },
