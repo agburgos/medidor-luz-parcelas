@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import { EstadoCuenta } from '@/types'
 
+export const metadata = { title: 'Reportes — COPOSA' }
+
+
 const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 export default async function ReportesPage() {

@@ -5,6 +5,9 @@ import FeedAnuncios from '@/components/parcelero/FeedAnuncios'
 import AvisoLectura from '@/components/parcelero/AvisoLectura'
 import AvisoVotacion from '@/components/parcelero/AvisoVotacion'
 
+export const metadata = { title: 'Inicio — COPOSA' }
+
+
 export default async function ParceleroDashboard() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

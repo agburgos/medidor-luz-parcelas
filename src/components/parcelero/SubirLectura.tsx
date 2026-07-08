@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { comprimirImagen } from '@/lib/comprimirImagen'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -37,11 +38,13 @@ export default function SubirLectura() {
     if (!estado?.periodo) return
     if (!foto) { setMensaje('❌ La foto del medidor es obligatoria'); return }
     setEnviando(true)
+    setMensaje('Comprimiendo foto...')
+    const fotoComprimida = await comprimirImagen(foto)
     setMensaje('')
     const fd = new FormData()
     fd.append('periodo_id', estado.periodo.id)
     fd.append('lectura_actual', lectura)
-    fd.append('foto', foto)
+    fd.append('foto', fotoComprimida)
     const res = await fetch('/api/lecturas/informar', { method: 'POST', body: fd })
     const data = await res.json()
     setMensaje(res.ok ? `✅ ${data.mensaje}` : `❌ ${data.error}`)

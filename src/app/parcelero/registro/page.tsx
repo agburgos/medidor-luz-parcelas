@@ -1,5 +1,8 @@
 import RegistroParcela from '@/components/registro/RegistroParcela'
 
+export const metadata = { title: 'Mi Registro — COPOSA' }
+
+
 export default function RegistroParceleroPage() {
   return (
     <div>

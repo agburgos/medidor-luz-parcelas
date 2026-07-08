@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
+export const metadata = { title: 'Detalle Período — COPOSA' }
+
+
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default async function PeriodoDetallePage({ params }: { params: Promise<{ id: string }> }) {

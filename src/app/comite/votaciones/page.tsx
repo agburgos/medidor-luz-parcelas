@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { comprimirImagen } from '@/lib/comprimirImagen'
 
 interface Votacion {
   id: string
@@ -51,8 +52,9 @@ export default function VotacionesPage() {
       formData.opciones.map(async (op) => {
         let foto_url = null
         if (op.foto) {
+          const fotoComprimida = await comprimirImagen(op.foto)
           const formData2 = new FormData()
-          formData2.append('file', op.foto)
+          formData2.append('file', fotoComprimida)
           formData2.append('bucket', 'votaciones')
           const resUpload = await fetch('/api/upload', { method: 'POST', body: formData2 })
           const dataUpload = await resUpload.json()

@@ -1,8 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import Link from 'next/link'
 import SubirLectura from '@/components/parcelero/SubirLectura'
+
+export const metadata = { title: 'Cuenta de Luz — COPOSA' }
+
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -78,11 +81,14 @@ export default async function ParceleroLuzPage() {
   // Transparencia: cuánto se ha recaudado en total del período actual vs. la factura real
   let transparenciaLuz: { totalFactura: number; recaudado: number; faltante: number } | null = null
   if (cuentaActual) {
-    const { data: todasCuentasPeriodo } = await supabase
+    // Usa el service client: este total es agregado de todo el macrolote (dato público de
+    // transparencia), no debe quedar acotado por RLS a solo la fila propia del usuario.
+    const supabaseService = createServiceClient()
+    const { data: todasCuentasPeriodo } = await supabaseService
       .from('cuentas_parcela')
       .select('monto_pagado')
       .eq('periodo_id', cuentaActual.periodo_id)
-    const recaudado = (todasCuentasPeriodo ?? []).reduce((s, c) => s + Number(c.monto_pagado), 0)
+    const recaudado = (todasCuentasPeriodo ?? []).reduce((s: number, c: { monto_pagado: number }) => s + Number(c.monto_pagado), 0)
     transparenciaLuz = {
       totalFactura: cuentaActual.periodo.monto_total_factura,
       recaudado,

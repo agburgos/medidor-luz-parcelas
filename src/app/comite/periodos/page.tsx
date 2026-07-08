@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
+export const metadata = { title: 'Períodos de Luz — COPOSA' }
+
+
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default async function PeriodosPage() {

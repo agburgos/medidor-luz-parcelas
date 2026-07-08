@@ -1,6 +1,9 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
+export const metadata = { title: 'Dashboard Comité — COPOSA' }
+
+
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
