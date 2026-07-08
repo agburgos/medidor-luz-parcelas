@@ -25,6 +25,18 @@
 supabase db push
 ```
 
+### 2. Crear bucket de Storage para documentos
+
+1. Abre [Supabase Dashboard](https://app.supabase.com/)
+2. Selecciona tu proyecto COPOSA
+3. Ve a **Storage** (en el menú izquierdo)
+4. Haz click en **"Create a new bucket"**
+5. Nombre: `documentos`
+6. Privacidad: **Private** (solo el comité puede ver)
+7. Haz click en **"Create bucket"**
+
+### 3. Configurar políticas de Storage (opcional pero recomendado)
+
 ### 2. Acceder al módulo en la app
 
 Una vez ejecutada la migración:

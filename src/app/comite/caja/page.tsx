@@ -24,9 +24,10 @@ export default function CajaPage() {
     concepto: '',
     monto: '',
     fecha: new Date().toISOString().slice(0, 10),
-    documento_url: '',
+    documento: null as File | null,
     observacion: '',
   })
+  const [nombreDoc, setNombreDoc] = useState('')
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/caja/movimientos')
@@ -47,17 +48,26 @@ export default function CajaPage() {
     }
     setGuardando(true)
     setMensaje('')
+
+    const formData = new FormData()
+    formData.append('tipo', form.tipo)
+    formData.append('concepto', form.concepto)
+    formData.append('monto', form.monto)
+    formData.append('fecha', form.fecha)
+    formData.append('observacion', form.observacion)
+    if (form.documento) formData.append('documento', form.documento)
+
     const res = await fetch('/api/caja/movimientos', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: formData,
     })
     const data = await res.json()
     if (!res.ok) {
       setMensaje(`❌ ${data.error}`)
     } else {
       setMensaje(`✅ ${form.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado`)
-      setForm({ tipo: 'ingreso', concepto: '', monto: '', fecha: new Date().toISOString().slice(0, 10), documento_url: '', observacion: '' })
+      setForm({ tipo: 'ingreso', concepto: '', monto: '', fecha: new Date().toISOString().slice(0, 10), documento: null, observacion: '' })
+      setNombreDoc('')
       await cargar()
     }
     setGuardando(false)
@@ -158,14 +168,18 @@ export default function CajaPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Documento (URL opcional)</label>
+            <label className="block text-sm font-medium mb-1">Documento (archivo opcional)</label>
             <input
-              type="url"
-              value={form.documento_url}
-              onChange={e => setForm(f => ({ ...f, documento_url: e.target.value }))}
-              placeholder="https://..."
+              type="file"
+              onChange={e => {
+                const file = e.target.files?.[0]
+                setForm(f => ({ ...f, documento: file || null }))
+                setNombreDoc(file?.name || '')
+              }}
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
               className="w-full border rounded-lg px-3 py-2 text-sm"
             />
+            {nombreDoc && <p className="text-xs text-gray-500 mt-1">📎 {nombreDoc}</p>}
           </div>
 
           <div>
@@ -225,7 +239,12 @@ export default function CajaPage() {
                       {m.tipo === 'ingreso' ? '+' : '-'}{$(Number(m.monto))}
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
-                      {m.observacion || (m.documento_url && '📎 Documento') || '—'}
+                      {m.documento_url && (
+                        <a href={`/api/documentos/descargar?path=${encodeURIComponent(m.documento_url)}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                          📎 Descargar
+                        </a>
+                      )}
+                      {!m.documento_url && (m.observacion ? `"${m.observacion}"` : '—')}
                     </td>
                   </tr>
                 ))}
