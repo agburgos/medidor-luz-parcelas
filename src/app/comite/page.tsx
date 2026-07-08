@@ -64,12 +64,12 @@ export default async function ComiteDashboard() {
   const totalDeudaGC = deudaGCCuentas + deudaMorasGC
   const totalDeuda = totalDeudaLuz + totalDeudaGC + deudaMorasOtro
 
-  // Cálculos de Caja
+  // Cálculos de Caja (incluye TODOS los ingresos: recaudado + extraordinarios)
   type MovCaja = { tipo: string; monto: number }
   const movsCaja = (movimientosCaja ?? []) as MovCaja[]
-  const totalIngresos = movsCaja.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
-  const totalEgresos = movsCaja.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const saldoCaja = 169158 + totalIngresos - totalEgresos
+  const ingresosExtraordinarios = movsCaja.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
+  const egresosMovimientos = movsCaja.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
+  const saldoCaja = 169158 + totalRecaudado + ingresosExtraordinarios - egresosMovimientos
 
   // Reporte por mes: combina luz y GC
   const porMes = new Map<string, { facturadoLuz: number; recaudadoLuz: number; facturadoGC: number; recaudadoGC: number }>()
@@ -109,7 +109,7 @@ export default async function ComiteDashboard() {
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
           <p className="text-sm text-emerald-700">📥 Ingresos</p>
-          <p className="text-2xl font-bold text-emerald-700">{$(totalIngresos)}</p>
+          <p className="text-2xl font-bold text-emerald-700">{$(ingresosExtraordinarios)}</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-5">
           <p className="text-sm text-red-700">🔴 Deuda total</p>
