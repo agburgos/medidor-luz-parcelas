@@ -98,23 +98,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // Obtener el parcela_id del usuario para saber si ya votó
   let yaVoto = false
-  if (sesion.rol === 'parcelero') {
-    const { data: parcela } = await supabase
-      .from('parcelas')
+  if (sesion.parcelaId) {
+    const { data: miVoto } = await supabase
+      .from('votos')
       .select('id')
-      .eq('user_id', sesion.userId)
+      .eq('votacion_id', votacion_id)
+      .eq('parcela_id', sesion.parcelaId)
       .single()
 
-    if (parcela) {
-      const { data: miVoto } = await supabase
-        .from('votos')
-        .select('id')
-        .eq('votacion_id', votacion_id)
-        .eq('parcela_id', parcela.id)
-        .single()
-
-      yaVoto = !!miVoto
-    }
+    yaVoto = !!miVoto
   }
 
   // Contar participación

@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import FeedAnuncios from '@/components/parcelero/FeedAnuncios'
@@ -9,14 +10,14 @@ export const metadata = { title: 'Inicio — COPOSA' }
 
 
 export default async function ParceleroDashboard() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const sesion = await getSesion()
+  if (!sesion) redirect('/login')
 
+  const supabase = createServiceClient()
   const { data: parcela } = await supabase
     .from('parcelas')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('id', sesion.parcelaId ?? '')
     .single()
 
   if (!parcela) {

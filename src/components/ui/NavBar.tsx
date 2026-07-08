@@ -108,14 +108,24 @@ export default function NavBar({
   tieneParcelaPropia = false,
   esComiteViendoSuParcela = false,
   esSuperadmin = false,
+  suplantando = null,
 }: {
   rol: Rol
   tieneParcelaPropia?: boolean
   esComiteViendoSuParcela?: boolean
   esSuperadmin?: boolean
+  suplantando?: { parcelaId: string; numero: number; nombreDueno: string } | null
 }) {
   const router = useRouter()
   const [menuMovil, setMenuMovil] = useState(false)
+  const [saliendo, setSaliendo] = useState(false)
+
+  async function salirSuplantacion() {
+    setSaliendo(true)
+    await fetch('/api/comite/suplantar', { method: 'DELETE' })
+    router.push('/comite/parcelas')
+    router.refresh()
+  }
   const grupos = rol === 'comite'
     ? (esSuperadmin
         ? [...GRUPOS_COMITE, { label: '🔐 Superadmin', items: [{ href: '/comite/superadmin', label: 'Usuarios y contraseñas' }] }]
@@ -135,6 +145,18 @@ export default function NavBar({
 
   return (
     <nav className="bg-white border-b border-gray-200 px-4 py-3 relative z-40">
+      {suplantando && (
+        <div className="-mx-4 -mt-3 mb-3 px-4 py-2 bg-purple-600 text-white text-sm flex items-center justify-between flex-wrap gap-2">
+          <span>👤 Viendo como <strong>Parcela #{suplantando.numero}</strong> — {suplantando.nombreDueno}</span>
+          <button
+            onClick={salirSuplantacion}
+            disabled={saliendo}
+            className="bg-white text-purple-700 rounded-lg px-3 py-1 text-xs font-medium hover:bg-purple-50 disabled:opacity-50"
+          >
+            {saliendo ? 'Saliendo...' : '🔚 Salir de suplantación'}
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-5">
           <Link href={rol === 'comite' ? '/comite' : '/parcelero'} className="font-bold text-blue-700 text-lg whitespace-nowrap">
@@ -158,7 +180,7 @@ export default function NavBar({
               🏠 Ver mi parcela
             </Link>
           )}
-          {rol === 'parcelero' && esComiteViendoSuParcela && (
+          {rol === 'parcelero' && esComiteViendoSuParcela && !suplantando && (
             <Link
               href="/comite"
               className="hidden md:inline-block text-sm bg-purple-50 text-purple-700 rounded-lg px-3 py-1.5 font-medium hover:bg-purple-100 whitespace-nowrap"

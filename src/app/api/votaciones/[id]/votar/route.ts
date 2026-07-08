@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
-// POST: registrar voto de un parcelero
+// POST: registrar voto de una parcela
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await getSesion()
-  if (!sesion || sesion.rol !== 'parcelero') {
+  if (!sesion || !sesion.parcelaId) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -13,17 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const supabase = createServiceClient()
   const body = await req.json()
   const { opcion_id, opcion_ids } = body
-
-  // Obtener parcela del usuario
-  const { data: parcela, error: errParcela } = await supabase
-    .from('parcelas')
-    .select('id')
-    .eq('user_id', sesion.userId)
-    .single()
-
-  if (errParcela || !parcela) {
-    return NextResponse.json({ error: 'Usuario sin parcela asignada' }, { status: 400 })
-  }
+  const parcela_id = sesion.parcelaId
 
   // Verificar que la votación existe y está abierta
   const ahora = new Date().toISOString()
@@ -46,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from('votos')
     .select('id')
     .eq('votacion_id', votacion_id)
-    .eq('parcela_id', parcela.id)
+    .eq('parcela_id', parcela_id)
     .single()
 
   if (yaVoto) {
@@ -56,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Registrar voto
   const votoData = {
     votacion_id,
-    parcela_id: parcela.id,
+    parcela_id,
     opcion_id: votacion.tipo_conteo === 'unica' ? opcion_id : null,
     opcion_ids: votacion.tipo_conteo === 'multiple' ? opcion_ids : null,
     votado_en: ahora,
@@ -70,6 +61,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (errInsert) {
     return NextResponse.json({ error: errInsert.message }, { status: 400 })
+  }
+
+  if (sesion.suplantando) {
+    await registrar(sesion, 'votar_suplantando', 'votacion', votacion_id, {
+      parcela_suplantada: sesion.suplantando.numero,
+    })
   }
 
   return NextResponse.json({ mensaje: 'Voto registrado exitosamente', voto })

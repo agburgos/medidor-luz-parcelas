@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { registrar } from '@/lib/bitacora'
 
 // Estado de mi lectura del período abierto (parcelero)
 export async function GET() {
@@ -163,6 +164,12 @@ export async function POST(req: NextRequest) {
       estado: 'normal',
     }, { onConflict: 'periodo_id,parcela_id' })
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  if (sesion.suplantando) {
+    await registrar(sesion, 'subir_lectura_suplantando', 'lectura', periodo_id, {
+      parcela_suplantada: sesion.suplantando.numero, lectura_actual,
+    })
+  }
 
   return NextResponse.json({ ok: true, mensaje: 'Lectura enviada. El comité la validará con tu foto.' })
 }

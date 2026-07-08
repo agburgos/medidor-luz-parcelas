@@ -69,6 +69,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       leido_parcelero: true,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
+
+    if (sesion.suplantando) {
+      await registrar(sesion, 'responder_mensaje_suplantando', 'mensaje', id, {
+        parcela_suplantada: sesion.suplantando.numero, tipo: mensaje.tipo, asunto: mensaje.asunto, respuesta,
+      })
+    }
   }
 
   return NextResponse.json(nuevaRespuesta)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import MorasParcela from '@/components/comite/MorasParcela'
 
 interface Parcela {
@@ -17,6 +18,7 @@ interface Parcela {
 const formVacio = { numero: '', nombre_dueno: '', email: '', telefono: '', tiene_empalme: true }
 
 export default function ParcelasPage() {
+  const router = useRouter()
   const [parcelas, setParcelas] = useState<Parcela[]>([])
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState('')
@@ -141,6 +143,22 @@ export default function ParcelasPage() {
     await cargar()
   }
 
+  async function suplantar(p: Parcela) {
+    if (!confirm(`¿Ver el sistema como la parcela #${p.numero} (${p.nombre_dueno})? Podrás votar, enviar mensajes y subir lecturas en su nombre. Todo queda registrado en la bitácora.`)) return
+    const res = await fetch('/api/comite/suplantar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parcela_id: p.id }),
+    })
+    if (res.ok) {
+      router.push('/parcelero')
+      router.refresh()
+    } else {
+      const data = await res.json()
+      alert('Error: ' + data.error)
+    }
+  }
+
   if (loading) return <div className="p-8 text-gray-500">Cargando parcelas...</div>
 
   const visibles = mostrarInactivas ? parcelas : parcelas.filter(p => p.activa)
@@ -230,6 +248,7 @@ export default function ParcelasPage() {
                   <div className="flex gap-3">
                     <button onClick={() => abrirEdicion(p)} className="text-blue-600 hover:underline">Editar</button>
                     <button onClick={() => setMorasDe(p)} className="text-orange-600 hover:underline">Moras</button>
+                    <button onClick={() => suplantar(p)} className="text-purple-600 hover:underline">👤 Ver como</button>
                     {p.activa
                       ? <button onClick={() => eliminar(p)} className="text-red-500 hover:underline">Eliminar</button>
                       : <button onClick={() => reactivar(p)} className="text-green-600 hover:underline">Reactivar</button>}

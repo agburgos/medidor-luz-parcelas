@@ -1,4 +1,5 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getSesion } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import Link from 'next/link'
@@ -11,14 +12,14 @@ const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
 
 export default async function ParceleroLuzPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const sesion = await getSesion()
+  if (!sesion) redirect('/login')
 
+  const supabase = createServiceClient()
   const { data: parcela } = await supabase
     .from('parcelas')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('id', sesion.parcelaId ?? '')
     .single()
 
   if (!parcela) {
@@ -81,10 +82,7 @@ export default async function ParceleroLuzPage() {
   // Transparencia: cuánto se ha recaudado en total del período actual vs. la factura real
   let transparenciaLuz: { totalFactura: number; recaudado: number; faltante: number } | null = null
   if (cuentaActual) {
-    // Usa el service client: este total es agregado de todo el macrolote (dato público de
-    // transparencia), no debe quedar acotado por RLS a solo la fila propia del usuario.
-    const supabaseService = createServiceClient()
-    const { data: todasCuentasPeriodo } = await supabaseService
+    const { data: todasCuentasPeriodo } = await supabase
       .from('cuentas_parcela')
       .select('monto_pagado')
       .eq('periodo_id', cuentaActual.periodo_id)
