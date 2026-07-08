@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: cuenta } = await supabase
     .from('cuentas_parcela')
-    .select('id, monto_prorrateado, monto_pagado, periodo:periodos_facturacion(fecha_vencimiento)')
+    .select('id, monto_prorrateado, monto_pagado, parcela:parcelas(numero), periodo:periodos_facturacion(fecha_vencimiento)')
     .eq('id', id)
     .single()
   if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
@@ -64,16 +64,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  const { error: pagoError } = await supabase.from('pagos').insert({
+  const fechaPago = fecha || new Date().toISOString().slice(0, 10)
+  const { data: pagoInsertado, error: pagoError } = await supabase.from('pagos').insert({
     cuenta_id: id,
     monto,
-    fecha: fecha || new Date().toISOString().slice(0, 10),
+    fecha: fechaPago,
     metodo,
     observacion,
     comprobante_url,
     estado: 'validado', // registrado directamente por el comité
-  })
+  }).select('id').single()
   if (pagoError) return NextResponse.json({ error: pagoError.message }, { status: 400 })
+
+  // Registrar el ingreso en caja (recaudación de luz suma a la caja)
+  const numeroParc = (cuenta.parcela as { numero: number } | null)?.numero ?? '?'
+  await supabase.from('caja_movimientos').insert({
+    tipo: 'ingreso',
+    concepto: `Pago Luz - Parcela #${numeroParc}`,
+    monto,
+    fecha: fechaPago,
+    documento_url: comprobante_url,
+    observacion: `Pago registrado por comité${observacion ? `: ${observacion}` : ''}`,
+    pago_id: pagoInsertado?.id ?? null,
+  })
 
   // Recalcular total pagado desde el libro de pagos (solo validados)
   const { data: pagos } = await supabase.from('pagos').select('monto').eq('cuenta_id', id).eq('estado', 'validado')

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: cuenta } = await supabase
     .from('cuentas_gc')
-    .select('id, monto, monto_pagado, periodo:periodos_gc(fecha_vencimiento)')
+    .select('id, monto, monto_pagado, parcela:parcelas(numero), periodo:periodos_gc(fecha_vencimiento)')
     .eq('id', id)
     .single()
   if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
@@ -58,10 +58,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!upErr) comprobante_url = supabase.storage.from('archivos').getPublicUrl(path).data.publicUrl
   }
 
-  const { error: pagoError } = await supabase.from('pagos_gc').insert({
+  const fechaPago = fecha || new Date().toISOString().slice(0, 10)
+  const { data: pagoInsertado, error: pagoError } = await supabase.from('pagos_gc').insert({
     cuenta_gc_id: id,
     monto,
-    fecha: fecha || new Date().toISOString().slice(0, 10),
+    fecha: fechaPago,
     metodo,
     observacion,
     comprobante_url,
@@ -69,8 +70,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     reportado_por: sesion?.userId ?? null,
     validado_por: sesion?.userId ?? null,
     validado_en: new Date().toISOString(),
-  })
+  }).select('id').single()
   if (pagoError) return NextResponse.json({ error: pagoError.message }, { status: 400 })
+
+  // Registrar el ingreso en caja (recaudación de GC suma a la caja)
+  const numeroParc = (cuenta.parcela as { numero: number } | null)?.numero ?? '?'
+  await supabase.from('caja_movimientos').insert({
+    tipo: 'ingreso',
+    concepto: `Pago Gastos Comunes - Parcela #${numeroParc}`,
+    monto,
+    fecha: fechaPago,
+    documento_url: comprobante_url,
+    observacion: `Pago GC registrado por comité${observacion ? `: ${observacion}` : ''}`,
+    pago_gc_id: pagoInsertado?.id ?? null,
+  })
 
   const { data: pagos } = await supabase.from('pagos_gc').select('monto').eq('cuenta_gc_id', id).eq('estado', 'validado')
   const totalPagado = (pagos ?? []).reduce((s: number, p: { monto: number }) => s + Number(p.monto), 0)

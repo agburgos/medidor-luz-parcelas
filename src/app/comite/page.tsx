@@ -9,7 +9,7 @@ export default async function ComiteDashboard() {
 
   // Fetch caja sin RLS usando service client
   const supabaseService = createServiceClient()
-  const fetchCajaPromise = supabaseService.from('caja_movimientos').select('tipo, monto')
+  const fetchCajaPromise = supabaseService.from('caja_movimientos').select('tipo, monto, concepto')
 
   const [
     { count: totalParcelas },
@@ -64,12 +64,19 @@ export default async function ComiteDashboard() {
   const totalDeudaGC = deudaGCCuentas + deudaMorasGC
   const totalDeuda = totalDeudaLuz + totalDeudaGC + deudaMorasOtro
 
-  // Cálculos de Caja (incluye TODOS los ingresos: recaudado + extraordinarios)
-  type MovCaja = { tipo: string; monto: number }
+  // Cálculos de Caja: la Caja sale 100% de caja_movimientos (única fuente de verdad).
+  // Todos los pagos validados (luz/GC/abonos) se registran como ingresos aquí,
+  // por eso NO se vuelve a sumar totalRecaudado (evita doble conteo).
+  const SALDO_INICIAL = 169158
+  type MovCaja = { tipo: string; monto: number; concepto: string }
   const movsCaja = (movimientosCaja ?? []) as MovCaja[]
-  const ingresosExtraordinarios = movsCaja.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
+  const esPago = (c: string) => /^(Pago Luz|Pago Gastos Comunes|Abono)/i.test(c)
+  const ingresosCaja = movsCaja.filter(m => m.tipo === 'ingreso')
   const egresosMovimientos = movsCaja.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const saldoCaja = 169158 + totalRecaudado + ingresosExtraordinarios - egresosMovimientos
+  const totalIngresosCaja = ingresosCaja.reduce((s, m) => s + Number(m.monto), 0)
+  // Ingresos extraordinarios = ingresos de caja que NO son pagos de cuotas
+  const ingresosExtraordinarios = ingresosCaja.filter(m => !esPago(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
+  const saldoCaja = SALDO_INICIAL + totalIngresosCaja - egresosMovimientos
 
   // Reporte por mes: combina luz y GC
   const porMes = new Map<string, { facturadoLuz: number; recaudadoLuz: number; facturadoGC: number; recaudadoGC: number }>()

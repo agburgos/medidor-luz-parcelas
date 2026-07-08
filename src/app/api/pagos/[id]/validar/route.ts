@@ -73,6 +73,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         fecha: pago.fecha || new Date().toISOString().slice(0, 10),
         observacion: `Pago validado de parcela #${numeroParc}`,
         usuario_id: user.id,
+        pago_id: pago.id,
       })
     if (errCaja) console.error('Error al registrar pago en caja:', errCaja.message)
   }

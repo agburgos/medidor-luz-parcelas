@@ -35,19 +35,33 @@ export default function ValidarPagosPage() {
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState('')
   const [procesando, setProcesando] = useState<string | null>(null)
+  const [tab, setTab] = useState<'validar' | 'registrar'>('validar')
+  const [formRegistro, setFormRegistro] = useState({
+    cuenta_id: '',
+    monto: '',
+    fecha: new Date().toISOString().slice(0, 10),
+    metodo: 'transferencia',
+    observacion: '',
+    comprobante: null as File | null,
+  })
+  const [registrando, setRegistrando] = useState(false)
+  const [cuentas, setCuentas] = useState<any[]>([])
 
   const cargar = useCallback(async () => {
-    const [luzRes, gcRes] = await Promise.all([
+    const [luzRes, gcRes, cuentasRes] = await Promise.all([
       fetch('/api/pagos/pendientes'),
       fetch('/api/gc/pagos/pendientes'),
+      fetch('/api/cuentas/por-pagar'),
     ])
     const luz = await luzRes.json()
     const gc = await gcRes.json()
+    const cuentasData = await cuentasRes.json()
     const combinados = [
       ...(Array.isArray(luz) ? luz.map((p: PagoPendiente) => ({ ...p, tipo: 'luz' as const })) : []),
       ...(Array.isArray(gc) ? gc.map((p: PagoPendiente) => ({ ...p, tipo: 'gc' as const })) : []),
     ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     setPagos(combinados)
+    setCuentas(Array.isArray(cuentasData) ? cuentasData : [])
     setLoading(false)
   }, [])
 
@@ -73,6 +87,45 @@ export default function ValidarPagosPage() {
     await cargar()
   }
 
+  async function registrarPago(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formRegistro.cuenta_id || !formRegistro.monto) {
+      setMensaje('❌ Selecciona cuenta y monto')
+      return
+    }
+    setRegistrando(true)
+    setMensaje('')
+
+    const fd = new FormData()
+    fd.append('cuenta_id', formRegistro.cuenta_id)
+    fd.append('monto', formRegistro.monto)
+    fd.append('fecha', formRegistro.fecha)
+    fd.append('metodo', formRegistro.metodo)
+    fd.append('observacion', formRegistro.observacion)
+    if (formRegistro.comprobante) fd.append('comprobante', formRegistro.comprobante)
+
+    const res = await fetch('/api/comite/pagos/registrar', {
+      method: 'POST',
+      body: fd,
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setMensaje(`✅ ${data.mensaje}`)
+      setFormRegistro({
+        cuenta_id: '',
+        monto: '',
+        fecha: new Date().toISOString().slice(0, 10),
+        metodo: 'transferencia',
+        observacion: '',
+        comprobante: null,
+      })
+      await cargar()
+    } else {
+      setMensaje(`❌ ${data.error}`)
+    }
+    setRegistrando(false)
+  }
+
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
   if (loading) return <div className="p-8 text-gray-500">Cargando pagos por validar...</div>
@@ -80,15 +133,122 @@ export default function ValidarPagosPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Validación de pagos</h1>
+        <h1 className="text-2xl font-bold">💳 Pagos de Luz</h1>
         <span className={`text-sm px-3 py-1 rounded-full font-medium ${pagos.length > 0 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
           {pagos.length} por validar
         </span>
       </div>
 
+      <div className="flex gap-2 mb-6 border-b">
+        <button
+          onClick={() => setTab('validar')}
+          className={`px-4 py-2 text-sm font-medium ${tab === 'validar' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+        >
+          ✓ Validar pagos ({pagos.length})
+        </button>
+        <button
+          onClick={() => setTab('registrar')}
+          className={`px-4 py-2 text-sm font-medium ${tab === 'registrar' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
+        >
+          📝 Registrar pago (validado automático)
+        </button>
+      </div>
+
       {mensaje && <p className="mb-4 text-sm bg-blue-50 text-blue-800 rounded p-2">{mensaje}</p>}
 
-      {pagos.length === 0 ? (
+      {tab === 'registrar' ? (
+        <div className="bg-white rounded-xl border p-6">
+          <h2 className="text-lg font-semibold mb-4">Registrar Pago (validado automáticamente)</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Cuando el comité registra un pago, se valida automáticamente. Los comprobantes subidos por parceleros requieren validación manual.
+          </p>
+          <form onSubmit={registrarPago} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Parcela</label>
+                <select
+                  value={formRegistro.cuenta_id}
+                  onChange={e => setFormRegistro(f => ({ ...f, cuenta_id: e.target.value }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">— Selecciona una parcela —</option>
+                  {cuentas.map(c => (
+                    <option key={c.id} value={c.id}>
+                      #{c.parcela?.numero} {c.parcela?.nombre_dueno} (${Math.round((c.monto_prorrateado || c.monto || 0) - (c.monto_pagado || 0)).toLocaleString('es-CL')} falta)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Monto $</label>
+                <input
+                  type="number"
+                  value={formRegistro.monto}
+                  onChange={e => setFormRegistro(f => ({ ...f, monto: e.target.value }))}
+                  required
+                  min={1}
+                  placeholder="0"
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Fecha</label>
+                <input
+                  type="date"
+                  value={formRegistro.fecha}
+                  onChange={e => setFormRegistro(f => ({ ...f, fecha: e.target.value }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Método</label>
+                <select
+                  value={formRegistro.metodo}
+                  onChange={e => setFormRegistro(f => ({ ...f, metodo: e.target.value }))}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="transferencia">Transferencia</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Comprobante (opcional)</label>
+              <input
+                type="file"
+                onChange={e => setFormRegistro(f => ({ ...f, comprobante: e.target.files?.[0] || null }))}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+              {formRegistro.comprobante && <p className="text-xs text-gray-500 mt-1">📎 {formRegistro.comprobante.name}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Observación</label>
+              <textarea
+                value={formRegistro.observacion}
+                onChange={e => setFormRegistro(f => ({ ...f, observacion: e.target.value }))}
+                placeholder="Comentarios (opcional)"
+                rows={2}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={registrando}
+              className="w-full bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {registrando ? 'Registrando...' : '✅ Registrar y validar pago'}
+            </button>
+          </form>
+        </div>
+      ) : pagos.length === 0 ? (
         <div className="bg-white rounded-xl border p-10 text-center text-gray-400">
           🎉 No hay pagos pendientes de validación
         </div>

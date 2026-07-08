@@ -20,6 +20,9 @@ export default function CuentasGCPage() {
   const [loading, setLoading] = useState(true)
   const [pagosDe, setPagosDe] = useState<CuentaGC | null>(null)
   const [filtro, setFiltro] = useState<EstadoCuenta | 'todos'>('todos')
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const POR_PAGINA = 15
 
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/gc/periodos/${id}/cuentas`)
@@ -33,7 +36,14 @@ export default function CuentasGCPage() {
   if (loading) return <div className="p-8 text-gray-500">Cargando cuentas...</div>
 
   const periodo = cuentas[0]?.periodo
-  const filtradas = filtro === 'todos' ? cuentas : cuentas.filter(c => c.estado === filtro)
+  const porEstado = filtro === 'todos' ? cuentas : cuentas.filter(c => c.estado === filtro)
+  const q = busqueda.trim().toLowerCase()
+  const filtradas = !q ? porEstado : porEstado.filter(c =>
+    String(c.parcela.numero).includes(q) || c.parcela.nombre_dueno.toLowerCase().includes(q)
+  )
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA))
+  const paginaActual = Math.min(pagina, totalPaginas)
+  const visibles = filtradas.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA)
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
   const totalRecaudado = cuentas.reduce((s, c) => s + c.monto_pagado, 0)
   const totalEsperado = cuentas.reduce((s, c) => s + c.monto, 0)
@@ -59,16 +69,25 @@ export default function CuentasGCPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        {(['todos','pendiente','pagado','pago_parcial','mora'] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFiltro(f)}
-            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${filtro === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-          >
-            {f === 'todos' ? 'Todos' : f === 'pago_parcial' ? 'Pago parcial' : f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex gap-2">
+          {(['todos','pendiente','pagado','pago_parcial','mora'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => { setFiltro(f); setPagina(1) }}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${filtro === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              {f === 'todos' ? 'Todos' : f === 'pago_parcial' ? 'Pago parcial' : f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={busqueda}
+          onChange={e => { setBusqueda(e.target.value); setPagina(1) }}
+          placeholder="🔍 Buscar #parcela o dueño..."
+          className="border rounded-lg px-3 py-1.5 text-sm w-56"
+        />
       </div>
 
       <div className="bg-white rounded-xl border overflow-auto">
@@ -84,7 +103,7 @@ export default function CuentasGCPage() {
             </tr>
           </thead>
           <tbody>
-            {filtradas.map(c => (
+            {visibles.map(c => (
               <tr key={c.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-2">#{c.parcela.numero}</td>
                 <td className="px-4 py-2">{c.parcela.nombre_dueno}</td>
@@ -102,6 +121,31 @@ export default function CuentasGCPage() {
           </tbody>
         </table>
       </div>
+
+      {filtradas.length > POR_PAGINA && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <span className="text-gray-500">
+            Mostrando {(paginaActual - 1) * POR_PAGINA + 1}–{Math.min(paginaActual * POR_PAGINA, filtradas.length)} de {filtradas.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPagina(p => Math.max(1, p - 1))}
+              disabled={paginaActual === 1}
+              className="border rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-gray-50"
+            >
+              ← Anterior
+            </button>
+            <span className="text-gray-600">{paginaActual} / {totalPaginas}</span>
+            <button
+              onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+              disabled={paginaActual === totalPaginas}
+              className="border rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-gray-50"
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      )}
 
       {pagosDe && (
         <PagosCuenta

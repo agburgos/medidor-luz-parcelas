@@ -7,7 +7,7 @@ create table caja_movimientos (
   fecha date not null default current_date,
   documento_url text,
   observacion text,
-  usuario_id uuid not null references auth.users(id),
+  usuario_id uuid references auth.users(id),
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
@@ -41,7 +41,7 @@ create policy "comite_read_caja_movimientos" on caja_movimientos
 create policy "comite_insert_caja_movimientos" on caja_movimientos
   for insert with check (
     auth.jwt() ->> 'rol' = 'comite' and
-    usuario_id = auth.uid()
+    (usuario_id = auth.uid() or usuario_id is null)
   );
 
 create policy "comite_read_caja_saldos" on caja_saldos

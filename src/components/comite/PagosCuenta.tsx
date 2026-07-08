@@ -44,6 +44,8 @@ export default function PagosCuenta({
   })
   const [comprobante, setComprobante] = useState<File | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [eliminando, setEliminando] = useState<string | null>(null)
+  const pagoApiBase = apiBase.includes('/gc/') ? '/api/gc/pagos' : '/api/pagos'
 
   const cargar = useCallback(async () => {
     const res = await fetch(`${apiBase}/${cuentaId}/pagos`)
@@ -79,6 +81,22 @@ export default function PagosCuenta({
       onActualizado()
     }
     setGuardando(false)
+  }
+
+  async function eliminar(pago: Pago) {
+    if (!confirm(`¿Eliminar este pago de ${$(pago.monto)} (${new Date(pago.fecha + 'T00:00:00').toLocaleDateString('es-CL')})?\n\nEsto también quitará el movimiento correspondiente de Caja y recalculará el saldo de la cuenta.`)) return
+    setEliminando(pago.id)
+    setMensaje('')
+    const res = await fetch(`${pagoApiBase}/${pago.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) {
+      setMensaje(`❌ ${data.error}`)
+    } else {
+      setMensaje(`✅ Pago eliminado. Nuevo saldo: ${$(data.saldo)}`)
+      await cargar()
+      onActualizado()
+    }
+    setEliminando(null)
   }
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
@@ -118,6 +136,7 @@ export default function PagosCuenta({
                   <th className="text-left px-3 py-2 font-medium text-gray-600">Estado</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-600">Comprobante</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-600">Obs.</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-600">Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,6 +160,15 @@ export default function PagosCuenta({
                         : <span className="text-gray-300 text-xs">—</span>}
                     </td>
                     <td className="px-3 py-2 text-gray-500 text-xs">{p.observacion || '—'}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => eliminar(p)}
+                        disabled={eliminando === p.id}
+                        className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
+                      >
+                        {eliminando === p.id ? '...' : '🗑️ Eliminar'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

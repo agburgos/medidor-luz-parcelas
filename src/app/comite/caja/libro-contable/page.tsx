@@ -40,6 +40,8 @@ export default function LibroContablePage() {
   const [libro, setLibro] = useState<LibroContable | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const POR_PAGINA = 20
 
   useEffect(() => {
     fetch('/api/caja/libro-contable')
@@ -53,6 +55,12 @@ export default function LibroContablePage() {
   if (loading) return <div className="p-8 text-gray-500">Generando libro contable...</div>
   if (error) return <div className="p-8 text-red-600">Error: {error}</div>
   if (!libro) return <div className="p-8 text-gray-500">No hay datos</div>
+
+  // El registro se muestra del más reciente al más antiguo, paginado
+  const cronologico = [...libro.registroCronologico].reverse()
+  const totalPaginas = Math.max(1, Math.ceil(cronologico.length / POR_PAGINA))
+  const paginaActual = Math.min(pagina, totalPaginas)
+  const visibles = cronologico.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA)
 
   return (
     <div>
@@ -164,7 +172,10 @@ export default function LibroContablePage() {
 
       {/* REGISTRO CRONOLÓGICO DETALLADO */}
       <div className="bg-white rounded-xl border p-6">
-        <h2 className="text-lg font-semibold mb-4">Registro Cronológico Detallado</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Registro Cronológico Detallado ({cronologico.length})</h2>
+          <span className="text-xs text-gray-400">Más reciente primero</span>
+        </div>
         {libro.registroCronologico.length === 0 ? (
           <p className="text-gray-400 text-sm p-8 text-center">Sin movimientos</p>
         ) : (
@@ -180,7 +191,7 @@ export default function LibroContablePage() {
                 </tr>
               </thead>
               <tbody>
-                {libro.registroCronologico.map(m => (
+                {visibles.map(m => (
                   <tr key={m.id} className="border-t">
                     <td className="px-4 py-3">{new Date(m.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                     <td className="px-4 py-3">
@@ -199,6 +210,31 @@ export default function LibroContablePage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {cronologico.length > POR_PAGINA && (
+          <div className="flex items-center justify-between mt-4 text-sm print:hidden">
+            <span className="text-gray-500">
+              Mostrando {(paginaActual - 1) * POR_PAGINA + 1}–{Math.min(paginaActual * POR_PAGINA, cronologico.length)} de {cronologico.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPagina(p => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                className="border rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-gray-50"
+              >
+                ← Anterior
+              </button>
+              <span className="text-gray-600">{paginaActual} / {totalPaginas}</span>
+              <button
+                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                className="border rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-gray-50"
+              >
+                Siguiente →
+              </button>
+            </div>
           </div>
         )}
       </div>

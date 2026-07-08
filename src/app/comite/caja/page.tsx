@@ -12,6 +12,8 @@ interface Movimiento {
   documento_url: string | null
   observacion: string | null
   created_at: string
+  pago_id?: string | null
+  pago_gc_id?: string | null
 }
 
 export default function CajaPage() {
@@ -28,6 +30,11 @@ export default function CajaPage() {
     observacion: '',
   })
   const [nombreDoc, setNombreDoc] = useState('')
+  const [eliminando, setEliminando] = useState<string | null>(null)
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'ingreso' | 'egreso'>('todos')
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const POR_PAGINA = 15
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/caja/movimientos')
@@ -73,10 +80,34 @@ export default function CajaPage() {
     setGuardando(false)
   }
 
+  async function eliminarMovimiento(m: Movimiento) {
+    if (m.pago_id || m.pago_gc_id) {
+      alert('Este movimiento proviene de un pago. Elimínalo desde el historial de pagos de la cuenta correspondiente (período → Pagos).')
+      return
+    }
+    if (!confirm(`¿Eliminar el movimiento "${m.concepto}" por ${'$' + Math.round(m.monto).toLocaleString('es-CL')}?`)) return
+    setEliminando(m.id)
+    const res = await fetch(`/api/caja/movimientos/${m.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    setMensaje(res.ok ? '✅ Movimiento eliminado' : `❌ ${data.error}`)
+    if (res.ok) await cargar()
+    setEliminando(null)
+  }
+
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
   const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
   const totalEgresos = movimientos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
   const saldoActual = 169158 + totalIngresos - totalEgresos
+
+  // Filtrado + paginación de la grilla de movimientos
+  const q = busqueda.trim().toLowerCase()
+  const filtrados = movimientos.filter(m =>
+    (filtroTipo === 'todos' || m.tipo === filtroTipo) &&
+    (!q || m.concepto.toLowerCase().includes(q) || (m.observacion ?? '').toLowerCase().includes(q))
+  )
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA))
+  const paginaActual = Math.min(pagina, totalPaginas)
+  const visibles = filtrados.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA)
 
   return (
     <div>
@@ -204,12 +235,32 @@ export default function CajaPage() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Movimientos Recientes</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="text-lg font-semibold">Movimientos ({filtrados.length})</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={busqueda}
+              onChange={e => { setBusqueda(e.target.value); setPagina(1) }}
+              placeholder="🔍 Buscar concepto..."
+              className="border rounded-lg px-3 py-1.5 text-sm w-48"
+            />
+            <select
+              value={filtroTipo}
+              onChange={e => { setFiltroTipo(e.target.value as 'todos' | 'ingreso' | 'egreso'); setPagina(1) }}
+              className="border rounded-lg px-3 py-1.5 text-sm"
+            >
+              <option value="todos">Todos</option>
+              <option value="ingreso">📥 Ingresos</option>
+              <option value="egreso">📤 Egresos</option>
+            </select>
+          </div>
+        </div>
         {loading ? (
           <div className="text-gray-500 text-sm p-8 text-center">Cargando movimientos...</div>
-        ) : movimientos.length === 0 ? (
+        ) : filtrados.length === 0 ? (
           <div className="bg-white rounded-xl border p-8 text-center text-gray-400">
-            No hay movimientos registrados
+            {movimientos.length === 0 ? 'No hay movimientos registrados' : 'Sin resultados para el filtro'}
           </div>
         ) : (
           <div className="bg-white rounded-xl border overflow-auto">
@@ -221,10 +272,11 @@ export default function CajaPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Concepto</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Monto</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Observación</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Acción</th>
                 </tr>
               </thead>
               <tbody>
-                {movimientos.map(m => (
+                {visibles.map(m => (
                   <tr key={m.id} className="border-t">
                     <td className="px-4 py-3">{new Date(m.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                     <td className="px-4 py-3">
@@ -246,10 +298,48 @@ export default function CajaPage() {
                       )}
                       {!m.documento_url && (m.observacion ? `"${m.observacion}"` : '—')}
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      {m.pago_id || m.pago_gc_id ? (
+                        <span className="text-gray-300 text-xs" title="Vinculado a un pago; elimínalo desde la cuenta">🔒</span>
+                      ) : (
+                        <button
+                          onClick={() => eliminarMovimiento(m)}
+                          disabled={eliminando === m.id}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
+                        >
+                          {eliminando === m.id ? '...' : '🗑️'}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!loading && filtrados.length > POR_PAGINA && (
+          <div className="flex items-center justify-between mt-4 text-sm">
+            <span className="text-gray-500">
+              Mostrando {(paginaActual - 1) * POR_PAGINA + 1}–{Math.min(paginaActual * POR_PAGINA, filtrados.length)} de {filtrados.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPagina(p => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                className="border rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-gray-50"
+              >
+                ← Anterior
+              </button>
+              <span className="text-gray-600">{paginaActual} / {totalPaginas}</span>
+              <button
+                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                className="border rounded-lg px-3 py-1.5 disabled:opacity-40 hover:bg-gray-50"
+              >
+                Siguiente →
+              </button>
+            </div>
           </div>
         )}
       </div>

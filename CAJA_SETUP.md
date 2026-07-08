@@ -2,47 +2,55 @@
 
 ## Pasos para activar el módulo de Caja
 
-### 1. Ejecutar la migración SQL en Supabase
+### IMPORTANTE: Paso 1 - Actualizar esquema
 
-**Opción A: Vía SQL Editor (recomendado)**
+Debido a cambios en la migración 015, necesitas ejecutar este SQL en Supabase **ANTES** de proceder:
 
 1. Abre [Supabase Dashboard](https://app.supabase.com/)
-2. Selecciona tu proyecto COPOSA
-3. Ve a **SQL Editor** (o **SQL** en el menú izquierdo)
-4. Abre el archivo: `supabase/migration-015-caja.sql` en un editor de texto
-5. Copia TODO el contenido
-6. En Supabase SQL Editor, pega el SQL
-7. Presiona **Cmd+Enter** (o **Ctrl+Enter** en Windows) para ejecutar
+2. Ve a **SQL Editor**
+3. Pega el siguiente SQL:
 
-**Resultado esperado:**
-- Tablas `caja_movimientos` y `caja_saldos` creadas
-- Políticas de RLS aplicadas
-- Saldo inicial de $169.158 registrado para 2026-07-01
+```sql
+-- Si la tabla ya existe, actualizarla para hacer usuario_id nullable
+ALTER TABLE IF EXISTS caja_movimientos ALTER COLUMN usuario_id DROP NOT NULL;
 
-**Opción B: Vía CLI (si tienes `supabase-cli`)**
+-- Recrear políticas con usuario_id nullable
+DROP POLICY IF EXISTS "comite_insert_caja_movimientos" ON caja_movimientos;
 
-```bash
-supabase db push
+CREATE POLICY "comite_insert_caja_movimientos" ON caja_movimientos
+  FOR INSERT WITH CHECK (
+    auth.jwt() ->> 'rol' = 'comite' AND
+    (usuario_id = auth.uid() OR usuario_id IS NULL)
+  );
 ```
 
-### 2. Crear bucket de Storage para documentos
+4. Presiona **Cmd+Enter** para ejecutar
 
-1. Abre [Supabase Dashboard](https://app.supabase.com/)
-2. Selecciona tu proyecto COPOSA
-3. Ve a **Storage** (en el menú izquierdo)
-4. Haz click en **"Create a new bucket"**
-5. Nombre: `documentos`
-6. Privacidad: **Private** (solo el comité puede ver)
-7. Haz click en **"Create bucket"**
+### Paso 2: Ejecutar la migración SQL completa
 
-### 3. Configurar políticas de Storage (opcional pero recomendado)
+1. Abre el archivo: `supabase/migration-015-caja.sql`
+2. Copia TODO el contenido
+3. En Supabase SQL Editor, pega el SQL
+4. Ejecuta con **Cmd+Enter**
 
-### 2. Acceder al módulo en la app
+### Paso 3: Migrar pagos existentes
 
-Una vez ejecutada la migración:
+Una vez ejecutado el SQL, ejecuta la migración retroactiva:
+
+```bash
+curl -X POST http://localhost:3002/api/admin/migrar-caja \
+  -H "x-admin-secret: admin-setup-2026" \
+  -H "Content-Type: application/json"
+```
+
+**Resultado esperado:** Los 21 pagos validados ($766.468) se registran en caja_movimientos
+
+### Paso 4: Acceder al módulo en la app
+
+Una vez completados los pasos anteriores:
 
 - **Comité:** Ve a `/comite/caja`
-  - Registra ingresos y egresos
+  - Registra ingresos y egresos manualmente
   - Accede al **Libro Contable** desde el botón en la esquina superior derecha
 
 - **Funcionalidades:**
@@ -56,34 +64,34 @@ Una vez ejecutada la migración:
     3. **Registro Cronológico** — Todos los movimientos ordenados por fecha con saldo acumulado
   - ✅ Impresión/PDF desde el libro contable
 
-### 3. Datos iniciales
+### Datos iniciales
 
 - **Saldo Inicial:** $169.158 (registrado en `caja_saldos` al 2026-07-01)
-- **Primeros movimientos:** Los que registres manualmente en `/comite/caja`
+- **Pagos Luz:** Migrador automáticamente en `/comite/caja/libro-contable`
+- **Nuevos movimientos:** Los que registres manualmente en `/comite/caja`
 
-### 4. Validación
+### Validación
 
 Para verificar que todo funciona:
 
 1. Abre http://localhost:3002/comite/caja (con sesión de comité)
 2. Verifica que ves:
    - Saldo Inicial: $169.158
-   - Total Ingresos: $0
-   - Total Egresos: $0
-   - Saldo Actual: $169.158
-3. Registra un ingreso de prueba (ej: $50.000, "Arriendo")
-4. Registra un egreso de prueba (ej: $45.000, "Pago IEL")
-5. Verifica que el saldo se actualiza: $169.158 + $50.000 - $45.000 = $174.158
-6. Abre el **Libro Contable** y verifica las 3 secciones
+   - Total Ingresos: $766.468+ (según pagos migrados + cualquier otro ingreso)
+   - Total Egresos: $0 (o más si registraste)
+   - Saldo Actual: correcto
+3. Abre el **Libro Contable** y verifica los movimientos de pago migrados
 
-## Errores comunes
+### Errores comunes
 
 - **"Could not find the table 'public.caja_movimientos'"** → No ejecutaste la migración SQL aún
 - **"No autorizado"** → Asegúrate de estar logueado como comité, no como parcelero
-- El saldo no cambia → Recarga la página (F5) después de registrar un movimiento
+- **"null value in column usuario_id violates not-null constraint"** → Ejecuta el SQL del Paso 1
+- El saldo no cambios después de migrar → Recarga la página (F5)
 
 ## Notas
 
 - Todos los movimientos quedan registrados en la bitácora (`bitacora` tabla)
-- Los documentos son URLs (opcional), útiles para guardar enlaces a archivos en Storage
+- Los documentos se suben a Storage bucket "archivos"
 - El libro contable se genera automáticamente a partir de los movimientos
+- El endpoint `/api/admin/migrar-caja` es temporal y solo funciona con secret `admin-setup-2026`
