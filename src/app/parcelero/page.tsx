@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import FeedAnuncios from '@/components/parcelero/FeedAnuncios'
+import AvisoLectura from '@/components/parcelero/AvisoLectura'
 
 export default async function ParceleroDashboard() {
   const supabase = await createClient()
@@ -62,6 +63,8 @@ export default async function ParceleroDashboard() {
     <div>
       <h1 className="text-2xl font-bold mb-1">Hola, {parcela.nombre_dueno}</h1>
       <p className="text-gray-500 mb-6">Parcela #{parcela.numero}</p>
+
+      <AvisoLectura />
 
       {/* Grandes números */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">

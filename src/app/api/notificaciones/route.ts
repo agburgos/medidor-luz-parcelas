@@ -57,6 +57,29 @@ export async function GET() {
   } else {
     if (!sesion.parcelaId) return NextResponse.json([])
 
+    // Período de luz abierto sin lectura enviada todavía (nueva o recién creada,
+    // aunque aún no tenga factura/prorrateo calculado)
+    const [{ data: miParcela }, { data: periodoAbierto }] = await Promise.all([
+      supabase.from('parcelas').select('tiene_empalme').eq('id', sesion.parcelaId).single(),
+      supabase.from('periodos_facturacion').select('id, mes, anio').eq('estado', 'abierto').order('anio', { ascending: false }).order('mes', { ascending: false }).limit(1).maybeSingle(),
+    ])
+    if (periodoAbierto && miParcela?.tiene_empalme !== false) {
+      const [{ data: miLectura }, { data: config }] = await Promise.all([
+        supabase.from('lecturas').select('id, estado_validacion').eq('periodo_id', periodoAbierto.id).eq('parcela_id', sesion.parcelaId).maybeSingle(),
+        supabase.from('config_alertas').select('dia_tope_lectura').limit(1).maybeSingle(),
+      ])
+      if (!miLectura) {
+        const diaTope = config?.dia_tope_lectura ?? 10
+        const fechaTope = new Date(periodoAbierto.anio, periodoAbierto.mes - 1, diaTope)
+        const diasTope = Math.ceil((fechaTope.getTime() - hoy.getTime()) / 86400000)
+        notis.push({
+          id: `lectura-pendiente-${periodoAbierto.id}`, tipo: 'lectura', urgencia: diasTope < 0 ? 'alta' : diasTope <= 3 ? 'alta' : 'media',
+          mensaje: `📸 Nuevo período abierto: ${meses[periodoAbierto.mes - 1]} ${periodoAbierto.anio} — sube tu lectura de medidor`,
+          link: '/parcelero/luz', fecha: hoy.toISOString(),
+        })
+      }
+    }
+
     const [{ data: cuentasLuz }, { data: cuentasGC }, { data: morasPend }, { data: anunciosRecientes }, { data: lecturasRechazadas }, { data: asambleas }] = await Promise.all([
       supabase.from('cuentas_parcela').select('id, monto_prorrateado, monto_pagado, estado, periodo:periodos_facturacion(mes,anio,fecha_vencimiento)').eq('parcela_id', sesion.parcelaId).neq('estado', 'pagado'),
       supabase.from('cuentas_gc').select('id, monto, monto_pagado, estado, periodo:periodos_gc(mes,anio,fecha_vencimiento)').eq('parcela_id', sesion.parcelaId).neq('estado', 'pagado'),
