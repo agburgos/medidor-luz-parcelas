@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { comprimirImagen } from '@/lib/comprimirImagen'
 
 interface Mensaje {
   id: string
   tipo: 'reclamo' | 'denuncia' | 'sugerencia' | 'felicitacion'
   asunto: string
   mensaje: string
+  adjunto_url: string | null
   estado: 'abierto' | 'respondido' | 'cerrado'
   leido_parcelero: boolean
   created_at: string
@@ -17,6 +19,7 @@ interface Respuesta {
   autor_tipo: 'comite' | 'parcelero'
   autor_nombre: string | null
   respuesta: string
+  adjunto_url: string | null
   created_at: string
 }
 
@@ -37,19 +40,34 @@ const ESTADOS: Record<string, { label: string; color: string }> = {
   cerrado: { label: 'Cerrado', color: 'bg-gray-200 text-gray-500' },
 }
 
+async function subirAdjunto(archivo: File): Promise<string> {
+  const esImagen = archivo.type.startsWith('image/')
+  const finalFile = esImagen ? await comprimirImagen(archivo) : archivo
+  const fd = new FormData()
+  fd.append('file', finalFile)
+  fd.append('bucket', 'archivos')
+  fd.append('folder', 'mensajes')
+  const res = await fetch('/api/upload', { method: 'POST', body: fd })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Error al subir adjunto')
+  return data.url
+}
+
 export default function MensajesPage() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([])
   const [loading, setLoading] = useState(true)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [form, setForm] = useState({ tipo: 'sugerencia', asunto: '', mensaje: '' })
+  const [adjunto, setAdjunto] = useState<File | null>(null)
 
   const [seleccionado, setSeleccionado] = useState<MensajeDetalle | null>(null)
   const [respuesta, setRespuesta] = useState('')
+  const [adjuntoRespuesta, setAdjuntoRespuesta] = useState<File | null>(null)
   const [enviandoRespuesta, setEnviandoRespuesta] = useState(false)
 
   const cargar = useCallback(async () => {
-    const res = await fetch('/api/mensajes')
+    const res = await fetch('/api/mensajes?propio=1')
     const data = await res.json()
     setMensajes(Array.isArray(data) ? data : [])
     setLoading(false)
@@ -60,18 +78,24 @@ export default function MensajesPage() {
   async function crear(e: React.FormEvent) {
     e.preventDefault()
     setEnviando(true)
-    const res = await fetch('/api/mensajes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    if (res.ok) {
-      setMostrarForm(false)
-      setForm({ tipo: 'sugerencia', asunto: '', mensaje: '' })
-      await cargar()
-    } else {
-      const data = await res.json()
-      alert('Error: ' + data.error)
+    try {
+      const adjunto_url = adjunto ? await subirAdjunto(adjunto) : null
+      const res = await fetch('/api/mensajes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, adjunto_url }),
+      })
+      if (res.ok) {
+        setMostrarForm(false)
+        setForm({ tipo: 'sugerencia', asunto: '', mensaje: '' })
+        setAdjunto(null)
+        await cargar()
+      } else {
+        const data = await res.json()
+        alert('Error: ' + data.error)
+      }
+    } catch (err) {
+      alert('Error: ' + (err as Error).message)
     }
     setEnviando(false)
   }
@@ -85,18 +109,24 @@ export default function MensajesPage() {
   async function enviarRespuesta() {
     if (!seleccionado || !respuesta.trim()) return
     setEnviandoRespuesta(true)
-    const res = await fetch(`/api/mensajes/${seleccionado.id}/responder`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ respuesta }),
-    })
-    if (res.ok) {
-      setRespuesta('')
-      await abrir(seleccionado)
-      await cargar()
-    } else {
-      const data = await res.json()
-      alert('Error: ' + data.error)
+    try {
+      const adjunto_url = adjuntoRespuesta ? await subirAdjunto(adjuntoRespuesta) : null
+      const res = await fetch(`/api/mensajes/${seleccionado.id}/responder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ respuesta, adjunto_url }),
+      })
+      if (res.ok) {
+        setRespuesta('')
+        setAdjuntoRespuesta(null)
+        await abrir(seleccionado)
+        await cargar()
+      } else {
+        const data = await res.json()
+        alert('Error: ' + data.error)
+      }
+    } catch (err) {
+      alert('Error: ' + (err as Error).message)
     }
     setEnviandoRespuesta(false)
   }
@@ -120,15 +150,25 @@ export default function MensajesPage() {
           </div>
           <h1 className="text-xl font-bold mb-1">{seleccionado.asunto}</h1>
           <p className="text-xs text-gray-400 mb-4">{new Date(seleccionado.created_at).toLocaleString('es-CL')}</p>
-          <p className="text-sm text-gray-700 whitespace-pre-wrap mb-6">{seleccionado.mensaje}</p>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{seleccionado.mensaje}</p>
+          {seleccionado.adjunto_url && (
+            <a href={seleccionado.adjunto_url} target="_blank" rel="noreferrer" className="inline-block text-sm text-blue-600 hover:underline mb-4">
+              📎 Ver adjunto
+            </a>
+          )}
 
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-6 mt-4">
             {seleccionado.respuestas.map(r => (
               <div key={r.id} className={`rounded-lg p-3 text-sm ${r.autor_tipo === 'comite' ? 'bg-blue-50' : 'bg-gray-50'}`}>
                 <p className="font-medium text-xs mb-1">
                   {r.autor_tipo === 'comite' ? `🏛️ ${r.autor_nombre || 'Comité'}` : '🙋 Tú'}
                 </p>
                 <p className="whitespace-pre-wrap">{r.respuesta}</p>
+                {r.adjunto_url && (
+                  <a href={r.adjunto_url} target="_blank" rel="noreferrer" className="inline-block text-blue-600 hover:underline mt-1">
+                    📎 Ver adjunto
+                  </a>
+                )}
                 <p className="text-xs text-gray-400 mt-1">{new Date(r.created_at).toLocaleString('es-CL')}</p>
               </div>
             ))}
@@ -146,6 +186,18 @@ export default function MensajesPage() {
                 rows={3}
                 className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
               />
+              <div className="mb-2">
+                <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                  <span className="bg-gray-100 rounded px-2 py-1 hover:bg-gray-200">📎 Adjuntar foto o archivo (opcional)</span>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    onChange={e => setAdjuntoRespuesta(e.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                  {adjuntoRespuesta && <span className="text-gray-500">{adjuntoRespuesta.name}</span>}
+                </label>
+              </div>
               <button
                 onClick={enviarRespuesta}
                 disabled={enviandoRespuesta || !respuesta.trim()}
@@ -217,6 +269,18 @@ export default function MensajesPage() {
               className="w-full border rounded-lg px-3 py-2 text-sm"
               placeholder="Cuéntanos con detalle..."
             />
+          </div>
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <span className="bg-gray-100 rounded-lg px-3 py-2 hover:bg-gray-200">📎 Adjuntar foto o archivo (opcional)</span>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={e => setAdjunto(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+              {adjunto && <span className="text-gray-500 text-xs">{adjunto.name}</span>}
+            </label>
           </div>
           <button
             type="submit"

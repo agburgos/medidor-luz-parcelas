@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params
   const body = await req.json()
-  const { respuesta } = body
+  const { respuesta, adjunto_url } = body
   if (!respuesta || !respuesta.trim()) {
     return NextResponse.json({ error: 'La respuesta no puede estar vacía' }, { status: 400 })
   }
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       usuario_id: sesion.userId,
       autor_nombre,
       respuesta,
+      adjunto_url: adjunto_url || null,
     })
     .select()
     .single()

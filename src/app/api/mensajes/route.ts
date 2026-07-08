@@ -11,11 +11,14 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const tipo = searchParams.get('tipo')
   const estado = searchParams.get('estado')
+  const propio = searchParams.get('propio') === '1'
 
-  if (sesion.rol === 'comite') {
+  // "propio=1" fuerza ver solo los mensajes de mi parcela, aunque mi rol sea comité
+  // (usado por /parcelero/mensajes cuando el comité está viendo su propia parcela).
+  if (sesion.rol === 'comite' && !propio) {
     let query = supabase
       .from('mensajes')
-      .select('id, tipo, asunto, mensaje, estado, leido_comite, created_at, updated_at, parcela:parcelas(id, numero, nombre_dueno)')
+      .select('id, tipo, asunto, mensaje, adjunto_url, estado, leido_comite, created_at, updated_at, parcela:parcelas(id, numero, nombre_dueno)')
       .order('created_at', { ascending: false })
     if (tipo) query = query.eq('tipo', tipo)
     if (estado) query = query.eq('estado', estado)
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('mensajes')
-    .select('id, tipo, asunto, mensaje, estado, leido_parcelero, created_at, updated_at')
+    .select('id, tipo, asunto, mensaje, adjunto_url, estado, leido_parcelero, created_at, updated_at')
     .eq('parcela_id', sesion.parcelaId)
     .order('created_at', { ascending: false })
 
@@ -37,15 +40,15 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data || [])
 }
 
-// POST: crear mensaje (solo parcelero)
+// POST: crear mensaje (cualquier sesión con parcela asociada)
 export async function POST(req: NextRequest) {
   const sesion = await getSesion()
-  if (!sesion || sesion.rol !== 'parcelero' || !sesion.parcelaId) {
+  if (!sesion || !sesion.parcelaId) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const body = await req.json()
-  const { tipo, asunto, mensaje } = body
+  const { tipo, asunto, mensaje, adjunto_url } = body
 
   if (!tipo || !['reclamo', 'denuncia', 'sugerencia', 'felicitacion'].includes(tipo)) {
     return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
@@ -62,6 +65,7 @@ export async function POST(req: NextRequest) {
       tipo,
       asunto,
       mensaje,
+      adjunto_url: adjunto_url || null,
       leido_comite: false,
       leido_parcelero: true,
     })

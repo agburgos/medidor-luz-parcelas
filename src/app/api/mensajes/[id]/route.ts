@@ -13,29 +13,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { data: mensaje, error } = await supabase
     .from('mensajes')
-    .select('id, parcela_id, tipo, asunto, mensaje, estado, leido_parcelero, leido_comite, created_at, updated_at, parcela:parcelas(id, numero, nombre_dueno)')
+    .select('id, parcela_id, tipo, asunto, mensaje, adjunto_url, estado, leido_parcelero, leido_comite, created_at, updated_at, parcela:parcelas(id, numero, nombre_dueno)')
     .eq('id', id)
     .single()
 
   if (error || !mensaje) return NextResponse.json({ error: 'Mensaje no encontrado' }, { status: 404 })
 
-  if (sesion.rol !== 'comite' && mensaje.parcela_id !== sesion.parcelaId) {
+  const esMiParcela = mensaje.parcela_id === sesion.parcelaId
+  if (sesion.rol !== 'comite' && !esMiParcela) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { data: respuestas, error: errResp } = await supabase
     .from('mensaje_respuestas')
-    .select('id, autor_tipo, autor_nombre, respuesta, created_at')
+    .select('id, autor_tipo, autor_nombre, respuesta, adjunto_url, created_at')
     .eq('mensaje_id', id)
     .order('created_at', { ascending: true })
 
   if (errResp) return NextResponse.json({ error: errResp.message }, { status: 400 })
 
-  // Marcar como leído según quién lo abre
+  // Marcar como leído según quién lo abre (la propia parcela siempre marca su lado,
+  // independiente del rol, para que el comité viendo "su parcela" también limpie el aviso)
+  if (esMiParcela && !mensaje.leido_parcelero) {
+    await supabase.from('mensajes').update({ leido_parcelero: true }).eq('id', id)
+  }
   if (sesion.rol === 'comite' && !mensaje.leido_comite) {
     await supabase.from('mensajes').update({ leido_comite: true }).eq('id', id)
-  } else if (sesion.rol === 'parcelero' && !mensaje.leido_parcelero) {
-    await supabase.from('mensajes').update({ leido_parcelero: true }).eq('id', id)
   }
 
   return NextResponse.json({ ...mensaje, respuestas: respuestas || [] })

@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData()
   const file = formData.get('file') as File
   const bucket = (formData.get('bucket') as string) || 'votaciones'
+  const folder = (formData.get('folder') as string) || ''
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
@@ -18,7 +19,8 @@ export async function POST(req: NextRequest) {
   // Generar nombre único
   const timestamp = Date.now()
   const random = Math.random().toString(36).substring(2, 8)
-  const fileName = `${timestamp}-${random}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+  const prefijo = folder ? `${folder.replace(/[^a-zA-Z0-9_-]/g, '')}/` : ''
+  const fileName = `${prefijo}${timestamp}-${random}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
 
   // Subir archivo
   const { data, error } = await supabase.storage
