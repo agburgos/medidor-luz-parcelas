@@ -4,7 +4,7 @@ import { getSesion } from '@/lib/auth'
 
 interface Notificacion {
   id: string
-  tipo: 'pago' | 'lectura' | 'anuncio' | 'asamblea' | 'vencimiento' | 'mora'
+  tipo: 'pago' | 'lectura' | 'anuncio' | 'asamblea' | 'vencimiento' | 'mora' | 'mensaje'
   urgencia: 'alta' | 'media' | 'baja'
   mensaje: string
   link: string
@@ -52,6 +52,22 @@ export async function GET() {
         id: `asamblea-${a.id}`, tipo: 'asamblea', urgencia: dias <= 3 ? 'alta' : 'baja',
         mensaje: `${a.tipo === 'directiva' ? '🔒 ' : ''}${a.titulo} — ${dias === 0 ? 'hoy' : `en ${dias} día${dias !== 1 ? 's' : ''}`}`,
         link: '/comite/asambleas', fecha: a.fecha,
+      })
+    }
+
+    // Mensajes de parceleros sin leer por el comité (nuevos o con réplica)
+    const { data: mensajesSinLeer } = await supabase
+      .from('mensajes')
+      .select('id, tipo, asunto, created_at')
+      .eq('leido_comite', false)
+      .order('created_at', { ascending: false })
+    for (const m of mensajesSinLeer ?? []) {
+      const urgente = m.tipo === 'reclamo' || m.tipo === 'denuncia'
+      const iconos: Record<string, string> = { reclamo: '⚠️', denuncia: '🚨', sugerencia: '💡', felicitacion: '🎉' }
+      notis.push({
+        id: `mensaje-${m.id}`, tipo: 'mensaje', urgencia: urgente ? 'alta' : 'media',
+        mensaje: `${iconos[m.tipo] ?? '💬'} ${m.asunto}`,
+        link: '/comite/mensajes', fecha: m.created_at,
       })
     }
   } else {
@@ -146,6 +162,21 @@ export async function GET() {
         id: `asamblea-${a.id}`, tipo: 'asamblea', urgencia: dias <= 3 ? 'media' : 'baja',
         mensaje: `🗓️ Estás citado: ${a.titulo} — ${dias === 0 ? 'hoy' : `en ${dias} día${dias !== 1 ? 's' : ''}`}`,
         link: '/parcelero/asambleas', fecha: a.fecha,
+      })
+    }
+
+    // Mensajes con respuesta nueva del comité que aún no he leído
+    const { data: misMensajesSinLeer } = await supabase
+      .from('mensajes')
+      .select('id, asunto, updated_at')
+      .eq('parcela_id', sesion.parcelaId)
+      .eq('leido_parcelero', false)
+      .order('updated_at', { ascending: false })
+    for (const m of misMensajesSinLeer ?? []) {
+      notis.push({
+        id: `mensaje-${m.id}`, tipo: 'mensaje', urgencia: 'media',
+        mensaje: `💬 El comité respondió: ${m.asunto}`,
+        link: '/parcelero/mensajes', fecha: m.updated_at,
       })
     }
 

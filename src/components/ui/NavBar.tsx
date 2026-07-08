@@ -28,7 +28,8 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/estados-cuenta', label: 'Estados de cuenta' },
   ]},
   { label: '🗓️ Comunidad', items: [
-    { href: '/comite/votaciones', label: 'Votaciones' },
+    { href: '/comite/votaciones', label: '🗳️ Votaciones' },
+    { href: '/comite/mensajes', label: '💬 Mensajería vecinal' },
     { href: '/comite/asambleas', label: 'Asambleas y actas' },
     { href: '/comite/anuncios', label: 'Anuncios' },
     { href: '/comite/documentos', label: 'Documentos' },
@@ -54,7 +55,8 @@ const GRUPOS_PARCELERO: Grupo[] = [
     { href: '/parcelero/estados-cuenta', label: 'Estados de cuenta' },
   ]},
   { label: '🗳️ Comunidad', items: [
-    { href: '/parcelero/votaciones', label: 'Votaciones' },
+    { href: '/parcelero/votaciones', label: '🗳️ Votaciones' },
+    { href: '/parcelero/mensajes', label: '💬 Mensajería con el comité' },
     { href: '/parcelero/asambleas', label: '🗓️ Asambleas y actas' },
     { href: '/parcelero/documentos', label: '📎 Documentos' },
     { href: '/parcelero/informacion', label: 'ℹ️ Información' },
