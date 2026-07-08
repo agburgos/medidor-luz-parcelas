@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient()
 
-  // Subir documento a Storage si se proporciona
+  // Subir documento a Storage si se proporciona (usa mismo bucket que lecturas/pagos)
   let documento_url = null
   if (documento && documento.size > 0) {
     const nombreArchivo = `${Date.now()}-${documento.name}`
     const rutaBucket = `caja/${nombreArchivo}`
     const buffer = await documento.arrayBuffer()
     const { error: errUpload } = await supabase.storage
-      .from('documentos')
+      .from('archivos')
       .upload(rutaBucket, buffer, { contentType: documento.type })
     if (errUpload) return NextResponse.json({ error: `Error al subir documento: ${errUpload.message}` }, { status: 400 })
     documento_url = rutaBucket
