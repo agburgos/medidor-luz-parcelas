@@ -1,0 +1,96 @@
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 2rem 1rem; background: #f7f7f5; color: #1a1a1a; }
+  @media (prefers-color-scheme: dark) { body { background: #17171a; color: #eee; } }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .hero { text-align: center; padding: 1rem 0 2rem; }
+  .hero p.kicker { font-size: 13px; color: #888; margin: 0 0 6px; }
+  .hero h1 { font-size: 26px; font-weight: 700; margin: 0; }
+  .hero p.sub { font-size: 15px; color: #666; margin: 10px auto 0; max-width: 440px; }
+  @media (prefers-color-scheme: dark) { .hero p.sub, .hero p.kicker { color: #aaa; } }
+  .cta { display: inline-flex; align-items: center; gap: 8px; background: #1d4ed8; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 22px; border-radius: 10px; text-decoration: none; margin-top: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  .card { border-radius: 14px; padding: 18px 20px; }
+  .card .icon { font-size: 22px; }
+  .card p.t { font-weight: 700; margin: 10px 0 4px; font-size: 15px; }
+  .card p.s { font-size: 13px; margin: 0; line-height: 1.5; }
+  .blue { background: #e6f1fb; } .blue .t { color: #0c447c; } .blue .s { color: #185fa5; }
+  .teal { background: #e1f5ee; } .teal .t { color: #085041; } .teal .s { color: #0f6e56; }
+  .coral { background: #faece7; } .coral .t { color: #712b13; } .coral .s { color: #993c1d; }
+  .purple { background: #eeedfe; } .purple .t { color: #3c3489; } .purple .s { color: #534ab7; }
+  @media (prefers-color-scheme: dark) {
+    .blue { background: #0c2340; } .blue .t { color: #b5d4f4; } .blue .s { color: #85b7eb; }
+    .teal { background: #06382c; } .teal .t { color: #9fe1cb; } .teal .s { color: #5dcaa5; }
+    .coral { background: #3a1c0f; } .coral .t { color: #f5c4b3; } .coral .s { color: #f0997b; }
+    .purple { background: #201c46; } .purple .t { color: #cecbf6; } .purple .s { color: #afa9ec; }
+  }
+  .footer { background: rgba(29,78,216,0.08); border-radius: 14px; padding: 18px 20px; }
+  .footer p.t { font-weight: 700; margin: 0 0 8px; }
+  .footer p.s { font-size: 14px; color: #555; margin: 0; line-height: 1.6; }
+  @media (prefers-color-scheme: dark) { .footer { background: rgba(133,183,235,0.1); } .footer p.s { color: #ccc; } }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <p class="kicker">Para los parceleros de la comunidad</p>
+    <h1>Lo que ya puedes hacer en COPOSA</h1>
+    <p class="sub">Desde tu celular o computador, sin instalar nada. Entra con tu correo y contraseña.</p>
+    <div>
+      <a class="cta" href="https://medidores.vvmcoposa.cl">🔗 medidores.vvmcoposa.cl</a>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card blue">
+      <div class="icon">📸</div>
+      <p class="t">Sube tu lectura de luz</p>
+      <p class="s">Una foto de tu medidor cada mes, desde el celular.</p>
+    </div>
+    <div class="card blue">
+      <div class="icon">⚡</div>
+      <p class="t">Ve tu consumo y tu cuenta</p>
+      <p class="s">Historial de luz y gastos comunes, siempre a la mano.</p>
+    </div>
+    <div class="card teal">
+      <div class="icon">🏦</div>
+      <p class="t">Revisa la caja de la comunidad</p>
+      <p class="s">Los mismos movimientos e ingresos que ve el comité, en todo momento.</p>
+    </div>
+    <div class="card teal">
+      <div class="icon">📊</div>
+      <p class="t">Consulta el libro contable</p>
+      <p class="s">Estado de resultados y saldo, sin pedirle nada a nadie.</p>
+    </div>
+    <div class="card coral">
+      <div class="icon">🗳️</div>
+      <p class="t">Vota en las decisiones</p>
+      <p class="s">Encuestas de la comunidad, un voto por parcela.</p>
+    </div>
+    <div class="card coral">
+      <div class="icon">🗓️</div>
+      <p class="t">Revisa asambleas y actas</p>
+      <p class="s">Citaciones y acuerdos anteriores, guardados en un solo lugar.</p>
+    </div>
+    <div class="card purple">
+      <div class="icon">📢</div>
+      <p class="t">Anuncios del comité</p>
+      <p class="s">Comunicados y novedades, sin depender de un grupo de WhatsApp.</p>
+    </div>
+    <div class="card purple">
+      <div class="icon">📎</div>
+      <p class="t">Documentos y registro</p>
+      <p class="s">Reglamentos, actas y registro de personas y mascotas de tu parcela.</p>
+    </div>
+    <div class="card blue">
+      <div class="icon">💬</div>
+      <p class="t">Mensajería con el comité</p>
+      <p class="s">Reclamos, denuncias, sugerencias o felicitaciones, directo desde la app.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="t">🔔 Avisos automáticos</p>
+    <p class="s">Recibirás una notificación en la app y por correo cuando se abra un nuevo período de lectura, cuando haya una votación pendiente, o cuando se acerque el vencimiento de un pago. No hace falta que estés revisando todos los días.</p>
+  </div>
+</div>

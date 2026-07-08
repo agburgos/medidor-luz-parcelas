@@ -70,7 +70,7 @@ export default async function ComiteDashboard() {
   // Cálculos de Caja: la Caja sale 100% de caja_movimientos (única fuente de verdad).
   // Todos los pagos validados (luz/GC/abonos) se registran como ingresos aquí,
   // por eso NO se vuelve a sumar totalRecaudado (evita doble conteo).
-  const SALDO_INICIAL = 169158
+  const SALDO_INICIAL = 163658
   type MovCaja = { tipo: string; monto: number; concepto: string }
   const movsCaja = (movimientosCaja ?? []) as MovCaja[]
   const esPago = (c: string) => /^(Pago Luz|Pago Gastos Comunes|Abono)/i.test(c)
