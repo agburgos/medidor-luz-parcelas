@@ -31,6 +31,8 @@ export default function MorasParcela({
   const [mensaje, setMensaje] = useState('')
   const [form, setForm] = useState({ descripcion: '', monto: '', fecha_origen: '', tipo: 'luz' })
   const [guardando, setGuardando] = useState(false)
+  const [formAbono, setFormAbono] = useState({ monto: '', fecha: new Date().toISOString().slice(0, 10), descripcion: '', tipo: '' })
+  const [guardandoAbono, setGuardandoAbono] = useState(false)
 
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/moras?parcela_id=${parcelaId}`)
@@ -74,6 +76,28 @@ export default function MorasParcela({
     const data = await res.json()
     setMensaje(res.ok ? `✅ Abono registrado (${data.estado === 'pagado' ? 'mora saldada' : 'pago parcial'})` : `❌ ${data.error}`)
     await cargar()
+  }
+
+  async function registrarAbonoGeneral(e: React.FormEvent) {
+    e.preventDefault()
+    setGuardandoAbono(true)
+    setMensaje('')
+    const res = await fetch('/api/moras/abono-general', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parcela_id: parcelaId, ...formAbono }),
+    })
+    const data = await res.json()
+    if (!res.ok) setMensaje(`❌ ${data.error}`)
+    else {
+      const detalle = data.aplicaciones.length > 0
+        ? `aplicado a ${data.aplicaciones.length} mora(s)${data.sobrante_sin_aplicar > 0 ? `, sobran ${$(data.sobrante_sin_aplicar)} sin mora a la cual aplicar` : ''}`
+        : 'sin moras pendientes a las que aplicar (revisa el tipo elegido)'
+      setMensaje(`✅ Abono de ${$(data.aplicado_total)} registrado — ${detalle}`)
+      setFormAbono({ monto: '', fecha: new Date().toISOString().slice(0, 10), descripcion: '', tipo: '' })
+      await cargar()
+    }
+    setGuardandoAbono(false)
   }
 
   async function eliminar(m: Mora) {
@@ -155,6 +179,54 @@ export default function MorasParcela({
               </table>
             )}
             {moras.length === 0 && <p className="text-gray-400 text-sm mb-5">Esta parcela no tiene moras anteriores registradas.</p>}
+
+            <form onSubmit={registrarAbonoGeneral} className="border-t pt-4 space-y-3 mb-5">
+              <p className="text-sm font-medium">💰 Registrar abono nuevo (no asociado a un período)</p>
+              <p className="text-xs text-gray-500 -mt-2">Se aplica automáticamente a la mora anterior pendiente más antigua de esta parcela.</p>
+              <div className="flex flex-wrap gap-3">
+                <select
+                  value={formAbono.tipo}
+                  onChange={e => setFormAbono(f => ({ ...f, tipo: e.target.value }))}
+                  className="border rounded-lg px-3 py-2 text-sm"
+                  title="Filtrar por tipo (opcional)"
+                >
+                  <option value="">Cualquier tipo</option>
+                  <option value="luz">⚡ Luz</option>
+                  <option value="gc">🏘️ Gastos Comunes</option>
+                  <option value="otro">📄 Otro</option>
+                </select>
+                <input
+                  type="number"
+                  value={formAbono.monto}
+                  onChange={e => setFormAbono(f => ({ ...f, monto: e.target.value }))}
+                  required min={1}
+                  placeholder="Monto del abono $"
+                  className="border rounded-lg px-3 py-2 text-sm w-40"
+                />
+                <input
+                  type="date"
+                  value={formAbono.fecha}
+                  onChange={e => setFormAbono(f => ({ ...f, fecha: e.target.value }))}
+                  required
+                  className="border rounded-lg px-3 py-2 text-sm"
+                  title="Fecha del abono"
+                />
+                <input
+                  type="text"
+                  value={formAbono.descripcion}
+                  onChange={e => setFormAbono(f => ({ ...f, descripcion: e.target.value }))}
+                  placeholder="Observación (opcional)"
+                  className="flex-1 min-w-40 border rounded-lg px-3 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={guardandoAbono}
+                  className="bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {guardandoAbono ? '...' : 'Registrar abono'}
+                </button>
+              </div>
+            </form>
 
             <form onSubmit={agregar} className="border-t pt-4 space-y-3">
               <p className="text-sm font-medium">+ Agregar mora a esta parcela</p>
