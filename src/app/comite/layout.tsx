@@ -6,7 +6,7 @@ export default async function ComiteLayout({ children }: { children: React.React
   const sesion = await getSesion()
   return (
     <div className="min-h-screen flex flex-col">
-      <NavBar rol="comite" tieneParcelaPropia={!!sesion?.parcelaId} />
+      <NavBar rol="comite" tieneParcelaPropia={!!sesion?.parcelaId} esSuperadmin={!!sesion?.esSuperadmin} />
       <TablasOrdenables />
       <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full">{children}</main>
     </div>

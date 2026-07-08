@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { getSesion } from '@/lib/auth'
+import { getSesion, esSuperadmin } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
 
-// Elimina un pago de Luz mal ingresado o duplicado.
+// Elimina un pago de Luz mal ingresado o duplicado. Solo superadmin.
 // Al borrar el pago, su movimiento de caja vinculado se elimina en cascada
 // (FK caja_movimientos.pago_id -> pagos.id on delete cascade).
 // La cuenta se recalcula desde los pagos validados restantes.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await getSesion()
-  if (!sesion || sesion.rol !== 'comite') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!sesion || !esSuperadmin(sesion)) {
+    return NextResponse.json({ error: 'Solo un superadministrador puede eliminar pagos' }, { status: 403 })
   }
 
   const supabase = createServiceClient()

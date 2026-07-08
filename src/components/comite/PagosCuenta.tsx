@@ -45,6 +45,7 @@ export default function PagosCuenta({
   const [comprobante, setComprobante] = useState<File | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [eliminando, setEliminando] = useState<string | null>(null)
+  const [esSuperadmin, setEsSuperadmin] = useState(false)
   const pagoApiBase = apiBase.includes('/gc/') ? '/api/gc/pagos' : '/api/pagos'
 
   const cargar = useCallback(async () => {
@@ -55,6 +56,10 @@ export default function PagosCuenta({
   }, [cuentaId])
 
   useEffect(() => { cargar() }, [cargar])
+
+  useEffect(() => {
+    fetch('/api/sesion').then(r => r.json()).then(s => setEsSuperadmin(!!s.esSuperadmin)).catch(() => {})
+  }, [])
 
   async function registrar(e: React.FormEvent) {
     e.preventDefault()
@@ -161,13 +166,17 @@ export default function PagosCuenta({
                     </td>
                     <td className="px-3 py-2 text-gray-500 text-xs">{p.observacion || '—'}</td>
                     <td className="px-3 py-2 text-right">
-                      <button
-                        onClick={() => eliminar(p)}
-                        disabled={eliminando === p.id}
-                        className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
-                      >
-                        {eliminando === p.id ? '...' : '🗑️ Eliminar'}
-                      </button>
+                      {esSuperadmin ? (
+                        <button
+                          onClick={() => eliminar(p)}
+                          disabled={eliminando === p.id}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
+                        >
+                          {eliminando === p.id ? '...' : '🗑️ Eliminar'}
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 text-xs" title="Solo el superadministrador puede eliminar pagos">🔒</span>
+                      )}
                     </td>
                   </tr>
                 ))}

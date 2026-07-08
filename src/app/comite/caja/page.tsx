@@ -35,12 +35,17 @@ export default function CajaPage() {
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
   const POR_PAGINA = 15
+  const [esSuperadmin, setEsSuperadmin] = useState(false)
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/caja/movimientos')
     const data = await res.json()
     setMovimientos(Array.isArray(data) ? data : [])
     setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/sesion').then(r => r.json()).then(s => setEsSuperadmin(!!s.esSuperadmin)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -299,7 +304,9 @@ export default function CajaPage() {
                       {!m.documento_url && (m.observacion ? `"${m.observacion}"` : '—')}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {m.pago_id || m.pago_gc_id ? (
+                      {!esSuperadmin ? (
+                        <span className="text-gray-300 text-xs" title="Solo el superadministrador puede eliminar movimientos">🔒</span>
+                      ) : m.pago_id || m.pago_gc_id ? (
                         <span className="text-gray-300 text-xs" title="Vinculado a un pago; elimínalo desde la cuenta">🔒</span>
                       ) : (
                         <button

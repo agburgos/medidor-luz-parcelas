@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { getSesion } from '@/lib/auth'
+import { getSesion, esSuperadmin } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
 
-// Elimina un movimiento de caja manual (ingreso/egreso extraordinario).
+// Elimina un movimiento de caja manual (ingreso/egreso extraordinario). Solo superadmin.
 // Los movimientos originados por un pago (pago_id/pago_gc_id) NO se pueden
 // borrar aquí: deben eliminarse desde el historial de pagos de la cuenta,
 // para mantener caja, cuenta y pago siempre consistentes entre sí.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await getSesion()
-  if (!sesion || sesion.rol !== 'comite') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!sesion || !esSuperadmin(sesion)) {
+    return NextResponse.json({ error: 'Solo un superadministrador puede eliminar movimientos' }, { status: 403 })
   }
 
   const supabase = createServiceClient()

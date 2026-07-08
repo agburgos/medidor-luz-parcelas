@@ -6,6 +6,7 @@ export interface Sesion {
   parcelaId: string | null
   nombre: string | null
   cargo: string | null
+  esSuperadmin: boolean
 }
 
 // Identifica al usuario actual, su rol, cargo y su parcela (si es parcelero).
@@ -16,7 +17,7 @@ export async function getSesion(): Promise<Sesion | null> {
 
   const service = createServiceClient()
   const [{ data: perfil }, { data: parcela }] = await Promise.all([
-    service.from('perfiles').select('rol, nombre, cargo').eq('id', user.id).single(),
+    service.from('perfiles').select('rol, nombre, cargo, es_superadmin').eq('id', user.id).single(),
     service.from('parcelas').select('id').eq('user_id', user.id).maybeSingle(),
   ])
 
@@ -26,7 +27,13 @@ export async function getSesion(): Promise<Sesion | null> {
     parcelaId: parcela?.id ?? null,
     nombre: perfil?.nombre ?? null,
     cargo: perfil?.cargo ?? null,
+    esSuperadmin: !!perfil?.es_superadmin,
   }
+}
+
+// Solo el superadmin puede eliminar pagos/movimientos y cambiar contraseñas ajenas.
+export function esSuperadmin(sesion: Sesion | null): boolean {
+  return !!sesion && sesion.rol === 'comite' && sesion.esSuperadmin
 }
 
 // Valida que la sesión pueda operar sobre una parcela:

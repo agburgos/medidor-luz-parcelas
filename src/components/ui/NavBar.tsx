@@ -95,14 +95,20 @@ export default function NavBar({
   rol,
   tieneParcelaPropia = false,
   esComiteViendoSuParcela = false,
+  esSuperadmin = false,
 }: {
   rol: Rol
   tieneParcelaPropia?: boolean
   esComiteViendoSuParcela?: boolean
+  esSuperadmin?: boolean
 }) {
   const router = useRouter()
   const [menuMovil, setMenuMovil] = useState(false)
-  const grupos = rol === 'comite' ? GRUPOS_COMITE : GRUPOS_PARCELERO
+  const grupos = rol === 'comite'
+    ? (esSuperadmin
+        ? [...GRUPOS_COMITE, { label: '🔐 Superadmin', items: [{ href: '/comite/superadmin', label: 'Usuarios y contraseñas' }] }]
+        : GRUPOS_COMITE)
+    : GRUPOS_PARCELERO
 
   useEffect(() => {
     document.body.style.overflow = menuMovil ? 'hidden' : ''
