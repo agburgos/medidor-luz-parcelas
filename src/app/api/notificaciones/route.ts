@@ -148,6 +148,32 @@ export async function GET() {
         link: '/parcelero/asambleas', fecha: a.fecha,
       })
     }
+
+    // Votaciones abiertas donde el parcelero aún no ha votado
+    const { data: votacionesAbiertas } = await supabase
+      .from('votaciones')
+      .select('id, titulo, fecha_cierre, created_at')
+      .eq('estado', 'abierta')
+      .gte('fecha_cierre', hoy.toISOString())
+
+    if (votacionesAbiertas && votacionesAbiertas.length > 0) {
+      const { data: misVotos } = await supabase
+        .from('votos')
+        .select('votacion_id')
+        .eq('parcela_id', sesion.parcelaId)
+
+      const idsVotados = new Set((misVotos ?? []).map((v: { votacion_id: string }) => v.votacion_id))
+
+      for (const v of votacionesAbiertas) {
+        if (idsVotados.has(v.id)) continue
+        const diasCierre = Math.ceil((new Date(v.fecha_cierre).getTime() - hoy.getTime()) / 86400000)
+        notis.push({
+          id: `votacion-${v.id}`, tipo: 'asamblea', urgencia: diasCierre <= 2 ? 'alta' : 'media',
+          mensaje: `🗳️ Nueva votación: ${v.titulo} — ${diasCierre === 0 ? 'cierra hoy' : `cierra en ${diasCierre} día${diasCierre !== 1 ? 's' : ''}`}`,
+          link: '/parcelero/votaciones', fecha: v.created_at,
+        })
+      }
+    }
   }
 
   const orden = { alta: 0, media: 1, baja: 2 }
