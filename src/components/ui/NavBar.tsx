@@ -28,6 +28,7 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/estados-cuenta', label: 'Estados de cuenta' },
   ]},
   { label: '🗓️ Comunidad', items: [
+    { href: '/comite/votaciones', label: 'Votaciones' },
     { href: '/comite/asambleas', label: 'Asambleas y actas' },
     { href: '/comite/anuncios', label: 'Anuncios' },
     { href: '/comite/documentos', label: 'Documentos' },
@@ -46,6 +47,13 @@ const GRUPOS_PARCELERO: Grupo[] = [
     { href: '/parcelero', label: '🏠 Inicio' },
     { href: '/parcelero/luz', label: '⚡ Cuenta de luz' },
     { href: '/parcelero/gastos-comunes', label: '🏘️ Gastos Comunes' },
+  ]},
+  { label: '💰 Transparencia', items: [
+    { href: '/parcelero/estado-resultados', label: 'Estado de resultados' },
+    { href: '/parcelero/flujo-caja', label: 'Flujo de caja' },
+  ]},
+  { label: '🗳️ Comunidad', items: [
+    { href: '/parcelero/votaciones', label: 'Votaciones' },
     { href: '/parcelero/asambleas', label: '🗓️ Asambleas y actas' },
     { href: '/parcelero/documentos', label: '📎 Documentos' },
     { href: '/parcelero/informacion', label: 'ℹ️ Información' },
