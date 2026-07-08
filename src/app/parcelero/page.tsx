@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import FeedAnuncios from '@/components/parcelero/FeedAnuncios'
 import AvisoLectura from '@/components/parcelero/AvisoLectura'
+import AvisoVotacion from '@/components/parcelero/AvisoVotacion'
 
 export default async function ParceleroDashboard() {
   const supabase = await createClient()
@@ -65,6 +66,7 @@ export default async function ParceleroDashboard() {
       <p className="text-gray-500 mb-6">Parcela #{parcela.numero}</p>
 
       <AvisoLectura />
+      <AvisoVotacion />
 
       {/* Grandes números */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
