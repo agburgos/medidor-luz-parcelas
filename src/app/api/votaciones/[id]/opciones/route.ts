@@ -3,12 +3,13 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
 
 // GET: obtener opciones de una votación
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await getSesion()
   if (!sesion) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
+  const { id: votacion_id } = await params
+
   const supabase = createServiceClient()
-  const votacion_id = params.id
 
   // Verificar que la votación existe
   const { data: votacion, error: errVot } = await supabase

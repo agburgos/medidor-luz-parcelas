@@ -2,13 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
 
+interface Opcion {
+  id: string
+  texto: string
+  foto_url: string | null
+  orden: number
+}
+
+interface Voto {
+  opcion_id: string | null
+  opcion_ids: string[] | null
+}
+
 // GET: obtener resultados de una votación
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await getSesion()
   if (!sesion) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
+  const { id: votacion_id } = await params
   const supabase = createServiceClient()
-  const votacion_id = params.id
 
   // Obtener votación
   const { data: votacion, error: errVot } = await supabase
@@ -59,7 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const conteoOpciones: Record<string, number> = {}
   let totalVotos = 0
 
-  for (const voto of votos || []) {
+  for (const voto of (votos as Voto[]) || []) {
     if (votacion.tipo_conteo === 'unica' && voto.opcion_id) {
       conteoOpciones[voto.opcion_id] = (conteoOpciones[voto.opcion_id] || 0) + 1
       totalVotos++
@@ -72,14 +84,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   }
 
   // Construir respuesta
-  const opcionesConVotos = (opciones || []).map(op => {
-    const votos = conteoOpciones[op.id] || 0
-    const porcentaje = totalVotos > 0 ? Math.round((votos / totalVotos) * 100) : 0
+  const opcionesConVotos = ((opciones as Opcion[]) || []).map((op: Opcion) => {
+    const votosCount = conteoOpciones[op.id] || 0
+    const porcentaje = totalVotos > 0 ? Math.round((votosCount / totalVotos) * 100) : 0
     return {
       id: op.id,
       texto: op.texto,
       foto_url: op.foto_url,
-      votos,
+      votos: votosCount,
       porcentaje,
     }
   })
@@ -90,7 +102,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const { data: parcela } = await supabase
       .from('parcelas')
       .select('id')
-      .eq('user_id', sesion.user_id)
+      .eq('user_id', sesion.userId)
       .single()
 
     if (parcela) {
@@ -111,7 +123,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     .select('id', { count: 'exact' })
     .eq('votacion_id', votacion_id)
 
-  const participacion = totalParticipacion > 0 ? Math.round((totalParticipacion / 80) * 100) : 0 // Asumir 80 parcelas
+  const participacion = totalParticipacion > 0 ? Math.round((totalParticipacion / 80) * 100) : 0
 
   return NextResponse.json({
     votacion,

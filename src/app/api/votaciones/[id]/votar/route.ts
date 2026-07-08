@@ -3,22 +3,22 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
 
 // POST: registrar voto de un parcelero
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await getSesion()
   if (!sesion || sesion.rol !== 'parcelero') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  const { id: votacion_id } = await params
   const supabase = createServiceClient()
-  const votacion_id = params.id
   const body = await req.json()
-  const { opcion_id, opcion_ids } = body // opcion_id para única, opcion_ids array para múltiple
+  const { opcion_id, opcion_ids } = body
 
   // Obtener parcela del usuario
   const { data: parcela, error: errParcela } = await supabase
     .from('parcelas')
     .select('id')
-    .eq('user_id', sesion.user_id)
+    .eq('user_id', sesion.userId)
     .single()
 
   if (errParcela || !parcela) {
