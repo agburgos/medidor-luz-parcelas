@@ -15,6 +15,7 @@ export default async function ComiteDashboard() {
     { data: cuentasGC },
     { data: moras },
     { data: anuncios },
+    { data: movimientosCaja },
   ] = await Promise.all([
     supabase.from('parcelas').select('*', { count: 'exact', head: true }),
     supabase
@@ -33,6 +34,7 @@ export default async function ComiteDashboard() {
     supabase.from('cuentas_gc').select('monto, monto_pagado, periodo:periodos_gc(mes,anio)'),
     supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').neq('estado', 'pagado'),
     supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
+    supabase.from('caja_movimientos').select('tipo, monto'),
   ])
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
@@ -57,6 +59,13 @@ export default async function ComiteDashboard() {
   const totalDeudaLuz = deudaLuzCuentas + deudaMorasLuz
   const totalDeudaGC = deudaGCCuentas + deudaMorasGC
   const totalDeuda = totalDeudaLuz + totalDeudaGC + deudaMorasOtro
+
+  // Cálculos de Caja
+  type MovCaja = { tipo: string; monto: number }
+  const movsCaja = (movimientosCaja ?? []) as MovCaja[]
+  const totalIngresos = movsCaja.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
+  const totalEgresos = movsCaja.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
+  const saldoCaja = 169158 + totalIngresos - totalEgresos
 
   // Reporte por mes: combina luz y GC
   const porMes = new Map<string, { facturadoLuz: number; recaudadoLuz: number; facturadoGC: number; recaudadoGC: number }>()
@@ -90,17 +99,17 @@ export default async function ComiteDashboard() {
           <p className="text-sm text-green-700">💰 Total recaudado</p>
           <p className="text-2xl font-bold text-green-700">{$(totalRecaudado)}</p>
         </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+          <p className="text-sm text-blue-700">🏦 Caja</p>
+          <p className="text-2xl font-bold text-blue-700">{$(saldoCaja)}</p>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
+          <p className="text-sm text-emerald-700">📥 Ingresos</p>
+          <p className="text-2xl font-bold text-emerald-700">{$(totalIngresos)}</p>
+        </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-5">
           <p className="text-sm text-red-700">🔴 Deuda total</p>
           <p className="text-2xl font-bold text-red-700">{$(totalDeuda)}</p>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5">
-          <p className="text-sm text-yellow-800">⚡ Deuda por Luz</p>
-          <p className="text-2xl font-bold text-yellow-800">{$(totalDeudaLuz)}</p>
-        </div>
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-5">
-          <p className="text-sm text-purple-700">🏘️ Deuda por GC</p>
-          <p className="text-2xl font-bold text-purple-700">{$(totalDeudaGC)}</p>
         </div>
       </div>
 
