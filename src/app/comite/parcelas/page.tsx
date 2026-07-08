@@ -29,6 +29,7 @@ export default function ParcelasPage() {
   const [invitando, setInvitando] = useState<string | null>(null)
   const [mostrarInactivas, setMostrarInactivas] = useState(false)
   const [morasDe, setMorasDe] = useState<Parcela | null>(null)
+  const [esSuperadmin, setEsSuperadmin] = useState(false)
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/parcelas')
@@ -38,6 +39,9 @@ export default function ParcelasPage() {
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
+  useEffect(() => {
+    fetch('/api/sesion').then(r => r.json()).then(s => setEsSuperadmin(!!s.esSuperadmin)).catch(() => {})
+  }, [])
 
   function abrirNueva() {
     setEditandoId(null)
@@ -248,7 +252,9 @@ export default function ParcelasPage() {
                   <div className="flex gap-3">
                     <button onClick={() => abrirEdicion(p)} className="text-blue-600 hover:underline">Editar</button>
                     <button onClick={() => setMorasDe(p)} className="text-orange-600 hover:underline">Moras</button>
-                    <button onClick={() => suplantar(p)} className="text-purple-600 hover:underline">👤 Ver como</button>
+                    {esSuperadmin && (
+                      <button onClick={() => suplantar(p)} className="text-purple-600 hover:underline">👤 Ver como</button>
+                    )}
                     {p.activa
                       ? <button onClick={() => eliminar(p)} className="text-red-500 hover:underline">Eliminar</button>
                       : <button onClick={() => reactivar(p)} className="text-green-600 hover:underline">Reactivar</button>}

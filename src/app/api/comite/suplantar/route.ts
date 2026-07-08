@@ -5,21 +5,27 @@ import { registrar } from '@/lib/bitacora'
 
 // Verifica el rol REAL del usuario (sin aplicar ninguna suplantación activa),
 // para que un comité ya suplantando pueda cambiar de parcela, y para que
-// un parcelero nunca pueda activar esto.
+// nadie que no sea superadmin pueda activar esto.
 async function getRolReal() {
   const authClient = await createClient()
   const { data: { user } } = await authClient.auth.getUser()
   if (!user) return null
   const service = createServiceClient()
-  const { data: perfil } = await service.from('perfiles').select('rol, nombre, cargo').eq('id', user.id).single()
-  return { userId: user.id, rol: perfil?.rol === 'comite' ? 'comite' as const : 'parcelero' as const, nombre: perfil?.nombre ?? null, cargo: perfil?.cargo ?? null }
+  const { data: perfil } = await service.from('perfiles').select('rol, nombre, cargo, es_superadmin').eq('id', user.id).single()
+  return {
+    userId: user.id,
+    rol: perfil?.rol === 'comite' ? 'comite' as const : 'parcelero' as const,
+    nombre: perfil?.nombre ?? null,
+    cargo: perfil?.cargo ?? null,
+    esSuperadmin: !!perfil?.es_superadmin,
+  }
 }
 
-// POST: activar suplantación de una parcela (solo comité real)
+// POST: activar suplantación de una parcela (solo superadmin)
 export async function POST(req: NextRequest) {
   const real = await getRolReal()
-  if (!real || real.rol !== 'comite') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!real || real.rol !== 'comite' || !real.esSuperadmin) {
+    return NextResponse.json({ error: 'Solo el superadministrador puede suplantar parcelas' }, { status: 403 })
   }
 
   const { parcela_id } = await req.json()
@@ -30,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!parcela) return NextResponse.json({ error: 'Parcela no encontrada' }, { status: 404 })
 
   await registrar(
-    { userId: real.userId, rol: 'comite', parcelaId: null, nombre: real.nombre, cargo: real.cargo, esSuperadmin: false, suplantando: null },
+    { userId: real.userId, rol: 'comite', parcelaId: null, nombre: real.nombre, cargo: real.cargo, esSuperadmin: real.esSuperadmin, suplantando: null },
     'iniciar_suplantacion', 'parcela', parcela_id, { numero: parcela.numero, nombre_dueno: parcela.nombre_dueno }
   )
 
