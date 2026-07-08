@@ -29,7 +29,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   const sesion = await getSesion()
-  await registrar(sesion, body.abono !== undefined ? 'abonar_mora' : 'editar_mora', 'mora', id, { descripcion: mora.descripcion, ...update })
+
+  // Si es abono, registrar automáticamente en CAJA como INGRESO
+  if (body.abono !== undefined && body.abono > 0 && sesion) {
+    const { error: errCaja } = await supabase
+      .from('caja_movimientos')
+      .insert({
+        tipo: 'ingreso',
+        concepto: `Abono ${mora.tipo || 'otro'}: ${mora.descripcion}`,
+        monto: Number(body.abono),
+        fecha: new Date().toISOString().slice(0, 10),
+        observacion: `Abono a mora anterior de parcela (${mora.tipo || 'otro'})`,
+        usuario_id: sesion.userId,
+      })
+    if (errCaja) return NextResponse.json({ error: `Abono registrado pero falló al guardar en caja: ${errCaja.message}` }, { status: 400 })
+  }
+
+  await registrar(sesion, body.abono !== undefined ? 'abonar_mora' : 'editar_mora', 'mora', id, { descripcion: mora.descripcion, ...update, registrado_en_caja: body.abono !== undefined && body.abono > 0 })
 
   return NextResponse.json(data)
 }

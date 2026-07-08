@@ -51,13 +51,30 @@ export async function POST(req: NextRequest) {
     restante -= aplicado
   }
 
+  // Registrar automáticamente en CAJA como INGRESO
+  const monto_aplicado = Number(monto) - restante
+  if (monto_aplicado > 0) {
+    const { error: errCaja } = await supabase
+      .from('caja_movimientos')
+      .insert({
+        tipo: 'ingreso',
+        concepto: tipo ? `Abono ${tipo}: ${descripcion || 'General'}` : `Abono: ${descripcion || 'General'}`,
+        monto: monto_aplicado,
+        fecha,
+        observacion: `Abono aplicado a mora(s) de parcela #${parcela_id}`,
+        usuario_id: sesion.userId,
+      })
+    if (errCaja) return NextResponse.json({ error: `Abono registrado pero falló al guardar en caja: ${errCaja.message}` }, { status: 400 })
+  }
+
   await registrar(sesion, 'abono_general', 'parcela', parcela_id, {
-    monto: Number(monto), fecha, descripcion, tipo, aplicaciones, sobrante_sin_aplicar: restante,
+    monto: Number(monto), fecha, descripcion, tipo, aplicaciones, sobrante_sin_aplicar: restante, registrado_en_caja: monto_aplicado > 0,
   })
 
   return NextResponse.json({
-    aplicado_total: Number(monto) - restante,
+    aplicado_total: monto_aplicado,
     sobrante_sin_aplicar: restante,
     aplicaciones,
+    registrado_en_caja: monto_aplicado > 0,
   })
 }

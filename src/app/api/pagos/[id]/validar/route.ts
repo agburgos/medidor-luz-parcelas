@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: pago } = await supabase
     .from('pagos')
-    .select('id, cuenta_id, estado')
+    .select('id, cuenta_id, estado, monto, fecha, cuenta:cuentas_parcela(parcela:parcelas(numero))')
     .eq('id', id)
     .single()
   if (!pago) return NextResponse.json({ error: 'Pago no encontrado' }, { status: 404 })
@@ -61,8 +61,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .update({ monto_pagado: totalPagado, estado: nuevoEstado })
     .eq('id', pago.cuenta_id)
 
+  // Si es validación de pago (no rechazo), registrar en CAJA como INGRESO
+  if (accion === 'validar' && pago.monto && pago.monto > 0) {
+    const numeroParc = (pago.cuenta as any)?.parcela?.numero || '?'
+    const { error: errCaja } = await supabase
+      .from('caja_movimientos')
+      .insert({
+        tipo: 'ingreso',
+        concepto: `Pago Luz - Parcela #${numeroParc}`,
+        monto: Number(pago.monto),
+        fecha: pago.fecha || new Date().toISOString().slice(0, 10),
+        observacion: `Pago validado de parcela #${numeroParc}`,
+        usuario_id: user.id,
+      })
+    if (errCaja) console.error('Error al registrar pago en caja:', errCaja.message)
+  }
+
   const sesion = await getSesion()
-  await registrar(sesion, accion === 'validar' ? 'validar_pago' : 'rechazar_pago', 'pago', id, { cuenta_id: pago.cuenta_id })
+  await registrar(sesion, accion === 'validar' ? 'validar_pago' : 'rechazar_pago', 'pago', id, { cuenta_id: pago.cuenta_id, registrado_en_caja: accion === 'validar' })
 
   return NextResponse.json({ ok: true, monto_pagado: totalPagado, estado_cuenta: nuevoEstado })
 }
