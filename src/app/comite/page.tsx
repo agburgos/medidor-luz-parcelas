@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -6,6 +6,10 @@ const mesesCorto = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct',
 
 export default async function ComiteDashboard() {
   const supabase = await createClient()
+
+  // Fetch caja sin RLS usando service client
+  const supabaseService = createServiceClient()
+  const fetchCajaPromise = supabaseService.from('caja_movimientos').select('tipo, monto')
 
   const [
     { count: totalParcelas },
@@ -34,7 +38,7 @@ export default async function ComiteDashboard() {
     supabase.from('cuentas_gc').select('monto, monto_pagado, periodo:periodos_gc(mes,anio)'),
     supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').neq('estado', 'pagado'),
     supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
-    supabase.from('caja_movimientos').select('tipo, monto'),
+    fetchCajaPromise,
   ])
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
