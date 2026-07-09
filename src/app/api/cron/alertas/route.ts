@@ -7,14 +7,7 @@ function getResend() {
 }
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-// INTERRUPTOR DE EMERGENCIA: mientras el software no esté liberado a los vecinos,
-// este endpoint no debe enviar ningún correo. Cambiar a true para reactivar.
-const ALERTAS_HABILITADAS = false
-
 export async function GET(req: NextRequest) {
-  if (!ALERTAS_HABILITADAS) {
-    return NextResponse.json({ ok: true, deshabilitado: true, mensaje: 'Envío de alertas desactivado manualmente' })
-  }
   // Vercel cron llama con GET, verificamos el secret
   const secret = req.headers.get('authorization')?.replace('Bearer ', '')
   if (secret !== process.env.CRON_SECRET) {
@@ -24,9 +17,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!ALERTAS_HABILITADAS) {
-    return NextResponse.json({ ok: true, deshabilitado: true, mensaje: 'Envío de alertas desactivado manualmente' })
-  }
   const body = await req.json().catch(() => ({}))
   const forzar = body.forzar === true
   return procesarAlertas(body.periodo_id || null, forzar)
