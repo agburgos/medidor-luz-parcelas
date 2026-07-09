@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { enviarCorreoEvento } from '@/lib/emailAlertas'
 
 // GET: listar votaciones (parcelero ve abiertas; comité ve todas)
 export async function GET(req: NextRequest) {
@@ -72,6 +73,21 @@ export async function POST(req: NextRequest) {
     const { error: errOpc } = await supabase.from('opciones_votacion').insert(opcionesData)
     if (errOpc) return NextResponse.json({ error: errOpc.message }, { status: 400 })
   }
+
+  const fechaCierreFmt = new Date(fecha_cierre).toLocaleString('es-CL')
+  await enviarCorreoEvento(
+    'alerta_votacion',
+    `🗳️ Nueva votación: ${titulo}`,
+    `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+  <h2 style="color:#1d4ed8;">🗳️ Nueva votación abierta</h2>
+  <p><strong>${titulo}</strong></p>
+  ${descripcion ? `<p>${descripcion}</p>` : ''}
+  <p>Cierra: <strong>${fechaCierreFmt}</strong></p>
+  <a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/parcelero/votaciones" style="display:inline-block;background:#1d4ed8;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Ir a votar</a>
+  <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA</p>
+</div>`
+  )
 
   return NextResponse.json(votacion)
 }

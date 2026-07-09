@@ -47,6 +47,9 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     .select('*')
   type Config = {
     comunidad_id: string; alertas_activas: boolean
+    alerta_no_pago?: boolean; alerta_corte?: boolean
+    alerta_asamblea?: boolean; alerta_votacion?: boolean
+    modo_pruebas?: boolean; email_pruebas?: string
     dias_aviso_vencimiento: number; dias_aviso_corte: number
     frecuencia_reenvio_dias: number; max_por_dia: number
     dia_tope_lectura?: number; avisar_lectura_dias_antes?: number
@@ -56,9 +59,16 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
   )
   const configDefault: Config = {
     comunidad_id: '', alertas_activas: true,
+    alerta_no_pago: false, alerta_corte: false, alerta_asamblea: false, alerta_votacion: false,
+    modo_pruebas: true, email_pruebas: 'agarridob@gmail.com',
     dias_aviso_vencimiento: 5, dias_aviso_corte: 3,
     frecuencia_reenvio_dias: 0, max_por_dia: 200,
   }
+
+  // Mientras modo_pruebas esté activo, todo correo se redirige a un único destinatario
+  // en vez del email real del parcelero, para poder probar sin molestar a los vecinos.
+  const destinatario = (config: Config, emailReal: string) =>
+    config.modo_pruebas ? (config.email_pruebas || 'agarridob@gmail.com') : emailReal
 
   let enviados = 0
 
@@ -115,7 +125,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
 
         await getResend().emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
-          to: p.email,
+          to: destinatario(config, p.email),
           subject: diasParaTope >= 0
             ? `📸 Recuerda subir la lectura de tu medidor (plazo: ${fechaTope.toLocaleDateString('es-CL')})`
             : `⚠️ Aún no envías la lectura de tu medidor - ${meses[periodo.mes - 1]} ${periodo.anio}`,
@@ -145,10 +155,10 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     const diasVenc = fechaVenc ? Math.ceil((fechaVenc.getTime() - hoy.getTime()) / 86400000) : null
     const diasCorte = fechaCorte ? Math.ceil((fechaCorte.getTime() - hoy.getTime()) / 86400000) : null
 
-    // Enviar alerta de vencimiento si faltan ≤ N días (configurable) o ya venció
-    const debeAlertarVenc = forzar || (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento)
+    // Enviar alerta de vencimiento (no pago) si faltan ≤ N días (configurable) o ya venció
+    const debeAlertarVenc = (config.alerta_no_pago || forzar) && (forzar || (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento))
     // Enviar alerta de corte si faltan ≤ N días (configurable)
-    const debeAlertarCorte = forzar || (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0)
+    const debeAlertarCorte = (config.alerta_corte || forzar) && (forzar || (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0))
 
     if (!debeAlertarVenc && !debeAlertarCorte) continue
 
@@ -193,7 +203,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
 
         await getResend().emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
-          to: parcela.email,
+          to: destinatario(config, parcela.email),
           subject,
           html: emailVencimiento({
             nombre: parcela.nombre_dueno,
@@ -221,7 +231,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
       if (debeAlertarCorte && (forzar || !alertasSet.has(`corte:${cuenta.parcela_id}`))) {
         await getResend().emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
-          to: parcela.email,
+          to: destinatario(config, parcela.email),
           subject: `🚨 Aviso de corte de suministro - ${nombrePeriodo}`,
           html: emailCorte({
             nombre: parcela.nombre_dueno,

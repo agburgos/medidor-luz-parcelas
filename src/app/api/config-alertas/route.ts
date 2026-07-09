@@ -25,6 +25,12 @@ export async function PUT(req: NextRequest) {
 
   const update = {
     alertas_activas: !!body.alertas_activas,
+    alerta_no_pago: !!body.alerta_no_pago,
+    alerta_corte: !!body.alerta_corte,
+    alerta_asamblea: !!body.alerta_asamblea,
+    alerta_votacion: !!body.alerta_votacion,
+    modo_pruebas: !!body.modo_pruebas,
+    email_pruebas: String(body.email_pruebas || 'agarridob@gmail.com').trim(),
     dias_aviso_vencimiento: Math.max(0, Number(body.dias_aviso_vencimiento ?? 5)),
     dias_aviso_corte: Math.max(0, Number(body.dias_aviso_corte ?? 3)),
     frecuencia_reenvio_dias: Math.max(0, Number(body.frecuencia_reenvio_dias ?? 0)),

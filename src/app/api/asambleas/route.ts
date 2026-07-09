@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
 import { registrar } from '@/lib/bitacora'
+import { enviarCorreoEvento } from '@/lib/emailAlertas'
 
 export async function GET() {
   const sesion = await getSesion()
@@ -40,5 +41,24 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   await registrar(sesion, 'crear_asamblea', 'asamblea', data.id, { titulo: body.titulo, fecha: body.fecha })
+
+  // No notificar por correo las asambleas de directiva (privadas)
+  if (data.tipo !== 'directiva') {
+    const fechaFmt = new Date(body.fecha + 'T00:00:00').toLocaleDateString('es-CL')
+    await enviarCorreoEvento(
+      'alerta_asamblea',
+      `🗓️ Nueva asamblea citada: ${data.titulo}`,
+      `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+  <h2 style="color:#1d4ed8;">🗓️ Nueva asamblea citada</h2>
+  <p><strong>${data.titulo}</strong></p>
+  <p>Fecha: <strong>${fechaFmt}</strong>${data.hora_inicio ? ` a las <strong>${data.hora_inicio}</strong>` : ''}</p>
+  ${data.lugar ? `<p>Lugar: <strong>${data.lugar}</strong></p>` : ''}
+  <a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/parcelero/asambleas" style="display:inline-block;background:#1d4ed8;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Ver detalles</a>
+  <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA</p>
+</div>`
+    )
+  }
+
   return NextResponse.json(data)
 }
