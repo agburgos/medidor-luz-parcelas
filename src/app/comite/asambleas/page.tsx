@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { googleCalendarLink } from '@/lib/googleCalendar'
 
 interface Asamblea {
   id: string; titulo: string; tipo: string; fecha: string
@@ -77,7 +78,20 @@ export default function AsambleasPage() {
                 <td className="px-4 py-2">
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${ESTADOS[a.estado]}`}>{a.estado}</span>
                 </td>
-                <td className="px-4 py-2"><Link href={`/comite/asambleas/${a.id}`} className="text-blue-600 hover:underline">Ver</Link></td>
+                <td className="px-4 py-2 whitespace-nowrap">
+                  <div className="flex gap-3">
+                    <Link href={`/comite/asambleas/${a.id}`} className="text-blue-600 hover:underline">Ver</Link>
+                    <a
+                      href={googleCalendarLink({ titulo: a.titulo, fecha: a.fecha, horaInicio: a.hora_inicio, lugar: a.lugar })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-600 hover:underline"
+                      title="Agregar a Google Calendar"
+                    >
+                      📅 Calendar
+                    </a>
+                  </div>
+                </td>
               </tr>
             ))}
             {asambleas.length === 0 && (

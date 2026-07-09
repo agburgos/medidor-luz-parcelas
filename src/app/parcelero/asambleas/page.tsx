@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { googleCalendarLink } from '@/lib/googleCalendar'
 
 interface Asamblea {
-  id: string; titulo: string; tipo: string; fecha: string; lugar: string | null; estado: string
+  id: string; titulo: string; tipo: string; fecha: string; hora_inicio: string | null; lugar: string | null; estado: string
 }
 
 const ESTADOS: Record<string, string> = { planificada: 'bg-blue-100 text-blue-700', realizada: 'bg-green-100 text-green-700', cancelada: 'bg-gray-100 text-gray-500' }
@@ -29,8 +30,8 @@ export default function AsambleasParceleroPage() {
 
       <div className="space-y-3">
         {asambleas.map(a => (
-          <Link key={a.id} href={`/parcelero/asambleas/${a.id}`} className="block bg-white rounded-xl border p-4 hover:bg-gray-50 transition-colors">
-            <div className="flex items-center justify-between">
+          <div key={a.id} className="bg-white rounded-xl border p-4 hover:bg-gray-50 transition-colors">
+            <Link href={`/parcelero/asambleas/${a.id}`} className="flex items-center justify-between">
               <div>
                 <p className="font-medium">{a.titulo}</p>
                 <p className="text-sm text-gray-500">
@@ -39,8 +40,17 @@ export default function AsambleasParceleroPage() {
                 </p>
               </div>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${ESTADOS[a.estado]}`}>{a.estado}</span>
-            </div>
-          </Link>
+            </Link>
+            <a
+              href={googleCalendarLink({ titulo: a.titulo, fecha: a.fecha, horaInicio: a.hora_inicio, lugar: a.lugar })}
+              target="_blank"
+              rel="noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-block mt-2 text-xs text-emerald-600 hover:underline"
+            >
+              📅 Agregar a Google Calendar
+            </a>
+          </div>
         ))}
         {asambleas.length === 0 && (
           <div className="bg-white rounded-xl border p-8 text-center text-gray-400">Aún no hay asambleas registradas</div>
