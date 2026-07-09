@@ -35,8 +35,35 @@ export default function AsambleasPage() {
       body: JSON.stringify(form),
     })
     const data = await res.json()
-    if (!res.ok) setMensaje(`❌ ${data.error}`)
-    else { setModalAbierto(false); setForm({ titulo: '', tipo: 'ordinaria', fecha: '', hora_inicio: '', lugar: '' }) }
+    if (!res.ok) {
+      setMensaje(`❌ ${data.error}`)
+    } else {
+      // Reuniones de directiva: agendar de inmediato en Google Calendar con todo el comité invitado
+      if (form.tipo === 'directiva') {
+        const [miembros, config] = await Promise.all([
+          fetch('/api/comite/miembros').then(r => r.json()).catch(() => []),
+          fetch('/api/config-alertas').then(r => r.json()).catch(() => null),
+        ])
+        const organizador = config?.organizador_reunion_email || 'agarridob@gmail.com'
+        const emailsComite = (Array.isArray(miembros) ? miembros : [])
+          .map((m: { email: string | null }) => m.email)
+          .filter((e: string | null): e is string => !!e)
+        const invitados = Array.from(new Set([organizador, ...emailsComite]))
+
+        window.open(
+          googleCalendarLink({
+            titulo: form.titulo,
+            fecha: form.fecha,
+            horaInicio: form.hora_inicio || null,
+            lugar: form.lugar || null,
+            invitados,
+          }),
+          '_blank'
+        )
+      }
+      setModalAbierto(false)
+      setForm({ titulo: '', tipo: 'ordinaria', fecha: '', hora_inicio: '', lugar: '' })
+    }
     setGuardando(false)
     await cargar()
   }

@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest) {
     alerta_votacion: !!body.alerta_votacion,
     modo_pruebas: !!body.modo_pruebas,
     email_pruebas: String(body.email_pruebas || 'agarridob@gmail.com').trim(),
+    organizador_reunion_email: String(body.organizador_reunion_email || 'agarridob@gmail.com').trim(),
     dias_aviso_vencimiento: Math.max(0, Number(body.dias_aviso_vencimiento ?? 5)),
     dias_aviso_corte: Math.max(0, Number(body.dias_aviso_corte ?? 3)),
     frecuencia_reenvio_dias: Math.max(0, Number(body.frecuencia_reenvio_dias ?? 0)),

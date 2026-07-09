@@ -7,6 +7,7 @@ export function googleCalendarLink(d: {
   horaTermino?: string | null // HH:MM
   lugar?: string | null
   descripcion?: string | null
+  invitados?: string[] // emails a precargar como asistentes
 }): string {
   const soloFecha = d.fecha.replace(/-/g, '')
 
@@ -33,6 +34,7 @@ export function googleCalendarLink(d: {
   })
   if (d.lugar) params.set('location', d.lugar)
   if (d.descripcion) params.set('details', d.descripcion)
+  if (d.invitados && d.invitados.length > 0) params.set('add', d.invitados.join(','))
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }

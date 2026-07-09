@@ -11,6 +11,7 @@ interface Config {
   alerta_votacion: boolean
   modo_pruebas: boolean
   email_pruebas: string
+  organizador_reunion_email: string
   dias_aviso_vencimiento: number
   dias_aviso_corte: number
   frecuencia_reenvio_dias: number
@@ -127,6 +128,22 @@ export default function ConfiguracionPage() {
             </div>
             <Switch activo={config.alerta_votacion} onClick={() => setConfig(c => c && { ...c, alerta_votacion: !c.alerta_votacion })} />
           </div>
+        </div>
+
+        {/* Reuniones de directiva */}
+        <div className="bg-white rounded-xl border p-6">
+          <p className="font-medium mb-1">🗓️ Reuniones de directiva</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Al crear una asamblea de tipo &quot;Directiva&quot;, se abre automáticamente Google Calendar
+            con el evento y todos los miembros del comité invitados. Este correo queda como organizador.
+          </p>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Correo organizador</label>
+          <input
+            type="email"
+            value={config.organizador_reunion_email}
+            onChange={e => setConfig(c => c && { ...c, organizador_reunion_email: e.target.value })}
+            className="border rounded-lg px-3 py-2 text-sm w-full max-w-sm"
+          />
         </div>
 
         {/* Envío automático diario (lectura/vencimiento/corte) */}
