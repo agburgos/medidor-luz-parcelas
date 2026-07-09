@@ -148,7 +148,6 @@ export default function SubirLectura() {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               onChange={e => setFoto(e.target.files?.[0] || null)}
               required
               className="text-sm file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-600 file:text-white"
