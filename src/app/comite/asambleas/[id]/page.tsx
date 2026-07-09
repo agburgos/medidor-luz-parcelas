@@ -206,7 +206,7 @@ export default function DetalleAsambleaPage() {
             {citando ? 'Citando...' : '📣 Citar a todos'}
           </button>
         </div>
-        <div className="bg-white rounded-xl border overflow-hidden mb-3">
+        <div className="bg-white rounded-xl border overflow-x-auto mb-3">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
@@ -274,7 +274,7 @@ export default function DetalleAsambleaPage() {
       {/* Acuerdos */}
       <section>
         <h2 className="text-lg font-semibold mb-2">✅ Acuerdos</h2>
-        <div className="bg-white rounded-xl border overflow-hidden mb-3">
+        <div className="bg-white rounded-xl border overflow-x-auto mb-3">
           <table className="w-full text-sm">
             <tbody>
               {acuerdos.map(a => (
@@ -304,7 +304,7 @@ export default function DetalleAsambleaPage() {
       {/* Documentos */}
       <section>
         <h2 className="text-lg font-semibold mb-2">📎 Documentos (acta, contables)</h2>
-        <div className="bg-white rounded-xl border overflow-hidden mb-3">
+        <div className="bg-white rounded-xl border overflow-x-auto mb-3">
           <table className="w-full text-sm">
             <tbody>
               {documentos.map(d => (

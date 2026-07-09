@@ -61,7 +61,7 @@ export default function MisGastosComunesPage() {
       )}
 
       <h2 className="text-lg font-semibold mb-3">Historial</h2>
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
@@ -88,7 +88,7 @@ export default function MisGastosComunesPage() {
       </div>
 
       <h2 className="text-lg font-semibold mb-3 mt-8">📄 Facturas históricas</h2>
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

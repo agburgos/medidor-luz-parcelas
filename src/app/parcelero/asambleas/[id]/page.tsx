@@ -93,7 +93,7 @@ export default function DetalleAsambleaParceleroPage() {
         return asistieron.length > 0 && (
           <section>
             <h2 className="text-lg font-semibold mb-2">👥 Asistentes ({asistieron.length})</h2>
-            <div className="bg-white rounded-xl border overflow-hidden">
+            <div className="bg-white rounded-xl border overflow-x-auto">
               <table className="w-full text-sm">
                 <tbody>
                   {asistieron.map(a => (
@@ -115,7 +115,7 @@ export default function DetalleAsambleaParceleroPage() {
       {acuerdos.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-2">✅ Acuerdos</h2>
-          <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="bg-white rounded-xl border overflow-x-auto">
             <table className="w-full text-sm">
               <tbody>
                 {acuerdos.map(a => (
@@ -138,7 +138,7 @@ export default function DetalleAsambleaParceleroPage() {
       {documentos.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-2">📎 Documentos</h2>
-          <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="bg-white rounded-xl border overflow-x-auto">
             <table className="w-full text-sm">
               <tbody>
                 {documentos.map(d => (

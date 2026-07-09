@@ -203,7 +203,7 @@ export default async function ComiteDashboard() {
         <h2 className="text-lg font-semibold">📢 Anuncios recientes</h2>
         <Link href="/comite/anuncios" className="text-sm text-blue-600 hover:underline">Ver todos / Publicar →</Link>
       </div>
-      <div className="bg-white rounded-xl border overflow-hidden mb-8">
+      <div className="bg-white rounded-xl border overflow-x-auto mb-8">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
@@ -227,7 +227,7 @@ export default async function ComiteDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
           <h2 className="text-lg font-semibold mb-3">⚡ Últimos períodos de Luz</h2>
-          <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="bg-white rounded-xl border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -264,7 +264,7 @@ export default async function ComiteDashboard() {
 
         <div>
           <h2 className="text-lg font-semibold mb-3">🏘️ Últimos períodos de Gastos Comunes</h2>
-          <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="bg-white rounded-xl border overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>

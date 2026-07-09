@@ -107,7 +107,7 @@ export default async function ParceleroDashboard() {
 
       {/* Documentos */}
       <h2 className="text-lg font-semibold mb-3 mt-8">📎 Documentos</h2>
-      <div className="bg-white rounded-xl border overflow-hidden mb-4">
+      <div className="bg-white rounded-xl border overflow-x-auto mb-4">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

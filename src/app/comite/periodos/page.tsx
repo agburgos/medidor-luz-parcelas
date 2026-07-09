@@ -23,33 +23,35 @@ export default async function PeriodosPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border overflow-x-auto">
+        <table className="w-full min-w-[680px] text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Período</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Monto factura</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Vencimiento</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Corte</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Período</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Monto factura</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Vencimiento</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Corte</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Estado</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
             {periodos?.map(p => (
               <tr key={p.id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{meses[p.mes - 1]} {p.anio}</td>
-                <td className="px-4 py-3">${p.monto_total_factura?.toLocaleString('es-CL')}</td>
-                <td className="px-4 py-3">{p.fecha_vencimiento ? new Date(p.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
-                <td className="px-4 py-3">{p.fecha_corte ? new Date(p.fecha_corte + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 font-medium whitespace-nowrap">{meses[p.mes - 1]} {p.anio}</td>
+                <td className="px-4 py-3 whitespace-nowrap">${p.monto_total_factura?.toLocaleString('es-CL')}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{p.fecha_vencimiento ? new Date(p.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
+                <td className="px-4 py-3 whitespace-nowrap">{p.fecha_corte ? new Date(p.fecha_corte + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${p.estado === 'abierto' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {p.estado === 'abierto' ? 'Abierto' : 'Cerrado'}
                   </span>
                 </td>
-                <td className="px-4 py-3 flex gap-3">
-                  <Link href={`/comite/periodos/${p.id}`} className="text-blue-600 hover:underline">Ver</Link>
-                  <Link href={`/comite/periodos/${p.id}/cuentas`} className="text-gray-600 hover:underline">Cuentas</Link>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex gap-3">
+                    <Link href={`/comite/periodos/${p.id}`} className="text-blue-600 hover:underline">Ver</Link>
+                    <Link href={`/comite/periodos/${p.id}/cuentas`} className="text-gray-600 hover:underline">Cuentas</Link>
+                  </div>
                 </td>
               </tr>
             ))}

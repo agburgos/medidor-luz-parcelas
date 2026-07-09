@@ -24,7 +24,7 @@ export default function DocumentosParceleroPage() {
       <h1 className="text-2xl font-bold mb-1">Documentos del macrolote</h1>
       <p className="text-gray-500 text-sm mb-6">Actas de asamblea, documentos contables y reglamento</p>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      <div className="bg-white rounded-xl border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
