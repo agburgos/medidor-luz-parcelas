@@ -148,15 +148,15 @@ export default function CuentasPage() {
         />
       </div>
 
-      <div className="bg-white rounded-xl border overflow-auto">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Parcela</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Dueño</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Monto</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-600">Pagado</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Parcela</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Dueño</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Monto</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Pagado</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Estado</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
@@ -214,11 +214,11 @@ export default function CuentasPage() {
                   </td>
                 ) : (
                   <>
-                    <td className="px-4 py-2">#{c.parcela.numero}</td>
-                    <td className="px-4 py-2">{c.parcela.nombre_dueno}</td>
-                    <td className="px-4 py-2 text-right font-medium">${c.monto_prorrateado.toLocaleString('es-CL')}</td>
-                    <td className="px-4 py-2 text-right">${c.monto_pagado.toLocaleString('es-CL')}</td>
-                    <td className="px-4 py-2"><EstadoBadge estado={c.estado} /></td>
+                    <td className="px-4 py-2 whitespace-nowrap">#{c.parcela.numero}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{c.parcela.nombre_dueno}</td>
+                    <td className="px-4 py-2 text-right font-medium whitespace-nowrap">${c.monto_prorrateado.toLocaleString('es-CL')}</td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">${c.monto_pagado.toLocaleString('es-CL')}</td>
+                    <td className="px-4 py-2 whitespace-nowrap"><EstadoBadge estado={c.estado} /></td>
                     <td className="px-4 py-2">
                       <div className="flex gap-2">
                         <button

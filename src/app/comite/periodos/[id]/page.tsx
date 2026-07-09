@@ -110,27 +110,27 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
       {lecturas && lecturas.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3">Lecturas registradas</h2>
-          <div className="bg-white rounded-xl border overflow-auto">
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-xl border overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Parcela</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Dueño</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Lect. anterior</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Lect. actual</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Consumo kWh</th>
-                  <th className="text-center px-4 py-3 font-medium text-gray-600">Confirmado</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Parcela</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Dueño</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Lect. anterior</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Lect. actual</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Consumo kWh</th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-600 whitespace-nowrap">Confirmado</th>
                 </tr>
               </thead>
               <tbody>
                 {lecturas.map(l => (
                   <tr key={l.id} className="border-t">
-                    <td className="px-4 py-2">#{(l.parcela as { numero: number })?.numero}</td>
-                    <td className="px-4 py-2">{(l.parcela as { nombre_dueno: string })?.nombre_dueno}</td>
-                    <td className="px-4 py-2 text-right">{l.lectura_anterior}</td>
-                    <td className="px-4 py-2 text-right">{l.lectura_actual}</td>
-                    <td className="px-4 py-2 text-right font-medium">{l.consumo_kwh}</td>
-                    <td className="px-4 py-2 text-center">{l.confirmado ? '✅' : '⏳'}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">#{(l.parcela as { numero: number })?.numero}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{(l.parcela as { nombre_dueno: string })?.nombre_dueno}</td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">{l.lectura_anterior}</td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">{l.lectura_actual}</td>
+                    <td className="px-4 py-2 text-right font-medium whitespace-nowrap">{l.consumo_kwh}</td>
+                    <td className="px-4 py-2 text-center whitespace-nowrap">{l.confirmado ? '✅' : '⏳'}</td>
                   </tr>
                 ))}
               </tbody>

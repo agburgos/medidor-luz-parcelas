@@ -286,17 +286,17 @@ export default function LecturasPage() {
 
       {mensaje && <p className="mb-4 text-sm text-blue-700 bg-blue-50 rounded p-2">{mensaje}</p>}
 
-      <div className="bg-white rounded-xl border overflow-auto">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border overflow-x-auto">
+        <table className="w-full min-w-[860px] text-sm">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Parcela</th>
-              <th className="text-left px-3 py-3 font-medium text-gray-600">Dueño</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-600">Lect. anterior</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-600">Lect. actual</th>
-              <th className="text-right px-3 py-3 font-medium text-gray-600">Consumo</th>
-              <th className="px-3 py-3 font-medium text-gray-600">Estado</th>
-              <th className="px-3 py-3 font-medium text-gray-600">Foto + OCR</th>
+              <th className="text-left px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Parcela</th>
+              <th className="text-left px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Dueño</th>
+              <th className="text-right px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Lect. anterior</th>
+              <th className="text-right px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Lect. actual</th>
+              <th className="text-right px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Consumo</th>
+              <th className="px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Estado</th>
+              <th className="px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Foto + OCR</th>
             </tr>
           </thead>
           <tbody>
