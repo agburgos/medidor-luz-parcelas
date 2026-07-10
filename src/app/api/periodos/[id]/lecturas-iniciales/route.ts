@@ -33,21 +33,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   let ultimasLecturas: Map<string, number> = new Map()
   if (periodo) {
-    // Buscar periodo anterior
-    const fechaAnterior = new Date(periodo.anio, periodo.mes - 2)
-    const { data: periodoAnterior } = await supabase
+    // Buscar el período anterior más reciente que tenga lecturas registradas
+    // (no asumir mes calendario consecutivo: puede haber períodos saltados)
+    const { data: periodosAnteriores } = await supabase
       .from('periodos_facturacion')
-      .select('id')
-      .eq('mes', fechaAnterior.getMonth() + 1)
-      .eq('anio', fechaAnterior.getFullYear())
-      .single()
+      .select('id, mes, anio')
+      .or(`anio.lt.${periodo.anio},and(anio.eq.${periodo.anio},mes.lt.${periodo.mes})`)
+      .order('anio', { ascending: false })
+      .order('mes', { ascending: false })
 
-    if (periodoAnterior) {
+    for (const p of periodosAnteriores ?? []) {
       const { data: lecturasAnt } = await supabase
         .from('lecturas')
         .select('parcela_id, lectura_actual')
-        .eq('periodo_id', periodoAnterior.id)
-      ultimasLecturas = new Map(lecturasAnt?.map((l: { parcela_id: string; lectura_actual: number }) => [l.parcela_id, l.lectura_actual]))
+        .eq('periodo_id', p.id)
+      if (lecturasAnt && lecturasAnt.length > 0) {
+        ultimasLecturas = new Map(lecturasAnt.map((l: { parcela_id: string; lectura_actual: number }) => [l.parcela_id, l.lectura_actual]))
+        break
+      }
     }
   }
 

@@ -39,22 +39,27 @@ export async function GET() {
       .eq('parcela_id', sesion.parcelaId)
       .maybeSingle(),
     supabase.from('config_alertas').select('dia_tope_lectura').limit(1).maybeSingle(),
-    // lectura anterior = lectura del período previo
+    // lectura anterior = lectura del período anterior más reciente que tenga lectura
+    // registrada para esta parcela (no necesariamente el mes calendario inmediato:
+    // puede haber períodos saltados sin facturación, ej. abril -> julio)
     (async () => {
-      const fechaPrev = new Date(periodo.anio, periodo.mes - 2)
       const { data: prev } = await supabase
         .from('periodos_facturacion')
-        .select('id')
-        .eq('mes', fechaPrev.getMonth() + 1)
-        .eq('anio', fechaPrev.getFullYear())
-        .maybeSingle()
-      if (!prev) return { data: null }
-      return supabase
-        .from('lecturas')
-        .select('lectura_actual')
-        .eq('periodo_id', prev.id)
-        .eq('parcela_id', sesion.parcelaId!)
-        .maybeSingle()
+        .select('id, mes, anio')
+        .or(`anio.lt.${periodo.anio},and(anio.eq.${periodo.anio},mes.lt.${periodo.mes})`)
+        .order('anio', { ascending: false })
+        .order('mes', { ascending: false })
+
+      for (const p of prev ?? []) {
+        const { data: lPrev } = await supabase
+          .from('lecturas')
+          .select('lectura_actual')
+          .eq('periodo_id', p.id)
+          .eq('parcela_id', sesion.parcelaId!)
+          .maybeSingle()
+        if (lPrev) return { data: lPrev }
+      }
+      return { data: null }
     })(),
   ])
 
@@ -130,21 +135,24 @@ export async function POST(req: NextRequest) {
       .single()
     lectura_anterior = 0
     if (periodo) {
-      const fechaPrev = new Date(periodo.anio, periodo.mes - 2)
-      const { data: prev } = await supabase
+      const { data: prevPeriodos } = await supabase
         .from('periodos_facturacion')
-        .select('id')
-        .eq('mes', fechaPrev.getMonth() + 1)
-        .eq('anio', fechaPrev.getFullYear())
-        .maybeSingle()
-      if (prev) {
+        .select('id, mes, anio')
+        .or(`anio.lt.${periodo.anio},and(anio.eq.${periodo.anio},mes.lt.${periodo.mes})`)
+        .order('anio', { ascending: false })
+        .order('mes', { ascending: false })
+
+      for (const p of prevPeriodos ?? []) {
         const { data: lPrev } = await supabase
           .from('lecturas')
           .select('lectura_actual')
-          .eq('periodo_id', prev.id)
+          .eq('periodo_id', p.id)
           .eq('parcela_id', sesion.parcelaId)
           .maybeSingle()
-        lectura_anterior = lPrev?.lectura_actual ?? 0
+        if (lPrev) {
+          lectura_anterior = lPrev.lectura_actual
+          break
+        }
       }
     }
   }
