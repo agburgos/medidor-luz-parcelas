@@ -109,7 +109,15 @@ export default async function ReportesPage() {
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-3">🔴 Deudores (ordenados por deuda)</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">🔴 Deudores (ordenados por deuda)</h2>
+        <a
+          href="/api/reportes/deudores"
+          className="bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700"
+        >
+          ⬇️ PDF: deudores del último período
+        </a>
+      </div>
       <div className="bg-white rounded-xl border overflow-auto mb-8">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
