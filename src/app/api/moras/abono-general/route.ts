@@ -47,25 +47,26 @@ export async function POST(req: NextRequest) {
       .eq('id', m.id)
     if (errUpdate) return NextResponse.json({ error: errUpdate.message }, { status: 400 })
 
-    aplicaciones.push({ id: m.id, descripcion: m.descripcion, aplicado, nuevo_estado: nuevoEstado })
-    restante -= aplicado
-  }
-
-  // Registrar automáticamente en CAJA como INGRESO
-  const monto_aplicado = Number(monto) - restante
-  if (monto_aplicado > 0) {
+    // Un movimiento de caja por cada mora, vinculado a ella (mora_id), para que
+    // si la mora se corrige o elimina después, el movimiento se ajuste en cascada.
     const { error: errCaja } = await supabase
       .from('caja_movimientos')
       .insert({
         tipo: 'ingreso',
-        concepto: tipo ? `Abono ${tipo}: ${descripcion || 'General'}` : `Abono: ${descripcion || 'General'}`,
-        monto: monto_aplicado,
+        concepto: `Abono ${m.tipo || tipo || 'otro'}: ${m.descripcion}`,
+        monto: aplicado,
         fecha,
-        observacion: `Abono aplicado a mora(s) de parcela #${parcela_id}`,
+        observacion: `Abono aplicado a mora anterior de parcela #${parcela_id}`,
         usuario_id: sesion.userId,
+        mora_id: m.id,
       })
     if (errCaja) return NextResponse.json({ error: `Abono registrado pero falló al guardar en caja: ${errCaja.message}` }, { status: 400 })
+
+    aplicaciones.push({ id: m.id, descripcion: m.descripcion, aplicado, nuevo_estado: nuevoEstado })
+    restante -= aplicado
   }
+
+  const monto_aplicado = Number(monto) - restante
 
   await registrar(sesion, 'abono_general', 'parcela', parcela_id, {
     monto: Number(monto), fecha, descripcion, tipo, aplicaciones, sobrante_sin_aplicar: restante, registrado_en_caja: monto_aplicado > 0,

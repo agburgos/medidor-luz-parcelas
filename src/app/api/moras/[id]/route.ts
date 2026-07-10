@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         fecha: new Date().toISOString().slice(0, 10),
         observacion: `Abono a mora anterior de parcela (${mora.tipo || 'otro'})`,
         usuario_id: sesion.userId,
+        mora_id: id,
       })
     if (errCaja) return NextResponse.json({ error: `Abono registrado pero falló al guardar en caja: ${errCaja.message}` }, { status: 400 })
   }
