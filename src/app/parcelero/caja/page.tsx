@@ -141,7 +141,7 @@ export default function CajaPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">
                       {m.documento_url && (
-                        <a href={`/api/documentos/descargar?path=${encodeURIComponent(m.documento_url)}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                        <a href={m.documento_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
                           📎 Descargar
                         </a>
                       )}

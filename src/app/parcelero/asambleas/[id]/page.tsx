@@ -71,21 +71,28 @@ export default function DetalleAsambleaParceleroPage() {
       )}
 
       {/* Reacciones */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => votar('like')}
-          disabled={votando}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${reacciones.mi_reaccion === 'like' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-        >
-          👍 {reacciones.likes}
-        </button>
-        <button
-          onClick={() => votar('dislike')}
-          disabled={votando}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${reacciones.mi_reaccion === 'dislike' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-        >
-          👎 {reacciones.dislikes}
-        </button>
+      <div className="space-y-4">
+        {reacciones.mi_reaccion ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm font-medium text-blue-900">✅ Ya votaste: <span className="text-lg">{reacciones.mi_reaccion === 'like' ? '👍' : '👎'}</span></p>
+          </div>
+        ) : null}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => votar('like')}
+            disabled={votando || !!reacciones.mi_reaccion}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${reacciones.mi_reaccion === 'like' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+          >
+            👍 {reacciones.likes}
+          </button>
+          <button
+            onClick={() => votar('dislike')}
+            disabled={votando || !!reacciones.mi_reaccion}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${reacciones.mi_reaccion === 'dislike' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'}`}
+          >
+            👎 {reacciones.dislikes}
+          </button>
+        </div>
       </div>
 
       {(() => {
