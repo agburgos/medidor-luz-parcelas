@@ -41,23 +41,16 @@ export default function VotacionesPage() {
 
   async function abrirVotacion(votacionId: string) {
     setVotacionSeleccionada(votacionId)
+    const votacion = votaciones.find(v => v.id === votacionId)
+    setOpcionesSeleccionadas(votacion?.miVotoOpciones?.map((opt: string) => {
+      const opcion = opciones.find(o => o.texto === opt)
+      return opcion?.id || ''
+    }).filter(Boolean) || [])
     setMensaje('')
 
     const res = await fetch(`/api/votaciones/${votacionId}/opciones`)
     const data = await res.json()
-    const nuevasOpciones = Array.isArray(data) ? data : []
-    setOpciones(nuevasOpciones)
-
-    // Si ya votó, preseleccionar sus opciones
-    const votacion = votaciones.find(v => v.id === votacionId)
-    if (votacion?.yaVoto && votacion?.miVotoOpciones) {
-      const idsSeleccionados = votacion.miVotoOpciones
-        .map(texto => nuevasOpciones.find((o: Opcion) => o.texto === texto)?.id)
-        .filter(Boolean) as string[]
-      setOpcionesSeleccionadas(idsSeleccionados)
-    } else {
-      setOpcionesSeleccionadas([])
-    }
+    setOpciones(Array.isArray(data) ? data : [])
   }
 
   async function enviarVoto() {
