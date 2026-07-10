@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  // Para parcelero: marcar cuáles ya votó y qué opción(es) eligió
+  // Marcar cuáles ya votó y qué opción(es) eligió (para parceleros y comités con parcela)
   type VotacionRow = { id: string; tipo_conteo: string; [key: string]: unknown }
   const filas = (data ?? []) as VotacionRow[]
-  if (sesion.rol === 'parcelero' && sesion.parcelaId && filas.length > 0) {
+  if (sesion.parcelaId && filas.length > 0) {
     const votacionIds = filas.map((v: VotacionRow) => v.id)
     const { data: misVotos } = await supabase
       .from('votos')
