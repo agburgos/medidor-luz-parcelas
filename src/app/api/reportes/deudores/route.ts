@@ -16,7 +16,7 @@ export async function GET() {
   const { data: ultimoPeriodo } = await supabase
     .from('periodos_facturacion')
     .select('id, mes, anio')
-    .not('monto_total_factura', 'is', null)
+    .gt('monto_total_factura', 0)
     .order('anio', { ascending: false })
     .order('mes', { ascending: false })
     .limit(1)

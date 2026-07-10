@@ -25,6 +25,40 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  // Para parcelero: marcar cuáles ya votó y qué opción(es) eligió
+  type VotacionRow = { id: string; tipo_conteo: string; [key: string]: unknown }
+  const filas = (data ?? []) as VotacionRow[]
+  if (sesion.rol === 'parcelero' && sesion.parcelaId && filas.length > 0) {
+    const votacionIds = filas.map((v: VotacionRow) => v.id)
+    const { data: misVotos } = await supabase
+      .from('votos')
+      .select('votacion_id, opcion_id, opcion_ids')
+      .eq('parcela_id', sesion.parcelaId)
+      .in('votacion_id', votacionIds)
+
+    const { data: todasOpciones } = await supabase
+      .from('opciones_votacion')
+      .select('id, texto')
+      .in('votacion_id', votacionIds)
+    const opcionesTexto = new Map((todasOpciones ?? []).map((o: { id: string; texto: string }) => [o.id, o.texto]))
+
+    type MiVoto = { votacion_id: string; opcion_id: string | null; opcion_ids: string[] | null }
+    const votosPorVotacion = new Map<string, MiVoto>(
+      (misVotos ?? []).map((v: MiVoto) => [v.votacion_id, v])
+    )
+
+    const conVoto = filas.map((v: VotacionRow) => {
+      const miVoto = votosPorVotacion.get(v.id)
+      if (!miVoto) return { ...v, yaVoto: false, miVotoOpciones: [] as string[] }
+      const ids = v.tipo_conteo === 'unica'
+        ? (miVoto.opcion_id ? [miVoto.opcion_id] : [])
+        : (miVoto.opcion_ids ?? [])
+      return { ...v, yaVoto: true, miVotoOpciones: ids.map((oid: string) => opcionesTexto.get(oid) ?? oid) }
+    })
+
+    return NextResponse.json(conVoto)
+  }
+
   return NextResponse.json(data || [])
 }
 

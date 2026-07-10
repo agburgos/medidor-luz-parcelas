@@ -10,6 +10,8 @@ interface Votacion {
   tipo_conteo: 'unica' | 'multiple'
   estado: 'abierta' | 'cerrada'
   fecha_cierre: string
+  yaVoto?: boolean
+  miVotoOpciones?: string[]
 }
 
 interface Opcion {
@@ -167,17 +169,25 @@ export default function VotacionesPage() {
                   </span>
                 </div>
                 {v.descripcion && <p className="text-sm text-gray-600 mb-3">{v.descripcion}</p>}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
-                    Cierra en {diasRestantes} día{diasRestantes !== 1 ? 's' : ''}
-                  </span>
-                  <button
-                    onClick={() => abrirVotacion(v.id)}
-                    className="bg-blue-600 text-white text-sm rounded-lg px-4 py-2 hover:bg-blue-700"
-                  >
-                    Votar →
-                  </button>
-                </div>
+                {v.yaVoto ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    <p className="text-sm text-green-800">
+                      ✅ Ya votaste: <strong>{v.miVotoOpciones?.join(', ') || '—'}</strong>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      Cierra en {diasRestantes} día{diasRestantes !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={() => abrirVotacion(v.id)}
+                      className="bg-blue-600 text-white text-sm rounded-lg px-4 py-2 hover:bg-blue-700"
+                    >
+                      Votar →
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}

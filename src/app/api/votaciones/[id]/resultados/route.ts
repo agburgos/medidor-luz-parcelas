@@ -96,17 +96,25 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   })
 
-  // Obtener el parcela_id del usuario para saber si ya votó
+  // Obtener el voto del usuario (si es parcelero) para saber si ya votó y qué eligió
   let yaVoto = false
+  let miVotoOpciones: string[] = []
   if (sesion.parcelaId) {
     const { data: miVoto } = await supabase
       .from('votos')
-      .select('id')
+      .select('opcion_id, opcion_ids')
       .eq('votacion_id', votacion_id)
       .eq('parcela_id', sesion.parcelaId)
-      .single()
+      .maybeSingle()
 
-    yaVoto = !!miVoto
+    if (miVoto) {
+      yaVoto = true
+      const opcionesTexto = new Map(((opciones as Opcion[]) || []).map(o => [o.id, o.texto]))
+      const ids = votacion.tipo_conteo === 'unica'
+        ? (miVoto.opcion_id ? [miVoto.opcion_id] : [])
+        : (miVoto.opcion_ids ?? [])
+      miVotoOpciones = ids.map((oid: string) => opcionesTexto.get(oid) ?? oid)
+    }
   }
 
   // Contar participación
@@ -117,11 +125,38 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const participacion = totalParticipacion > 0 ? Math.round((totalParticipacion / 80) * 100) : 0
 
+  // Detalle de quién votó qué: solo para comité y solo si la votación NO es secreta
+  let detalle: { numero: number; nombre_dueno: string; opciones: string[] }[] | null = null
+  if (sesion.rol === 'comite' && !votacion.es_secreta) {
+    const { data: votosDetalle } = await supabase
+      .from('votos')
+      .select('opcion_id, opcion_ids, parcela:parcelas(numero, nombre_dueno)')
+      .eq('votacion_id', votacion_id)
+
+    const opcionesTexto = new Map(((opciones as Opcion[]) || []).map(o => [o.id, o.texto]))
+    type VotoDetalle = { opcion_id: string | null; opcion_ids: string[] | null; parcela: { numero: number; nombre_dueno: string } | null }
+    detalle = ((votosDetalle as unknown as VotoDetalle[]) || [])
+      .filter(v => v.parcela)
+      .map(v => {
+        const ids = votacion.tipo_conteo === 'unica'
+          ? (v.opcion_id ? [v.opcion_id] : [])
+          : (v.opcion_ids ?? [])
+        return {
+          numero: v.parcela!.numero,
+          nombre_dueno: v.parcela!.nombre_dueno,
+          opciones: ids.map((oid: string) => opcionesTexto.get(oid) ?? oid),
+        }
+      })
+      .sort((a, b) => a.numero - b.numero)
+  }
+
   return NextResponse.json({
     votacion,
     opciones: opcionesConVotos,
     participacion,
     totalVotos: totalParticipacion || 0,
     yaVoto,
+    miVotoOpciones,
+    detalle,
   })
 }

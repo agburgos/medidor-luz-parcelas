@@ -24,11 +24,18 @@ interface Opcion {
   porcentaje: number
 }
 
+interface DetalleVoto {
+  numero: number
+  nombre_dueno: string
+  opciones: string[]
+}
+
 interface Resultados {
   votacion: Votacion
   opciones: Opcion[]
   participacion: number
   totalVotos: number
+  detalle: DetalleVoto[] | null
 }
 
 export default function VotacionDetailPage() {
@@ -145,6 +152,40 @@ export default function VotacionDetailPage() {
           ))}
         </div>
       </div>
+
+      {/* Detalle de quién votó qué (solo si no es secreta) */}
+      {datos.detalle && (
+        <div className="bg-white rounded-xl border p-6 mt-6">
+          <h2 className="text-lg font-semibold mb-4">👁️ Quién votó qué</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600 whitespace-nowrap">Parcela</th>
+                  <th className="text-left px-4 py-2 font-medium text-gray-600">Votó por</th>
+                </tr>
+              </thead>
+              <tbody>
+                {datos.detalle.map(d => (
+                  <tr key={d.numero} className="border-t">
+                    <td className="px-4 py-2 whitespace-nowrap font-medium">#{d.numero} {d.nombre_dueno}</td>
+                    <td className="px-4 py-2 text-gray-700">{d.opciones.join(', ')}</td>
+                  </tr>
+                ))}
+                {datos.detalle.length === 0 && (
+                  <tr><td colSpan={2} className="px-4 py-4 text-center text-gray-400">Nadie ha votado aún</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {v.es_secreta && (
+        <div className="mt-6 text-xs text-gray-500 bg-gray-50 rounded-lg p-4">
+          <p>🔐 Esta votación es secreta: ni siquiera el comité puede ver quién votó qué.</p>
+        </div>
+      )}
 
       <div className="mt-6 text-xs text-gray-500 bg-gray-50 rounded-lg p-4">
         <p>
