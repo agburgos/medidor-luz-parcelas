@@ -80,7 +80,15 @@ export default async function ReportesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Reportes de cobranza</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Reportes de cobranza</h1>
+        <a
+          href="/api/reportes/moras"
+          className="bg-emerald-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-emerald-700"
+        >
+          ⬇️ Descargar reporte de moras (CSV)
+        </a>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl border p-4">

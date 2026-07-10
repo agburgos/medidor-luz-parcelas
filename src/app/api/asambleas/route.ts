@@ -11,6 +11,26 @@ export async function GET() {
   if (sesion?.rol !== 'comite') query = query.neq('tipo', 'directiva')
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  // Las "privadas" (conversación con un vecino puntual) solo se muestran al comité
+  // y a la(s) parcela(s) citada(s) — al resto de parceleros no se les debe listar.
+  if (sesion?.rol !== 'comite') {
+    const privadas = (data ?? []).filter((a: { tipo: string }) => a.tipo === 'privada')
+    if (privadas.length > 0) {
+      const idsPermitidos = new Set<string>()
+      if (sesion?.parcelaId) {
+        const { data: asistencias } = await supabase
+          .from('asamblea_asistentes')
+          .select('asamblea_id')
+          .in('asamblea_id', privadas.map((a: { id: string }) => a.id))
+          .eq('parcela_id', sesion.parcelaId)
+        for (const a of (asistencias ?? []) as { asamblea_id: string }[]) idsPermitidos.add(a.asamblea_id)
+      }
+      const filtrado = (data ?? []).filter((a: { id: string; tipo: string }) => a.tipo !== 'privada' || idsPermitidos.has(a.id))
+      return NextResponse.json(filtrado)
+    }
+  }
+
   return NextResponse.json(data)
 }
 
@@ -42,8 +62,8 @@ export async function POST(req: NextRequest) {
 
   await registrar(sesion, 'crear_asamblea', 'asamblea', data.id, { titulo: body.titulo, fecha: body.fecha })
 
-  // No notificar por correo las asambleas de directiva (privadas)
-  if (data.tipo !== 'directiva') {
+  // No notificar masivamente las de directiva ni las privadas (conversación puntual)
+  if (data.tipo !== 'directiva' && data.tipo !== 'privada') {
     const fechaFmt = new Date(body.fecha + 'T00:00:00').toLocaleDateString('es-CL')
     await enviarCorreoEvento(
       'alerta_asamblea',

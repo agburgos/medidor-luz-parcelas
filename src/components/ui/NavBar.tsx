@@ -61,6 +61,7 @@ const GRUPOS_PARCELERO: Grupo[] = [
     { href: '/parcelero/documentos', label: '📎 Documentos' },
     { href: '/parcelero/informacion', label: 'ℹ️ Información' },
     { href: '/parcelero/registro', label: '👥 Mi registro' },
+    { href: '/parcelero/ayuda', label: '❓ Ayuda y FAQ' },
   ]},
 ]
 

@@ -25,6 +25,7 @@ export default function DetalleAsambleaPage() {
 
   const [parcelas, setParcelas] = useState<ParcelaOpcion[]>([])
   const [parcelaSel, setParcelaSel] = useState('')
+  const [buscarParcela, setBuscarParcela] = useState('')
   const [citando, setCitando] = useState(false)
   const [nombreLibre, setNombreLibre] = useState('')
   const [parcelaRepresenta, setParcelaRepresenta] = useState('')
@@ -247,10 +248,22 @@ export default function DetalleAsambleaPage() {
             </tbody>
           </table>
         </div>
+        <input
+          type="text"
+          value={buscarParcela}
+          onChange={e => setBuscarParcela(e.target.value)}
+          placeholder="🔍 Buscar parcela por número o nombre..."
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
+        />
         <form onSubmit={agregarAsistente} className="flex gap-2 mb-3">
           <select value={parcelaSel} onChange={e => setParcelaSel(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm">
             <option value="">Citar por parcela (dueño registrado)...</option>
-            {parcelas.map(p => <option key={p.id} value={p.id}>#{p.numero} — {p.nombre_dueno}</option>)}
+            {parcelas
+              .filter(p => {
+                const q = buscarParcela.trim().toLowerCase()
+                return !q || String(p.numero).includes(q) || p.nombre_dueno.toLowerCase().includes(q)
+              })
+              .map(p => <option key={p.id} value={p.id}>#{p.numero} — {p.nombre_dueno}</option>)}
           </select>
           <button type="submit" disabled={!parcelaSel} className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">+ Citar</button>
         </form>
