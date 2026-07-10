@@ -53,8 +53,8 @@ export default function CargarConsumoHistorico() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         consumos: datos,
-        mes: parseInt(mes),
-        anio: parseInt(anio),
+        mes: Number(mes),
+        anio: Number(anio),
         periodo_descripcion: descripcion,
       }),
     })
