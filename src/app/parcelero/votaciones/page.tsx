@@ -41,11 +41,7 @@ export default function VotacionesPage() {
 
   async function abrirVotacion(votacionId: string) {
     setVotacionSeleccionada(votacionId)
-    const votacion = votaciones.find(v => v.id === votacionId)
-    setOpcionesSeleccionadas(votacion?.miVotoOpciones?.map((opt: string) => {
-      const opcion = opciones.find(o => o.texto === opt)
-      return opcion?.id || ''
-    }).filter(Boolean) || [])
+    setOpcionesSeleccionadas([])
     setMensaje('')
 
     const res = await fetch(`/api/votaciones/${votacionId}/opciones`)
@@ -107,23 +103,14 @@ export default function VotacionesPage() {
             <p className="text-gray-600 mb-4">{votacion.descripcion}</p>
           )}
 
-          {votacion?.yaVoto && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm font-medium text-blue-900">✅ Ya votaste: <strong>{votacion.miVotoOpciones?.join(', ') || '—'}</strong></p>
-            </div>
-          )}
-
           <div className="space-y-3 mb-6">
             {opciones.map(opcion => (
-              <label key={opcion.id} className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer ${
-                votacion?.yaVoto ? 'opacity-60 bg-gray-50' : 'hover:bg-blue-50'
-              }`}>
+              <label key={opcion.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-blue-50 cursor-pointer">
                 <input
                   type={votacion?.tipo_conteo === 'unica' ? 'radio' : 'checkbox'}
                   name="opciones"
                   value={opcion.id}
                   checked={opcionesSeleccionadas.includes(opcion.id)}
-                  disabled={votacion?.yaVoto}
                   onChange={e => {
                     if (votacion?.tipo_conteo === 'unica') {
                       setOpcionesSeleccionadas([opcion.id])
@@ -151,10 +138,10 @@ export default function VotacionesPage() {
 
           <button
             onClick={enviarVoto}
-            disabled={enviando || opcionesSeleccionadas.length === 0 || votacion?.yaVoto}
-            className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={enviando || opcionesSeleccionadas.length === 0}
+            className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {votacion?.yaVoto ? '✓ Ya votaste' : enviando ? 'Registrando voto...' : '✓ Confirmar voto'}
+            {enviando ? 'Registrando voto...' : '✓ Confirmar voto'}
           </button>
         </div>
       </div>
