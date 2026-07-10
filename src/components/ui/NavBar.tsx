@@ -14,6 +14,7 @@ const GRUPOS_COMITE: Grupo[] = [
   { label: '⚡ Luz', items: [
     { href: '/comite/periodos', label: '🗓️ Períodos' },
     { href: '/comite/lecturas', label: '📸 Validar lecturas' },
+    { href: '/comite/consumo-historico', label: '📊 Consumo Histórico' },
   ]},
   { label: '🏘️ Gasto Común COPOSA', items: [
     { href: '/comite/gastos-comunes', label: '🏘️ Períodos y config' },

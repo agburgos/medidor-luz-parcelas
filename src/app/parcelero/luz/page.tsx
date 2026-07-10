@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import EstadoBadge from '@/components/ui/EstadoBadge'
 import Link from 'next/link'
 import SubirLectura from '@/components/parcelero/SubirLectura'
+import GraficoConsumoHistorico from '@/components/parcelero/GraficoConsumoHistorico'
 
 export const metadata = { title: 'Cuenta de Luz — COPOSA' }
 
@@ -31,7 +32,7 @@ export default async function ParceleroLuzPage() {
     )
   }
 
-  const [{ data: cuentas }, { data: lecturas }, { data: facturas }] = await Promise.all([
+  const [{ data: cuentas }, { data: lecturas }, { data: facturas }, { data: consumoHistorico }] = await Promise.all([
     supabase
       .from('cuentas_parcela')
       .select('*, periodo:periodos_facturacion(mes,anio,fecha_vencimiento,fecha_corte,costo_unitario_kwh,cargo_fijo,monto_total_factura,archivo_factura_url)')
@@ -47,6 +48,12 @@ export default async function ParceleroLuzPage() {
       .not('archivo_factura_url', 'is', null)
       .order('anio', { ascending: false })
       .order('mes', { ascending: false }),
+    supabase
+      .from('consumo_historico')
+      .select('mes, anio, kwh, periodo_descripcion')
+      .eq('parcela_id', parcela.id)
+      .order('anio', { ascending: true })
+      .order('mes', { ascending: true }),
   ])
 
   type Cuenta = NonNullable<typeof cuentas>[number] & {
@@ -388,6 +395,13 @@ export default async function ParceleroLuzPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Consumo Histórico */}
+      {consumoHistorico && consumoHistorico.length > 0 && (
+        <div className="mt-8">
+          <GraficoConsumoHistorico consumos={consumoHistorico as any[]} />
+        </div>
+      )}
     </div>
   )
 }
