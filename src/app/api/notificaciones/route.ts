@@ -4,7 +4,7 @@ import { getSesion } from '@/lib/auth'
 
 interface Notificacion {
   id: string
-  tipo: 'pago' | 'lectura' | 'anuncio' | 'asamblea' | 'vencimiento' | 'mora' | 'mensaje'
+  tipo: 'pago' | 'lectura' | 'anuncio' | 'asamblea' | 'vencimiento' | 'mora' | 'mensaje' | 'incidencia'
   urgencia: 'alta' | 'media' | 'baja'
   mensaje: string
   link: string
@@ -23,12 +23,16 @@ export async function GET() {
   hoy.setHours(0, 0, 0, 0)
 
   if (sesion.rol === 'comite') {
-    const [{ count: pagosLuz }, { count: pagosGC }, { count: countLecturas }] = await Promise.all([
+    const [{ count: pagosLuz }, { count: pagosGC }, { count: countLecturas }, { count: incidenciasActivas }] = await Promise.all([
       supabase.from('pagos').select('*', { count: 'exact', head: true }).eq('estado', 'por_validar'),
       supabase.from('pagos_gc').select('*', { count: 'exact', head: true }).eq('estado', 'por_validar'),
       supabase.from('lecturas').select('*', { count: 'exact', head: true }).eq('estado_validacion', 'pendiente'),
+      supabase.from('incidencias').select('*', { count: 'exact', head: true }).eq('estado', 'activa'),
     ])
 
+    if ((incidenciasActivas ?? 0) > 0) {
+      notis.push({ id: 'incidencias-activas', tipo: 'incidencia', urgencia: 'alta', mensaje: `🚨 ${incidenciasActivas} alerta${incidenciasActivas !== 1 ? 's' : ''} de pánico activa${incidenciasActivas !== 1 ? 's' : ''}`, link: '/comite/incidencias', fecha: hoy.toISOString() })
+    }
     if ((pagosLuz ?? 0) > 0) {
       notis.push({ id: 'pagos-luz', tipo: 'pago', urgencia: 'alta', mensaje: `${pagosLuz} pago${pagosLuz !== 1 ? 's' : ''} de Luz por validar`, link: '/comite/pagos', fecha: hoy.toISOString() })
     }

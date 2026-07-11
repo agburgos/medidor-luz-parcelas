@@ -18,6 +18,8 @@ interface Config {
   max_por_dia: number
   dia_tope_lectura: number
   avisar_lectura_dias_antes: number
+  porteria_email: string | null
+  porteria_whatsapp: string | null
   comunidad?: { nombre: string }
 }
 
@@ -127,6 +129,37 @@ export default function ConfiguracionPage() {
               <p className="text-xs text-gray-500">Aviso cuando se abre una nueva votación</p>
             </div>
             <Switch activo={config.alerta_votacion} onClick={() => setConfig(c => c && { ...c, alerta_votacion: !c.alerta_votacion })} />
+          </div>
+        </div>
+
+        {/* Portería — botón de pánico */}
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+          <p className="font-medium mb-1">🚨 Portería — Alerta de pánico</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Contacto que recibe la alerta cuando un parcelero activa el botón de pánico, junto con
+            su ubicación y los datos de la parcela.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email de portería</label>
+              <input
+                type="email"
+                value={config.porteria_email ?? ''}
+                onChange={e => setConfig(c => c && { ...c, porteria_email: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm w-full"
+                placeholder="porteria@coposa.cl"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp de portería</label>
+              <input
+                type="text"
+                value={config.porteria_whatsapp ?? ''}
+                onChange={e => setConfig(c => c && { ...c, porteria_whatsapp: e.target.value })}
+                className="border rounded-lg px-3 py-2 text-sm w-full"
+                placeholder="+56 9 1234 5678"
+              />
+            </div>
           </div>
         </div>
 

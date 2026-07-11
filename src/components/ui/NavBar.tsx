@@ -11,6 +11,9 @@ interface ItemMenu { href: string; label: string }
 interface Grupo { label: string; items: ItemMenu[] }
 
 const GRUPOS_COMITE: Grupo[] = [
+  { label: '🚨 Incidencias', items: [
+    { href: '/comite/incidencias', label: '🚨 Ver incidencias' },
+  ]},
   { label: '⚡ Luz', items: [
     { href: '/comite/periodos', label: '🗓️ Períodos' },
     { href: '/comite/lecturas', label: '📸 Validar lecturas' },
@@ -56,6 +59,7 @@ const GRUPOS_PARCELERO: Grupo[] = [
     { href: '/parcelero/estados-cuenta', label: '📋 Estados de cuenta' },
   ]},
   { label: '🗳️ Comunidad', items: [
+    { href: '/parcelero/incidencias', label: '🚨 Mis incidencias' },
     { href: '/parcelero/votaciones', label: '🗳️ Votaciones' },
     { href: '/parcelero/mensajes', label: '💬 Mensajería con el comité' },
     { href: '/parcelero/asambleas', label: '🗓️ Asambleas y actas' },

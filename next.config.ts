@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfkit"],
   outputFileTracingIncludes: {
     "/api/reportes/deudores": ["./node_modules/pdfkit/js/data/**/*"],
+    "/api/incidencias/[id]/pdf": ["./node_modules/pdfkit/js/data/**/*"],
   },
 };
 

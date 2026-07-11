@@ -38,6 +38,8 @@ export async function PUT(req: NextRequest) {
     max_por_dia: Math.max(1, Number(body.max_por_dia ?? 200)),
     dia_tope_lectura: Math.min(28, Math.max(1, Number(body.dia_tope_lectura ?? 10))),
     avisar_lectura_dias_antes: Math.max(0, Number(body.avisar_lectura_dias_antes ?? 3)),
+    porteria_email: body.porteria_email ? String(body.porteria_email).trim() : null,
+    porteria_whatsapp: body.porteria_whatsapp ? String(body.porteria_whatsapp).trim() : null,
     updated_at: new Date().toISOString(),
   }
 

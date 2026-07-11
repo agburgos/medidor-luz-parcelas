@@ -1,5 +1,6 @@
 import NavBar from '@/components/ui/NavBar'
 import TablasOrdenables from '@/components/ui/TablasOrdenables'
+import BotonPanico from '@/components/parcelero/BotonPanico'
 import { getSesion } from '@/lib/auth'
 
 export default async function ParceleroLayout({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,7 @@ export default async function ParceleroLayout({ children }: { children: React.Re
       />
       <TablasOrdenables />
       <main className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full">{children}</main>
+      <BotonPanico />
     </div>
   )
 }
