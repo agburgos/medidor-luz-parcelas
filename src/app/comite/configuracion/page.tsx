@@ -11,6 +11,7 @@ interface Config {
   alerta_votacion: boolean
   modo_pruebas: boolean
   email_pruebas: string
+  whatsapp_pruebas: string | null
   organizador_reunion_email: string
   dias_aviso_vencimiento: number
   dias_aviso_corte: number
@@ -78,19 +79,31 @@ export default function ConfiguracionPage() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="font-medium">🧪 Modo de pruebas</p>
-              <p className="text-sm text-gray-500">Mientras esté activo, TODOS los correos (de cualquier tipo) se envían solo al email de pruebas, nunca a los vecinos reales.</p>
+              <p className="text-sm text-gray-500">Mientras esté activo, TODOS los correos (de cualquier tipo) y el botón de pánico (email + WhatsApp) se envían solo a los datos de pruebas, nunca a los vecinos reales.</p>
             </div>
             <Switch activo={config.modo_pruebas} onClick={() => setConfig(c => c && { ...c, modo_pruebas: !c.modo_pruebas })} />
           </div>
           {config.modo_pruebas && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Correo de pruebas</label>
-              <input
-                type="email"
-                value={config.email_pruebas}
-                onChange={e => setConfig(c => c && { ...c, email_pruebas: e.target.value })}
-                className="border rounded-lg px-3 py-2 text-sm w-full max-w-sm"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Correo de pruebas</label>
+                <input
+                  type="email"
+                  value={config.email_pruebas}
+                  onChange={e => setConfig(c => c && { ...c, email_pruebas: e.target.value })}
+                  className="border rounded-lg px-3 py-2 text-sm w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp de pruebas (botón de pánico)</label>
+                <input
+                  type="text"
+                  value={config.whatsapp_pruebas ?? ''}
+                  onChange={e => setConfig(c => c && { ...c, whatsapp_pruebas: e.target.value })}
+                  className="border rounded-lg px-3 py-2 text-sm w-full"
+                  placeholder="+56 9 1234 5678"
+                />
+              </div>
             </div>
           )}
         </div>

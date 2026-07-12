@@ -113,7 +113,7 @@ export async function notificarIncidencia(
 
   const { data: config } = await supabase
     .from('config_alertas')
-    .select('modo_pruebas, email_pruebas, porteria_email, porteria_whatsapp')
+    .select('modo_pruebas, email_pruebas, whatsapp_pruebas, porteria_email, porteria_whatsapp')
     .limit(1)
     .maybeSingle()
 
@@ -141,14 +141,21 @@ export async function notificarIncidencia(
     resultado.email_parceleros++
   }
 
-  // --- WhatsApp a parceleros con teléfono registrado (nunca en modo de pruebas) ---
-  if (!modoPruebas && whatsappConfigurado()) {
-    const telefonos = (parcelas ?? [])
-      .map((p: { telefono: string | null }) => normalizarTelefonoCL(p.telefono))
-      .filter((t: string | null): t is string => !!t)
+  // --- WhatsApp a parceleros con teléfono registrado ---
+  // En modo de pruebas, en vez de saltarse el envío, se manda TODO (el mensaje
+  // "a vecinos" y el de "portería") solo al número de whatsapp_pruebas, para
+  // poder probar el flujo completo sin avisar a nadie real.
+  if (whatsappConfigurado()) {
+    const telWhatsappPruebas = modoPruebas ? normalizarTelefonoCL(config?.whatsapp_pruebas) : null
+
+    const telefonos = modoPruebas
+      ? (telWhatsappPruebas ? [telWhatsappPruebas] : [])
+      : (parcelas ?? [])
+          .map((p: { telefono: string | null }) => normalizarTelefonoCL(p.telefono))
+          .filter((t: string | null): t is string => !!t)
 
     for (const tel of telefonos) {
-      const ok = await enviarWhatsApp(tel, textoPlano)
+      const ok = await enviarWhatsApp(tel, modoPruebas ? `[PRUEBA — iría a vecinos]\n${textoPlano}` : textoPlano)
       if (ok) resultado.whatsapp_parceleros++
     }
   }
@@ -165,10 +172,13 @@ export async function notificarIncidencia(
     resultado.email_porteria = true
   }
 
-  if (!modoPruebas && config?.porteria_whatsapp && whatsappConfigurado()) {
-    const telPorteria = normalizarTelefonoCL(config.porteria_whatsapp)
+  if (whatsappConfigurado()) {
+    const telPorteria = modoPruebas
+      ? normalizarTelefonoCL(config?.whatsapp_pruebas)
+      : (config?.porteria_whatsapp ? normalizarTelefonoCL(config.porteria_whatsapp) : null)
+
     if (telPorteria) {
-      resultado.whatsapp_porteria = await enviarWhatsApp(telPorteria, `[PORTERÍA]\n${textoPlano}`)
+      resultado.whatsapp_porteria = await enviarWhatsApp(telPorteria, modoPruebas ? `[PRUEBA — iría a portería]\n${textoPlano}` : `[PORTERÍA]\n${textoPlano}`)
     }
   }
 
