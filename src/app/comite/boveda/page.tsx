@@ -34,7 +34,7 @@ interface ItemUI extends ItemCifrado {
 }
 
 const CATEGORIAS: Record<string, Record<string, string>> = {
-  general: { banco: '🏦 Banco', otro: '🔑 Otro' },
+  general: { banco: '🏦 Banco', mail: '📧 Mail', sii: '🧾 SII', tesoreria: '💼 Tesorería', otro: '🔑 Otro' },
   tecnico: { tecnico: '⚙️ Servicio técnico' },
 }
 
