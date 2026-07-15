@@ -19,11 +19,14 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  type FilaVault = { ambito: string; salt_maestra: string; iv_maestra: string; vault_key_wrapped_maestra: string; created_at: string }
+  const filas = (data ?? []) as FilaVault[]
+
   const resultado: Record<string, unknown> = {
     recuperacion_configurada: recuperacionConfigurada(),
   }
   for (const amb of ambitos) {
-    resultado[amb] = data?.find(v => v.ambito === amb) ?? null
+    resultado[amb] = filas.find((v: FilaVault) => v.ambito === amb) ?? null
   }
   return NextResponse.json(resultado)
 }
