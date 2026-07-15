@@ -5,6 +5,7 @@ const estilos: Record<EstadoCuenta, string> = {
   pagado: 'bg-green-100 text-green-800',
   pago_parcial: 'bg-blue-100 text-blue-800',
   mora: 'bg-red-100 text-red-800',
+  desconectado: 'bg-gray-100 text-gray-600',
 }
 
 const etiquetas: Record<EstadoCuenta, string> = {
@@ -12,6 +13,7 @@ const etiquetas: Record<EstadoCuenta, string> = {
   pagado: 'Pagado',
   pago_parcial: 'Pago parcial',
   mora: 'Mora',
+  desconectado: 'Desconectado',
 }
 
 export default function EstadoBadge({ estado }: { estado: EstadoCuenta }) {

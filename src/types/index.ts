@@ -36,7 +36,7 @@ export interface Lectura {
   parcela?: Parcela
 }
 
-export type EstadoCuenta = 'pendiente' | 'pagado' | 'pago_parcial' | 'mora'
+export type EstadoCuenta = 'pendiente' | 'pagado' | 'pago_parcial' | 'mora' | 'desconectado'
 
 export interface CuentaParcela {
   id: string

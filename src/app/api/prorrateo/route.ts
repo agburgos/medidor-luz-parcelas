@@ -67,8 +67,27 @@ export async function POST(req: NextRequest) {
   const cargoFijo = periodo.cargo_fijo ?? 5500
 
   const conectadas = (lecturas as Lectura[]).filter(l => l.estado !== 'desconectado')
+  const desconectadas = (lecturas as Lectura[]).filter(l => l.estado === 'desconectado')
   if (conectadas.length === 0) {
     return NextResponse.json({ error: 'No hay parcelas conectadas para cobrar' }, { status: 400 })
+  }
+
+  // Las parcelas desconectadas no se cobran, pero igual dejamos su cuenta
+  // explícita en $0 con estado "desconectado" (en vez de dejarla sin tocar
+  // o "pendiente"), para que no aparezca como deuda ni quede en un limbo.
+  if (desconectadas.length > 0) {
+    await supabase.from('cuentas_parcela').upsert(
+      desconectadas.map(l => ({
+        periodo_id,
+        parcela_id: l.parcela_id,
+        monto_consumo: 0,
+        monto_cargo_fijo: 0,
+        monto_prorrateado: 0,
+        monto_pagado: 0,
+        estado: 'desconectado',
+      })),
+      { onConflict: 'periodo_id,parcela_id' }
+    )
   }
 
   const consumoTotal = conectadas.reduce((s, l) => {
