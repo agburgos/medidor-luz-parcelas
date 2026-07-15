@@ -44,6 +44,7 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/parcelas', label: '🏡 Parcelas' },
     { href: '/comite/bitacora', label: '🕒 Bitácora' },
     { href: '/comite/configuracion', label: '⚙️ Configuración' },
+    { href: '/comite/boveda', label: '🔐 Bóveda de Claves' },
   ]},
 ]
 
