@@ -28,8 +28,10 @@ export default async function ReportesPage() {
   const todas = (cuentas ?? []) as Cuenta[]
   const hoy = new Date()
 
-  // Deudores: cuentas no pagadas (pendiente, parcial o mora)
-  const deudoras = todas.filter(c => c.estado !== 'pagado')
+  // Deudores: cuentas no pagadas (pendiente, parcial o mora) con saldo real > 0
+  // (excluye cuentas en $0, ej. parcelas desconectadas cuyo estado de pago
+  // nunca se actualizó a "pagado")
+  const deudoras = todas.filter(c => c.estado !== 'pagado' && (c.monto_prorrateado - c.monto_pagado) > 0)
   const vencidas = deudoras.filter(c =>
     c.periodo?.fecha_vencimiento && new Date(c.periodo.fecha_vencimiento) < hoy
   )
