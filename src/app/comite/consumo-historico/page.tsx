@@ -10,12 +10,19 @@ export default async function ConsumoHistoricoPage() {
   if (!sesion || sesion.rol !== 'comite') redirect('/login')
 
   const supabase = createServiceClient()
-  const { data: historicos } = await supabase
+  const { data: filas } = await supabase
     .from('consumo_historico')
-    .select('mes, anio, COUNT(*) as cantidad')
-    .group_by('mes,anio')
-    .order('anio', { ascending: false })
-    .order('mes', { ascending: false })
+    .select('mes, anio')
+
+  // Agrupar en JS: el cliente de Supabase no soporta GROUP BY directamente
+  const conteoPorPeriodo = new Map<string, { mes: number; anio: number; cantidad: number }>()
+  for (const f of (filas ?? []) as { mes: number; anio: number }[]) {
+    const key = `${f.anio}-${f.mes}`
+    const item = conteoPorPeriodo.get(key) ?? { mes: f.mes, anio: f.anio, cantidad: 0 }
+    item.cantidad++
+    conteoPorPeriodo.set(key, item)
+  }
+  const historicos = [...conteoPorPeriodo.values()].sort((a, b) => (b.anio * 12 + b.mes) - (a.anio * 12 + a.mes))
 
   const meses = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
@@ -30,7 +37,7 @@ export default async function ConsumoHistoricoPage() {
           <h2 className="text-lg font-bold mb-4">Períodos Cargados</h2>
           {historicos && historicos.length > 0 ? (
             <div className="bg-white rounded-xl border divide-y">
-              {(historicos as any[]).map(h => (
+              {historicos.map(h => (
                 <div key={`${h.anio}-${h.mes}`} className="p-4 flex justify-between items-center">
                   <div>
                     <p className="font-medium">{meses[h.mes]} {h.anio}</p>

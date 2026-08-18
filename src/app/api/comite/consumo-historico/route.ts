@@ -71,11 +71,18 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('consumo_historico')
-    .select('mes, anio, COUNT(*) as cantidad')
-    .group_by('mes,anio')
-    .order('anio', { ascending: false })
-    .order('mes', { ascending: false })
+    .select('mes, anio')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data || [])
+
+  const conteoPorPeriodo = new Map<string, { mes: number; anio: number; cantidad: number }>()
+  for (const f of (data ?? []) as { mes: number; anio: number }[]) {
+    const key = `${f.anio}-${f.mes}`
+    const item = conteoPorPeriodo.get(key) ?? { mes: f.mes, anio: f.anio, cantidad: 0 }
+    item.cantidad++
+    conteoPorPeriodo.set(key, item)
+  }
+  const resultado = [...conteoPorPeriodo.values()].sort((a, b) => (b.anio * 12 + b.mes) - (a.anio * 12 + a.mes))
+
+  return NextResponse.json(resultado)
 }
