@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
-    .select('monto_total_factura, cargo_fijo, prorrateo_calculado')
+    .select('monto_total_factura, cargo_fijo, prorrateo_calculado, fecha_vencimiento')
     .eq('id', periodo_id)
     .single()
 
@@ -102,17 +102,52 @@ export async function POST(req: NextRequest) {
   const montoAProrratear = periodo.monto_total_factura - cargoFijoTotal
   const tarifa = montoAProrratear / consumoTotal // $/kWh derivado de la factura, no manual
 
+  // Si se está RECALCULANDO (ya existían cuentas para este período), hay que
+  // preservar los pagos ya validados en vez de resetearlos a $0 — de lo
+  // contrario un recálculo "borra" pagos reales que siguen existiendo en
+  // la tabla `pagos`, solo que el resumen de la cuenta queda desincronizado.
+  type CuentaExistente = { id: string; parcela_id: string }
+  const { data: cuentasExistentesRaw } = await supabase
+    .from('cuentas_parcela')
+    .select('id, parcela_id')
+    .eq('periodo_id', periodo_id)
+  const cuentasExistentes = (cuentasExistentesRaw ?? []) as CuentaExistente[]
+
+  const montosPagadosPorParcela = new Map<string, number>()
+  if (cuentasExistentes.length > 0) {
+    const { data: pagosValidados } = await supabase
+      .from('pagos')
+      .select('cuenta_id, monto')
+      .in('cuenta_id', cuentasExistentes.map(c => c.id))
+      .eq('estado', 'validado')
+
+    const cuentaAParcela = new Map(cuentasExistentes.map(c => [c.id, c.parcela_id]))
+    for (const p of (pagosValidados ?? []) as { cuenta_id: string; monto: number }[]) {
+      const parcelaId = cuentaAParcela.get(p.cuenta_id)
+      if (!parcelaId) continue
+      montosPagadosPorParcela.set(parcelaId, (montosPagadosPorParcela.get(parcelaId) ?? 0) + Number(p.monto))
+    }
+  }
+
+  const vencido = periodo.fecha_vencimiento ? new Date(periodo.fecha_vencimiento + 'T23:59:59') < new Date() : false
+
   const cuentas = conectadas.map(l => {
     const consumo = ['s_info', 'saldo_af'].includes(l.estado) ? 0 : Math.max(l.consumo_kwh ?? 0, 0)
     const montoConsumo = Math.round(consumo * tarifa)
+    const montoProrrateado = montoConsumo + cargoFijo
+    const montoPagado = montosPagadosPorParcela.get(l.parcela_id) ?? 0
+    const estado = montoPagado >= montoProrrateado && montoProrrateado > 0
+      ? 'pagado'
+      : montoPagado > 0 ? (vencido ? 'mora' : 'pago_parcial')
+      : vencido ? 'mora' : 'pendiente'
     return {
       periodo_id,
       parcela_id: l.parcela_id,
       monto_consumo: montoConsumo,
       monto_cargo_fijo: cargoFijo,
-      monto_prorrateado: montoConsumo + cargoFijo,
-      monto_pagado: 0,
-      estado: 'pendiente',
+      monto_prorrateado: montoProrrateado,
+      monto_pagado: montoPagado,
+      estado,
     }
   })
 
