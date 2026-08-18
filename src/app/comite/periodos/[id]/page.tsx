@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
+import { getSesion, esSuperadmin } from '@/lib/auth'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import CerrarPeriodoBoton from '@/components/comite/CerrarPeriodoBoton'
 
 export const metadata = { title: 'Detalle Período — COPOSA' }
 
@@ -10,6 +12,7 @@ const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 export default async function PeriodoDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const sesion = await getSesion()
 
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
@@ -48,9 +51,17 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
           <h1 className="text-2xl font-bold">{meses[periodo.mes - 1]} {periodo.anio}</h1>
           <p className="text-gray-500 text-sm">Vencimiento: {new Date(periodo.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL')}</p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${periodo.estado === 'abierto' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-          {periodo.estado === 'abierto' ? 'Abierto' : 'Cerrado'}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${periodo.estado === 'abierto' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+            {periodo.estado === 'abierto' ? 'Abierto' : 'Cerrado'}
+          </span>
+          <CerrarPeriodoBoton
+            periodoId={id}
+            estado={periodo.estado}
+            prorrateoCalculado={!!periodo.prorrateo_calculado}
+            esSuperadmin={esSuperadmin(sesion)}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
