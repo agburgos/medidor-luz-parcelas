@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Macrolote COPOSA</title>
 <style>
 @font-face {
@@ -280,6 +285,14 @@ a { color: inherit; }
   color: var(--deck-accent);
   margin-bottom: 28px;
 }
+.slogan {
+  font-family: 'Fraunces', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(17px, 2vw, 21px);
+  color: var(--deck-leaf);
+  margin-bottom: 14px;
+}
 .hero-title {
   font-size: clamp(40px, 7.4vw, 92px);
   color: var(--deck-fg);
@@ -498,6 +511,8 @@ a { color: inherit; }
   .plot-tag { display: none; }
 }
 </style>
+</head>
+<body>
 
 <div class="plot-tag" aria-hidden="true">
   <span class="label">PLANO</span>
@@ -520,6 +535,7 @@ a { color: inherit; }
     <div class="grid-bg"></div>
     <div class="slide-inner">
       <div class="hero-eyebrow">Macrolote COPOSA · Limache</div>
+      <p class="slogan">Campo en la ciudad.</p>
       <h1 class="hero-title">Ochenta parcelas.<br><em>Un solo sistema</em> para verlo todo.</h1>
       <p class="hero-sub">Cuenta de luz, gastos comunes, caja, asambleas y seguridad — en un panel que cualquier vecino puede revisar cuando quiera, desde el celular.</p>
       <div class="hero-row">
@@ -696,9 +712,10 @@ a { color: inherit; }
     <div class="grid-bg"></div>
     <div class="slide-inner reveal">
       <div class="hero-eyebrow">Macrolote COPOSA</div>
+      <p class="slogan">Campo en la ciudad.</p>
       <h2 class="cta-title">80 parcelas. Un solo lugar para verlo todo.</h2>
       <p class="cta-sub">Pide tu acceso al comité y activa tu cuenta — tu cuenta de luz, tus pagos y las decisiones del macrolote, siempre a la vista.</p>
-      <div class="cta-url">medidores.vvmcoposa.cl</div>
+      <div class="cta-url">comunidad.vvmcoposa.cl</div>
       <p class="foot-note">Comité de administración · Macrolote COPOSA, Limache</p>
     </div>
   </section>
@@ -740,3 +757,5 @@ a { color: inherit; }
   reveals.forEach(function(r){ ro.observe(r); });
 })();
 </script>
+</body>
+</html>
