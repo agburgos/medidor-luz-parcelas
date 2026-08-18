@@ -1,0 +1,742 @@
+<title>Macrolote COPOSA</title>
+<style>
+@font-face {
+  font-family: 'Fraunces';
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+  src: url(data:font/woff2;base64,__FRAUNCES__) format('woff2');
+}
+@font-face {
+  font-family: 'Work Sans';
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  src: url(data:font/woff2;base64,__WORKSANS__) format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url(data:font/woff2;base64,__SPACEMONO400__) format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url(data:font/woff2;base64,__SPACEMONO700__) format('woff2');
+}
+
+/* ============ TOKENS ============ */
+:root {
+  --bg: #F1ECD6;
+  --bg-elevated: #FAF5E4;
+  --bg-card: #E9E0BE;
+  --fg: #1B2E1A;
+  --fg-soft: #35502E;
+  --fg-mute: #6C7F5F;
+  --forest: #2E7D42;
+  --forest-soft: #4F9A5A;
+  --leaf: #3F9142;
+  --leaf-bright: #6FBF4A;
+  --leaf-tint: #E3F0D6;
+  --accent: #F2A61E;
+  --accent-bright: #FFC53D;
+  --accent-ink: #8A4E0A;
+  --accent-fg-on-accent: #24150A;
+  --clay: #E0662B;
+  --sky: #2F8FBF;
+  --rule: rgba(27,46,26,0.16);
+  --rule-strong: rgba(27,46,26,0.3);
+  --shadow: 0 1px 0 rgba(27,46,26,0.07), 0 16px 32px -18px rgba(27,46,26,0.35);
+
+  /* Fixed "printed on dark stock" tokens — constant across light/dark viewer mode */
+  --deck-bg: #0E2313;
+  --deck-bg-2: #163A1D;
+  --deck-fg: #F3EEDA;
+  --deck-fg-soft: #BFD6B6;
+  --deck-accent: #FFC53D;
+  --deck-leaf: #7ED45A;
+  --deck-rule: rgba(243,238,218,0.18);
+  --photo-forest: url("data:image/jpeg;base64,__PHOTO_FOREST__");
+  --photo-orchard: url("data:image/jpeg;base64,__PHOTO_ORCHARD__");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10200F;
+    --bg-elevated: #16281A;
+    --bg-card: #1B3220;
+    --fg: #F1ECD6;
+    --fg-soft: #CBDCC0;
+    --fg-mute: #8AA57F;
+    --forest: #6FBF4A;
+    --forest-soft: #4F9A5A;
+    --leaf: #7ED45A;
+    --leaf-bright: #9BE86B;
+    --leaf-tint: #1E3A22;
+    --accent: #FFC53D;
+    --accent-bright: #FFD666;
+    --accent-ink: #FFC53D;
+    --accent-fg-on-accent: #24150A;
+    --clay: #FF8355;
+    --sky: #5BB6E6;
+    --rule: rgba(241,236,214,0.16);
+    --rule-strong: rgba(241,236,214,0.3);
+    --shadow: 0 1px 0 rgba(0,0,0,0.35), 0 16px 32px -18px rgba(0,0,0,0.65);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10200F;
+  --bg-elevated: #16281A;
+  --bg-card: #1B3220;
+  --fg: #F1ECD6;
+  --fg-soft: #CBDCC0;
+  --fg-mute: #8AA57F;
+  --forest: #6FBF4A;
+  --forest-soft: #4F9A5A;
+  --leaf: #7ED45A;
+  --leaf-bright: #9BE86B;
+  --leaf-tint: #1E3A22;
+  --accent: #FFC53D;
+  --accent-bright: #FFD666;
+  --accent-ink: #FFC53D;
+  --accent-fg-on-accent: #24150A;
+  --clay: #FF8355;
+  --sky: #5BB6E6;
+  --rule: rgba(241,236,214,0.16);
+  --rule-strong: rgba(241,236,214,0.3);
+  --shadow: 0 1px 0 rgba(0,0,0,0.35), 0 16px 32px -18px rgba(0,0,0,0.65);
+}
+
+/* ============ BASE ============ */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-x: hidden;
+}
+h1, h2, h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+p { margin: 0; }
+a { color: inherit; }
+.deck { scroll-snap-type: y proximity; }
+.slide {
+  min-height: 100dvh;
+  scroll-snap-align: start;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(24px, 6vw, 96px) clamp(20px, 7vw, 120px);
+  border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+}
+.slide--dark {
+  background: var(--deck-bg);
+  color: var(--deck-fg);
+  border-bottom: 1px solid var(--deck-rule);
+}
+.slide-inner { max-width: 1080px; width: 100%; margin: 0 auto; position: relative; z-index: 2; }
+
+/* cadastral hairline grid, ambient, behind content */
+.grid-bg {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background-image:
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent 85%);
+  opacity: 0.5;
+}
+.slide--dark .grid-bg {
+  background-image:
+    linear-gradient(var(--deck-rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--deck-rule) 1px, transparent 1px);
+}
+
+/* Huerto: los árboles-símbolo que un plano de loteo real dibuja sobre cada
+   parcela para marcar vegetación — aquí, textura ambiente en vez de una
+   grilla vacía. Limache es conocida por sus huertos de cítricos y paltos. */
+.orchard-bg {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='%231B2E1A' fill-opacity='0.055'%3E%3Ccircle cx='38' cy='34' r='17'/%3E%3Crect x='35' y='48' width='6' height='14' rx='2'/%3E%3Ccircle cx='140' cy='96' r='21'/%3E%3Crect x='136' y='114' width='7' height='17' rx='2'/%3E%3Ccircle cx='84' cy='140' r='14'/%3E%3Crect x='81' y='151' width='5' height='12' rx='2'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 45%, black, transparent 88%);
+  opacity: 0.9;
+}
+.slide--dark .orchard-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='%237ED45A' fill-opacity='0.09'%3E%3Ccircle cx='38' cy='34' r='17'/%3E%3Crect x='35' y='48' width='6' height='14' rx='2'/%3E%3Ccircle cx='140' cy='96' r='21'/%3E%3Crect x='136' y='114' width='7' height='17' rx='2'/%3E%3Ccircle cx='84' cy='140' r='14'/%3E%3Crect x='81' y='151' width='5' height='12' rx='2'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Fotos reales de bosque/huerto, con velo oscuro para que el texto respire */
+.photo-layer {
+  position: absolute; inset: 0; z-index: 0;
+  background-size: cover;
+  background-position: center 35%;
+  filter: saturate(0.85) brightness(0.62) contrast(1.02);
+}
+.photo-layer--forest { background-image: var(--photo-forest); }
+.photo-layer--orchard { background-image: var(--photo-orchard); background-position: center 55%; }
+.photo-overlay {
+  position: absolute; inset: 0; z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(14,35,19,0.55) 0%, rgba(14,35,19,0.86) 62%, var(--deck-bg) 100%),
+    radial-gradient(ellipse 70% 55% at 20% 25%, rgba(14,35,19,0.15), transparent 70%);
+}
+
+.eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.slide--dark .eyebrow { color: var(--deck-accent); }
+.eyebrow::before {
+  content: "";
+  width: 22px; height: 1px;
+  background: currentColor;
+  display: inline-block;
+}
+
+.plot-tag {
+  position: fixed;
+  right: clamp(16px, 3vw, 40px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+.plot-tag button {
+  width: 9px; height: 9px;
+  border-radius: 2px;
+  border: 1px solid var(--rule-strong);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background .25s, transform .25s, border-color .25s;
+}
+.plot-tag button:hover { transform: scale(1.3); }
+.plot-tag button.active {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+.plot-tag .label {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--fg-mute);
+  writing-mode: vertical-rl;
+  margin-bottom: 6px;
+}
+
+/* ============ METER READOUT ============ */
+.meter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  background: var(--deck-bg-2);
+  color: var(--deck-accent);
+  border: 1px solid var(--deck-rule);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
+}
+.meter .n { font-size: 1.4em; font-weight: 700; }
+.meter .u { font-size: 0.7em; color: var(--deck-fg-soft); letter-spacing: 0.06em; text-transform: uppercase; }
+.meter--leaf { color: var(--deck-leaf); }
+.meter--clay { color: var(--clay); }
+
+/* ============ SLIDE 1: HERO ============ */
+.hero-eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--deck-accent);
+  margin-bottom: 28px;
+}
+.hero-title {
+  font-size: clamp(40px, 7.4vw, 92px);
+  color: var(--deck-fg);
+}
+.hero-title em {
+  font-style: normal;
+  color: var(--deck-accent);
+}
+.hero-sub {
+  margin-top: 26px;
+  max-width: 620px;
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--deck-fg-soft);
+}
+.hero-row {
+  margin-top: 56px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.scroll-cue {
+  position: absolute;
+  bottom: 34px;
+  left: clamp(20px, 7vw, 120px);
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--deck-fg-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scroll-cue svg { animation: bob 1.8s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
+
+/* ============ HEADINGS / GENERIC ============ */
+.head {
+  font-size: clamp(30px, 4.4vw, 54px);
+  max-width: 15ch;
+}
+.lede {
+  margin-top: 20px;
+  max-width: 58ch;
+  font-size: clamp(15.5px, 1.6vw, 18px);
+  color: var(--fg-soft);
+}
+.slide--dark .lede { color: var(--deck-fg-soft); }
+
+/* ============ SLIDE 2: BEFORE CARDS ============ */
+.before-grid {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.before-card {
+  background: var(--bg-elevated);
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.before-card .tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--fg-mute);
+  letter-spacing: 0.06em;
+}
+.before-card p { font-size: 15px; color: var(--fg-soft); }
+.before-card .x {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--clay) 55%, transparent);
+  background: color-mix(in srgb, var(--clay) 14%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--clay);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* ============ SLIDE 3: FEATURE GRID ============ */
+.feat-grid {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+.feat-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  padding: 28px 26px;
+  box-shadow: var(--shadow);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .35s;
+}
+.feat-card:hover { transform: translateY(-4px); border-color: var(--rule-strong); }
+.icon-badge {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+}
+.icon-badge .icon { width: 28px; height: 28px; }
+.icon-badge--leaf   { background: color-mix(in srgb, var(--leaf) 16%, var(--bg-elevated)); color: var(--leaf); }
+.icon-badge--amber  { background: color-mix(in srgb, var(--accent) 20%, var(--bg-elevated)); color: var(--accent-ink); }
+.icon-badge--sky    { background: color-mix(in srgb, var(--sky) 16%, var(--bg-elevated)); color: var(--sky); }
+.icon-badge--clay   { background: color-mix(in srgb, var(--clay) 16%, var(--bg-elevated)); color: var(--clay); }
+.icon-badge--forest { background: color-mix(in srgb, var(--forest) 16%, var(--bg-elevated)); color: var(--forest); }
+.feat-card h3 {
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.feat-card p {
+  font-size: 14.5px;
+  color: var(--fg-soft);
+}
+
+/* ============ SLIDE 4: BILLING BREAKDOWN ============ */
+.bill-wrap {
+  margin-top: 44px;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+@media (max-width: 860px) { .bill-wrap { grid-template-columns: 1fr; } }
+.bill-formula {
+  background: var(--bg-card);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  padding: 30px 28px;
+}
+.bf-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 13px 0;
+  border-bottom: 1px dashed var(--rule-strong);
+  font-family: 'Space Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+.bf-row:last-child { border-bottom: none; }
+.bf-row .k { font-size: 13px; color: var(--fg-mute); letter-spacing: 0.02em; }
+.bf-row .v { font-size: 16px; font-weight: 700; color: var(--fg); }
+.bf-row.total .v { color: var(--accent-ink); font-size: 19px; }
+.bf-op {
+  text-align: center; font-family: 'Space Mono', monospace;
+  color: var(--fg-mute); font-size: 13px; padding: 4px 0;
+}
+
+/* ============ SLIDE 5/6 SPLIT ============ */
+.split {
+  margin-top: 44px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 780px) { .split { grid-template-columns: 1fr; } }
+.split-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--accent);
+  border-radius: 16px;
+  padding: 26px;
+}
+.split-card .k { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--accent-ink); letter-spacing: 0.06em; }
+.split-card h3 { font-size: 20px; margin: 10px 0 8px; }
+.split-card p { font-size: 14.5px; color: var(--fg-soft); }
+.split-card--leaf   { border-top-color: var(--leaf); }
+.split-card--leaf   .k { color: var(--leaf); }
+.split-card--sky    { border-top-color: var(--sky); }
+.split-card--sky    .k { color: var(--sky); }
+.split-card--forest { border-top-color: var(--forest); }
+.split-card--forest .k { color: var(--forest); }
+
+/* ============ FOOTER SLIDE ============ */
+.cta-title { font-size: clamp(34px, 5.6vw, 68px); max-width: 18ch; color: var(--deck-fg); }
+.cta-sub { margin-top: 20px; color: var(--deck-fg-soft); font-size: 17px; max-width: 46ch; }
+.cta-url {
+  margin-top: 40px;
+  font-family: 'Space Mono', monospace;
+  font-size: 15px;
+  color: var(--deck-accent);
+  border: 1px solid var(--deck-rule);
+  display: inline-block;
+  padding: 12px 20px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+}
+.foot-note {
+  margin-top: 64px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11.5px;
+  color: var(--deck-fg-soft);
+  letter-spacing: 0.04em;
+}
+
+/* reveal on scroll */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s ease, transform .7s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .scroll-cue svg { animation: none; }
+  .feat-card { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .plot-tag { display: none; }
+}
+</style>
+
+<div class="plot-tag" aria-hidden="true">
+  <span class="label">PLANO</span>
+  <button data-i="0" class="active" aria-label="Ir a portada"></button>
+  <button data-i="1" aria-label="Ir a el problema"></button>
+  <button data-i="2" aria-label="Ir a la solución"></button>
+  <button data-i="3" aria-label="Ir a transparencia luz"></button>
+  <button data-i="4" aria-label="Ir a caja abierta"></button>
+  <button data-i="5" aria-label="Ir a participación"></button>
+  <button data-i="6" aria-label="Ir a seguridad"></button>
+  <button data-i="7" aria-label="Ir a cierre"></button>
+</div>
+
+<div class="deck">
+
+  <!-- 1 — PORTADA -->
+  <section class="slide slide--dark" id="s0">
+    <div class="photo-layer photo-layer--forest"></div>
+    <div class="photo-overlay"></div>
+    <div class="grid-bg"></div>
+    <div class="slide-inner">
+      <div class="hero-eyebrow">Macrolote COPOSA · Limache</div>
+      <h1 class="hero-title">Ochenta parcelas.<br><em>Un solo sistema</em> para verlo todo.</h1>
+      <p class="hero-sub">Cuenta de luz, gastos comunes, caja, asambleas y seguridad — en un panel que cualquier vecino puede revisar cuando quiera, desde el celular.</p>
+      <div class="hero-row">
+        <div class="meter meter--leaf"><span class="n">80</span><span class="u">parcelas</span></div>
+        <div class="meter"><span class="n">100%</span><span class="u">de la caja, visible</span></div>
+      </div>
+    </div>
+    <div class="scroll-cue">
+      <svg width="14" height="18" viewBox="0 0 14 18" fill="none"><path d="M7 1v14M1 9l6 6 6-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Desliza para ver cómo funciona
+    </div>
+  </section>
+
+  <!-- 2 — EL PROBLEMA -->
+  <section class="slide" id="s1">
+    <div class="grid-bg"></div><div class="orchard-bg"></div>
+    <div class="slide-inner reveal">
+      <div class="eyebrow">Cómo lo hacíamos antes</div>
+      <h2 class="head">Planillas a mano, capturas de WhatsApp y "¿a quién le pagué?"</h2>
+      <div class="before-grid">
+        <div class="before-card">
+          <div class="x">✕</div>
+          <p class="tag">CÁLCULO DE LUZ</p>
+          <p>Un Excel a mano: un solo número mal tipeado descuadraba el prorrateo de las 80 parcelas.</p>
+        </div>
+        <div class="before-card">
+          <div class="x">✕</div>
+          <p class="tag">COMPROBANTES</p>
+          <p>Pantallazos de transferencia perdidos entre cientos de mensajes de WhatsApp.</p>
+        </div>
+        <div class="before-card">
+          <div class="x">✕</div>
+          <p class="tag">LA CAJA COMÚN</p>
+          <p>Nadie fuera del comité sabía, en un momento dado, cuánto había realmente disponible.</p>
+        </div>
+        <div class="before-card">
+          <div class="x">✕</div>
+          <p class="tag">ACTAS Y DECISIONES</p>
+          <p>Actas de asamblea que circulaban a medias, y votaciones que dependían de juntarse un domingo.</p>
+        </div>
+        <div class="before-card">
+          <div class="x">✕</div>
+          <p class="tag">EMERGENCIAS</p>
+          <p>Avisar un problema real significaba llamar parcela por parcela, con suerte a tiempo.</p>
+        </div>
+        <div class="before-card">
+          <div class="x">✕</div>
+          <p class="tag">HISTORIAL</p>
+          <p>Sin forma simple de mirar cuánto consumió tu parcela seis meses atrás.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 — LA SOLUCIÓN -->
+  <section class="slide" id="s2">
+    <div class="grid-bg"></div><div class="orchard-bg"></div>
+    <div class="slide-inner reveal">
+      <div class="eyebrow">Qué cambia</div>
+      <h2 class="head">Un panel, seis problemas resueltos.</h2>
+      <div class="feat-grid">
+
+        <div class="feat-card">
+          <div class="icon-badge icon-badge--amber"><svg class="icon" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="14" stroke="currentColor" stroke-width="1.6"/><path d="M20 20 L27 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="20" cy="20" r="1.8" fill="currentColor"/></svg></div>
+          <h3>Cuenta de luz clara</h3>
+          <p>La tarifa se calcula de tu factura real de IEL, no se inventa. Ves consumo, cargo fijo y total.</p>
+        </div>
+
+        <div class="feat-card">
+          <div class="icon-badge icon-badge--leaf"><svg class="icon" viewBox="0 0 40 40" fill="none"><rect x="7" y="6" width="26" height="28" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M13 14h14M13 20h14M13 26h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h3>Caja y libro contable</h3>
+          <p>Cada ingreso y egreso queda registrado con su comprobante, abierto a todo vecino.</p>
+        </div>
+
+        <div class="feat-card">
+          <div class="icon-badge icon-badge--sky"><svg class="icon" viewBox="0 0 40 40" fill="none"><rect x="8" y="10" width="24" height="22" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M14 18l4 4 8-9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h3>Pagos con respaldo</h3>
+          <p>Informas tu pago, el comité lo valida y queda un historial completo por parcela.</p>
+        </div>
+
+        <div class="feat-card">
+          <div class="icon-badge icon-badge--forest"><svg class="icon" viewBox="0 0 40 40" fill="none"><path d="M20 6l12 6v8c0 8-5 13.5-12 15-7-1.5-12-7-12-15v-8l12-6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M15 20l4 4 7-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <h3>Asambleas y votaciones</h3>
+          <p>Vota desde el celular, cambia tu voto hasta que cierre, revisa actas cuando quieras.</p>
+        </div>
+
+        <div class="feat-card">
+          <div class="icon-badge icon-badge--clay"><svg class="icon" viewBox="0 0 40 40" fill="none"><path d="M20 5c-6 0-10 4.8-10 11v6l-3 5h26l-3-5v-6c0-6.2-4-11-10-11z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M16 30a4 4 0 008 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h3>Botón de pánico</h3>
+          <p>Un toque avisa a los vecinos y a portería al instante, con ubicación y datos de tu parcela.</p>
+        </div>
+
+        <div class="feat-card">
+          <div class="icon-badge icon-badge--leaf"><svg class="icon" viewBox="0 0 40 40" fill="none"><path d="M6 24l7-13 7 9 5-6 9 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 30h28" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+          <h3>Historial de consumo</h3>
+          <p>El gráfico de tu parcela mes a mes, para entender si tu consumo sube o baja.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 — TRANSPARENCIA LUZ -->
+  <section class="slide" id="s3">
+    <div class="grid-bg"></div><div class="orchard-bg"></div>
+    <div class="slide-inner reveal">
+      <div class="eyebrow">La cuenta de luz, explicada</div>
+      <h2 class="head">La tarifa no la inventamos: la calculamos de tu factura real.</h2>
+      <div class="bill-wrap">
+        <div>
+          <p class="lede">Cada mes se toma el monto total que factura IEL S.A. al macrolote, se descuenta el cargo fijo de cada parcela conectada, y el resto se reparte según el consumo real que marcó tu medidor. La tarifa por kWh queda a la vista de todos — no es un número puesto a mano.</p>
+        </div>
+        <div class="bill-formula">
+          <div class="bf-row"><span class="k">FACTURA TOTAL IEL S.A.</span><span class="v">$1.822.000</span></div>
+          <div class="bf-op">− cargo fijo × parcelas conectadas</div>
+          <div class="bf-row"><span class="k">MONTO A PRORRATEAR</span><span class="v">÷ consumo total kWh</span></div>
+          <div class="bf-op">= tarifa por kWh, visible para todos</div>
+          <div class="bf-row"><span class="k">TU CONSUMO × TARIFA</span><span class="v">+ $5.500 fijo</span></div>
+          <div class="bf-row total"><span class="k">TU CUENTA DEL MES</span><span class="v">TOTAL</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5/6 — CAJA + PARTICIPACIÓN -->
+  <section class="slide" id="s4">
+    <div class="grid-bg"></div><div class="orchard-bg"></div>
+    <div class="slide-inner reveal">
+      <div class="eyebrow">Caja, asambleas y comunidad</div>
+      <h2 class="head">Lo que antes había que pedir, ahora se ve solo.</h2>
+      <div class="split">
+        <div class="split-card split-card--leaf">
+          <div class="k">CAJA Y TESORERÍA</div>
+          <h3>Cada peso, a la vista</h3>
+          <p>El libro contable es público: cualquier vecino revisa cada ingreso y egreso de la caja común, con su comprobante adjunto, sin tener que pedirlo al comité.</p>
+        </div>
+        <div class="split-card split-card--sky">
+          <div class="k">ASAMBLEAS Y VOTACIONES</div>
+          <h3>Participa sin estar presente</h3>
+          <p>Te avisamos cuando se abre una votación. Puedes cambiar tu voto mientras siga abierta, y revisar actas y documentos de asambleas anteriores cuando quieras.</p>
+        </div>
+        <div class="split-card split-card--forest">
+          <div class="k">MENSAJERÍA</div>
+          <h3>Un canal directo con el comité</h3>
+          <p>Reclamos, sugerencias o felicitaciones quedan registrados y con respuesta, no perdidos en un grupo de WhatsApp.</p>
+        </div>
+        <div class="split-card">
+          <div class="k">DOCUMENTOS</div>
+          <h3>Reglamento y actas, siempre a mano</h3>
+          <p>Todo archivo relevante del macrolote queda ordenado por categoría, accesible desde tu celular.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 — SEGURIDAD -->
+  <section class="slide slide--dark" id="s5">
+    <div class="grid-bg"></div><div class="orchard-bg"></div>
+    <div class="slide-inner reveal">
+      <div class="hero-eyebrow">Botón de pánico</div>
+      <h2 class="cta-title">Un toque, y todo el macrolote lo sabe.</h2>
+      <p class="cta-sub">Ante una emergencia real, activas la alerta desde tu parcela y en segundos se notifica a los vecinos y a portería — con tu ubicación y los datos de tu parcela, sin llamar uno por uno.</p>
+      <div class="hero-row">
+        <div class="meter meter--clay"><span class="n">1</span><span class="u">toque para avisar</span></div>
+        <div class="meter"><span class="n">GPS</span><span class="u">ubicación incluida</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 — CIERRE -->
+  <section class="slide slide--dark" id="s6">
+    <div class="photo-layer photo-layer--orchard"></div>
+    <div class="photo-overlay"></div>
+    <div class="grid-bg"></div>
+    <div class="slide-inner reveal">
+      <div class="hero-eyebrow">Macrolote COPOSA</div>
+      <h2 class="cta-title">80 parcelas. Un solo lugar para verlo todo.</h2>
+      <p class="cta-sub">Pide tu acceso al comité y activa tu cuenta — tu cuenta de luz, tus pagos y las decisiones del macrolote, siempre a la vista.</p>
+      <div class="cta-url">medidores.vvmcoposa.cl</div>
+      <p class="foot-note">Comité de administración · Macrolote COPOSA, Limache</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dots = Array.prototype.slice.call(document.querySelectorAll('.plot-tag button'));
+
+  dots.forEach(function(d){
+    d.addEventListener('click', function(){
+      var i = parseInt(d.getAttribute('data-i'), 10);
+      slides[i].scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      var idx = slides.indexOf(entry.target);
+      if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+        dots.forEach(function(d){ d.classList.remove('active'); });
+        if (dots[idx]) dots[idx].classList.add('active');
+      }
+    });
+  }, { threshold: [0.5] });
+  slides.forEach(function(s){ io.observe(s); });
+
+  var reveals = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+  var ro = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        ro.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  reveals.forEach(function(r){ ro.observe(r); });
+})();
+</script>
