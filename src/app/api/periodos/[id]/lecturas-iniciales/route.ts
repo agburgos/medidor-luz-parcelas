@@ -32,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .single()
 
   let ultimasLecturas: Map<string, number> = new Map()
+  let ultimosEstados: Map<string, string> = new Map()
   if (periodo) {
     // Buscar el período anterior más reciente que tenga lecturas registradas
     // (no asumir mes calendario consecutivo: puede haber períodos saltados)
@@ -45,10 +46,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     for (const p of periodosAnteriores ?? []) {
       const { data: lecturasAnt } = await supabase
         .from('lecturas')
-        .select('parcela_id, lectura_actual')
+        .select('parcela_id, lectura_actual, estado')
         .eq('periodo_id', p.id)
       if (lecturasAnt && lecturasAnt.length > 0) {
         ultimasLecturas = new Map(lecturasAnt.map((l: { parcela_id: string; lectura_actual: number }) => [l.parcela_id, l.lectura_actual]))
+        // Una parcela desconectada sigue desconectada por defecto en el
+        // período nuevo, hasta que el comité la reconecte manualmente
+        ultimosEstados = new Map(
+          lecturasAnt
+            .filter((l: { estado: string }) => l.estado === 'desconectado')
+            .map((l: { parcela_id: string }) => [l.parcela_id, 'desconectado'])
+        )
         break
       }
     }
@@ -63,7 +71,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       nombre_dueno: p.nombre_dueno,
       lectura_anterior: existente?.lectura_anterior ?? ultimasLecturas.get(p.id) ?? 0,
       lectura_actual: existente?.lectura_actual ?? null,
-      estado: existente?.estado ?? 'normal',
+      estado: existente?.estado ?? ultimosEstados.get(p.id) ?? 'normal',
       guardado: !!existente,
     }
   })

@@ -44,18 +44,28 @@ export default function VotacionDetailPage() {
 
   const [datos, setDatos] = useState<Resultados | null>(null)
   const [loading, setLoading] = useState(true)
+  const [cerrando, setCerrando] = useState(false)
 
-  useEffect(() => {
-    async function cargar() {
-      const res = await fetch(`/api/votaciones/${id}/resultados`)
-      if (res.ok) {
-        const data = await res.json()
-        setDatos(data)
-      }
-      setLoading(false)
+  async function cargar() {
+    const res = await fetch(`/api/votaciones/${id}/resultados`)
+    if (res.ok) {
+      const data = await res.json()
+      setDatos(data)
     }
+    setLoading(false)
+  }
+
+  useEffect(() => { cargar() }, [id])
+
+  async function cerrarAhora() {
+    if (!confirm('¿Cerrar esta votación ahora, antes de su fecha programada? Los parceleros ya no podrán votar ni editar su voto.')) return
+    setCerrando(true)
+    const res = await fetch(`/api/votaciones/${id}/cerrar`, { method: 'POST' })
+    const data = await res.json()
+    setCerrando(false)
+    if (!res.ok) { alert(data.error); return }
     cargar()
-  }, [id])
+  }
 
   if (loading) return <div className="p-8 text-gray-500">Cargando votación...</div>
   if (!datos) return <div className="p-8 text-red-600">Error al cargar votación</div>
@@ -77,11 +87,22 @@ export default function VotacionDetailPage() {
             <h1 className="text-2xl font-bold">{v.titulo}</h1>
             {v.descripcion && <p className="text-gray-600 mt-2">{v.descripcion}</p>}
           </div>
-          <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
-            v.estado === 'abierta' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-          }`}>
-            {v.estado === 'abierta' ? '🔓 Abierta' : '🔒 Cerrada'}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
+              v.estado === 'abierta' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+            }`}>
+              {v.estado === 'abierta' ? '🔓 Abierta' : '🔒 Cerrada'}
+            </span>
+            {v.estado === 'abierta' && (
+              <button
+                onClick={cerrarAhora}
+                disabled={cerrando}
+                className="border border-gray-300 text-gray-700 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                {cerrando ? 'Cerrando...' : '🔒 Cerrar ahora'}
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">

@@ -32,19 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Votación cerrada' }, { status: 400 })
   }
 
-  // Verificar que no haya votado ya
-  const { data: yaVoto } = await supabase
-    .from('votos')
-    .select('id')
-    .eq('votacion_id', votacion_id)
-    .eq('parcela_id', parcela_id)
-    .single()
-
-  if (yaVoto) {
-    return NextResponse.json({ error: 'Ya has votado en esta votación' }, { status: 400 })
-  }
-
-  // Registrar voto
+  // Se permite editar el voto (cambiar de opción) mientras la votación
+  // siga abierta — no es un registro de una sola vez.
   const votoData = {
     votacion_id,
     parcela_id,
@@ -55,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: voto, error: errInsert } = await supabase
     .from('votos')
-    .insert(votoData)
+    .upsert(votoData, { onConflict: 'votacion_id,parcela_id' })
     .select()
     .single()
 

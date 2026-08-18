@@ -41,12 +41,23 @@ export default function VotacionesPage() {
 
   async function abrirVotacion(votacionId: string) {
     setVotacionSeleccionada(votacionId)
-    setOpcionesSeleccionadas([])
     setMensaje('')
 
     const res = await fetch(`/api/votaciones/${votacionId}/opciones`)
     const data = await res.json()
-    setOpciones(Array.isArray(data) ? data : [])
+    const nuevasOpciones: Opcion[] = Array.isArray(data) ? data : []
+    setOpciones(nuevasOpciones)
+
+    // Si ya votó, preseleccionar su elección anterior (se puede cambiar)
+    const votacion = votaciones.find(v => v.id === votacionId)
+    if (votacion?.yaVoto && votacion.miVotoOpciones) {
+      const ids = votacion.miVotoOpciones
+        .map(texto => nuevasOpciones.find(o => o.texto === texto)?.id)
+        .filter((id): id is string => !!id)
+      setOpcionesSeleccionadas(ids)
+    } else {
+      setOpcionesSeleccionadas([])
+    }
   }
 
   async function enviarVoto() {
@@ -55,6 +66,7 @@ export default function VotacionesPage() {
       setMensaje('❌ Debes seleccionar al menos una opción')
       return
     }
+    if (!confirm('¿Estás seguro de tu voto? Puedes volver a editarlo mientras la votación siga abierta.')) return
 
     setEnviando(true)
     setMensaje('')
@@ -77,7 +89,7 @@ export default function VotacionesPage() {
       return
     }
 
-    setMensaje('✅ Voto registrado')
+    setMensaje(votacion?.yaVoto ? '✅ Voto actualizado' : '✅ Voto registrado')
     setVotacionSeleccionada(null)
     setOpcionesSeleccionadas([])
     setEnviando(false)
@@ -141,7 +153,7 @@ export default function VotacionesPage() {
             disabled={enviando || opcionesSeleccionadas.length === 0}
             className="w-full bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {enviando ? 'Registrando voto...' : '✓ Confirmar voto'}
+            {enviando ? 'Guardando...' : votacion?.yaVoto ? '✓ Actualizar voto' : '✓ Confirmar voto'}
           </button>
         </div>
       </div>
@@ -170,10 +182,16 @@ export default function VotacionesPage() {
                 </div>
                 {v.descripcion && <p className="text-sm text-gray-600 mb-3">{v.descripcion}</p>}
                 {v.yaVoto ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
                     <p className="text-sm text-green-800">
                       ✅ Ya votaste: <strong>{v.miVotoOpciones?.join(', ') || '—'}</strong>
                     </p>
+                    <button
+                      onClick={() => abrirVotacion(v.id)}
+                      className="text-xs text-blue-700 hover:underline whitespace-nowrap"
+                    >
+                      ✏️ Editar voto
+                    </button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
