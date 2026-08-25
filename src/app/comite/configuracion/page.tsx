@@ -21,6 +21,7 @@ interface Config {
   avisar_lectura_dias_antes: number
   porteria_email: string | null
   porteria_whatsapp: string | null
+  reporte_mensual_activo: boolean
   comunidad?: { nombre: string }
 }
 
@@ -190,6 +191,20 @@ export default function ConfiguracionPage() {
             onChange={e => setConfig(c => c && { ...c, organizador_reunion_email: e.target.value })}
             className="border rounded-lg px-3 py-2 text-sm w-full max-w-sm"
           />
+        </div>
+
+        {/* Reporte mensual de transparencia */}
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">📄 Reporte mensual de transparencia</p>
+              <p className="text-sm text-gray-500">
+                El día 1 de cada mes, envía por correo a todos los vecinos un PDF con recaudación,
+                gastos y saldo de caja del mes anterior.
+              </p>
+            </div>
+            <Switch activo={config.reporte_mensual_activo} onClick={() => setConfig(c => c && { ...c, reporte_mensual_activo: !c.reporte_mensual_activo })} />
+          </div>
         </div>
 
         {/* Envío automático diario (lectura/vencimiento/corte) */}

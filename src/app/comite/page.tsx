@@ -16,6 +16,7 @@ export default async function ComiteDashboard() {
 
   const [
     { count: totalParcelas },
+    { count: parcelasConEmpalme },
     { data: periodos },
     { data: periodosGC },
     { data: cuentasLuz },
@@ -24,8 +25,10 @@ export default async function ComiteDashboard() {
     { data: anuncios },
     { data: movimientosCaja },
     { data: saldoInicialRow },
+    { count: incidenciasAbiertas },
   ] = await Promise.all([
     supabase.from('parcelas').select('*', { count: 'exact', head: true }),
+    supabase.from('parcelas').select('*', { count: 'exact', head: true }).eq('activa', true).eq('tiene_empalme', true),
     supabase
       .from('periodos_facturacion')
       .select('*')
@@ -44,9 +47,28 @@ export default async function ComiteDashboard() {
     supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
     fetchCajaPromise,
     supabaseService.from('caja_saldos').select('saldo_final').order('fecha', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('incidencias').select('*', { count: 'exact', head: true }).in('estado', ['activa', 'investigando']),
   ])
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
+
+  // Salud del período activo: % lecturas subidas y % cuentas al día
+  let lecturasSubidas = 0
+  let cuentasDelPeriodo: { estado: string }[] = []
+  let parcelasEnMora = 0
+  if (periodoActivo) {
+    const [{ count: countLecturas }, { data: cuentasPeriodo }] = await Promise.all([
+      supabase.from('lecturas').select('*', { count: 'exact', head: true })
+        .eq('periodo_id', periodoActivo.id).neq('estado_validacion', 'rechazada'),
+      supabase.from('cuentas_parcela').select('estado').eq('periodo_id', periodoActivo.id),
+    ])
+    lecturasSubidas = countLecturas ?? 0
+    cuentasDelPeriodo = cuentasPeriodo ?? []
+    parcelasEnMora = cuentasDelPeriodo.filter(c => c.estado === 'mora').length
+  }
+  const cuentasPagadas = cuentasDelPeriodo.filter(c => c.estado === 'pagado').length
+  const pctLecturas = parcelasConEmpalme ? Math.round((lecturasSubidas / parcelasConEmpalme) * 100) : 0
+  const pctPagadas = cuentasDelPeriodo.length ? Math.round((cuentasPagadas / cuentasDelPeriodo.length) * 100) : 0
 
   type CLuz = { monto_prorrateado: number; monto_pagado: number; periodo: { mes: number; anio: number } | null }
   type CGC = { monto: number; monto_pagado: number; periodo: { mes: number; anio: number } | null }
@@ -152,10 +174,48 @@ export default async function ComiteDashboard() {
         </div>
       </div>
 
+      {/* Salud del período activo */}
+      {periodoActivo && (
+        <div className="bg-white rounded-xl border p-5 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">🩺 Salud del período — {meses[periodoActivo.mes - 1]} {periodoActivo.anio}</h2>
+            {incidenciasAbiertas! > 0 && (
+              <Link href="/comite/incidencias" className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-medium hover:bg-red-200">
+                🚨 {incidenciasAbiertas} incidencia{incidenciasAbiertas !== 1 ? 's' : ''} abierta{incidenciasAbiertas !== 1 ? 's' : ''}
+              </Link>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600">📸 Lecturas subidas</span>
+                <span className="font-semibold">{lecturasSubidas} / {parcelasConEmpalme ?? 0} ({pctLecturas}%)</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className={`h-2.5 rounded-full ${pctLecturas >= 80 ? 'bg-green-500' : pctLecturas >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(pctLecturas, 100)}%` }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600">💳 Cuentas al día</span>
+                <span className="font-semibold">{cuentasPagadas} / {cuentasDelPeriodo.length} ({pctPagadas}%)</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className={`h-2.5 rounded-full ${pctPagadas >= 80 ? 'bg-green-500' : pctPagadas >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(pctPagadas, 100)}%` }} />
+              </div>
+              {parcelasEnMora > 0 && <p className="text-xs text-red-600 mt-1">{parcelasEnMora} parcela{parcelasEnMora !== 1 ? 's' : ''} en mora</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-4 flex-wrap mb-8">
         <Link href="/comite/periodos/nuevo" className="bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
           + Nuevo período de luz
         </Link>
+        <a href="/api/comite/reporte-mensual" className="border border-gray-400 text-gray-700 rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors">
+          📄 Descargar reporte mensual (PDF)
+        </a>
         {periodoActivo && (
           <Link href={`/comite/periodos/${periodoActivo.id}`} className="border border-blue-600 text-blue-600 rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-50 transition-colors">
             Ver período activo

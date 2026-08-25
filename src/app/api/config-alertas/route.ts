@@ -41,6 +41,7 @@ export async function PUT(req: NextRequest) {
     avisar_lectura_dias_antes: Math.max(0, Number(body.avisar_lectura_dias_antes ?? 3)),
     porteria_email: body.porteria_email ? String(body.porteria_email).trim() : null,
     porteria_whatsapp: body.porteria_whatsapp ? String(body.porteria_whatsapp).trim() : null,
+    reporte_mensual_activo: !!body.reporte_mensual_activo,
     updated_at: new Date().toISOString(),
   }
 

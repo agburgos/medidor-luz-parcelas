@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
+import { generarReporteMensualPDF, nombreMesAnio } from '@/lib/reporteMensual'
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY || 'placeholder')
@@ -53,6 +54,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     dias_aviso_vencimiento: number; dias_aviso_corte: number
     frecuencia_reenvio_dias: number; max_por_dia: number
     dia_tope_lectura?: number; avisar_lectura_dias_antes?: number
+    reporte_mensual_activo?: boolean; reporte_mensual_ultimo_enviado?: string | null
   }
   const configPorComunidad = new Map<string, Config>(
     ((configs ?? []) as Config[]).map(c => [c.comunidad_id, c])
@@ -71,6 +73,47 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     config.modo_pruebas ? (config.email_pruebas || 'agarridob@gmail.com') : emailReal
 
   let enviados = 0
+
+  // ---- Reporte mensual de transparencia (día 1 de cada mes) ----
+  const esDiaUno = hoy.getDate() === 1
+  for (const config of (configs ?? []) as Config[]) {
+    if (!config.reporte_mensual_activo || !config.alertas_activas) continue
+    if (!forzar && !esDiaUno) continue
+    const yaEnviadoEsteMes = config.reporte_mensual_ultimo_enviado?.slice(0, 7) === hoy.toISOString().slice(0, 7)
+    if (!forzar && yaEnviadoEsteMes) continue
+
+    const mesReporte = hoy.getMonth() === 0 ? 12 : hoy.getMonth()
+    const anioReporte = hoy.getMonth() === 0 ? hoy.getFullYear() - 1 : hoy.getFullYear()
+
+    const { data: parcelasActivas } = await supabase
+      .from('parcelas').select('email').eq('activa', true).not('email', 'is', null)
+
+    const destinatarios: string[] = config.modo_pruebas
+      ? [config.email_pruebas || 'agarridob@gmail.com']
+      : [...new Set(((parcelasActivas ?? []) as { email: string }[]).map(p => p.email))]
+
+    try {
+      const pdfBuffer = await generarReporteMensualPDF(mesReporte, anioReporte)
+      const nombrePeriodo = nombreMesAnio(mesReporte, anioReporte)
+      for (const email of destinatarios) {
+        await getResend().emails.send({
+          from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
+          to: email,
+          subject: `📄 Reporte mensual de transparencia — ${nombrePeriodo}`,
+          html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+            <h2 style="color:#1d4ed8;">📄 Reporte mensual de transparencia</h2>
+            <p>Adjunto encontrarás el reporte de ${nombrePeriodo}: recaudación, gastos y saldo de caja de la comunidad.</p>
+            <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA — Reporte automático mensual</p>
+          </div>`,
+          attachments: [{ filename: `reporte-mensual-coposa-${anioReporte}-${String(mesReporte).padStart(2, '0')}.pdf`, content: pdfBuffer }],
+        })
+        enviados++
+      }
+      await supabase.from('config_alertas').update({ reporte_mensual_ultimo_enviado: hoy.toISOString().slice(0, 10) }).eq('comunidad_id', config.comunidad_id)
+    } catch {
+      // si falla, se reintenta en la próxima corrida del cron (no se marca como enviado)
+    }
+  }
 
   for (const periodo of periodos) {
     const config = configPorComunidad.get(periodo.comunidad_id) ?? configDefault
