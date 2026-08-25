@@ -201,8 +201,8 @@ export default function LoginPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 leading-relaxed">
-                <p className="font-medium text-gray-700 mb-1">Tratamiento de datos personales</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-700 leading-relaxed">
+                <p className="font-semibold text-gray-800 mb-1.5">Tratamiento de datos personales</p>
                 <p>
                   Tus datos (nombre, correo, teléfono, RUT, lecturas y pagos) se usan exclusivamente para
                   la gestión de la comunidad: cálculo y cobro de consumo eléctrico, gastos comunes, asambleas
@@ -214,13 +214,13 @@ export default function LoginPage() {
                   tus datos, contactando al comité.
                 </p>
               </div>
-              <label className="flex items-start gap-2 text-sm text-gray-700">
+              <label className="flex items-start gap-2.5 text-sm text-gray-800">
                 <input
                   type="checkbox"
                   checked={aceptaDatos}
                   onChange={e => setAceptaDatos(e.target.checked)}
                   required
-                  className="mt-0.5"
+                  className="mt-0.5 w-4 h-4 shrink-0"
                 />
                 <span>Acepto el tratamiento de mis datos personales y recibir notificaciones por correo, según lo descrito arriba.</span>
               </label>
