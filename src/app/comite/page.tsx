@@ -52,23 +52,36 @@ export default async function ComiteDashboard() {
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
 
-  // Salud del período activo: % lecturas subidas y % cuentas al día
-  let lecturasSubidas = 0
-  let cuentasDelPeriodo: { estado: string }[] = []
-  let parcelasEnMora = 0
-  if (periodoActivo) {
-    const [{ count: countLecturas }, { data: cuentasPeriodo }] = await Promise.all([
-      supabase.from('lecturas').select('*', { count: 'exact', head: true })
-        .eq('periodo_id', periodoActivo.id).neq('estado_validacion', 'rechazada'),
-      supabase.from('cuentas_parcela').select('estado').eq('periodo_id', periodoActivo.id),
-    ])
-    lecturasSubidas = countLecturas ?? 0
-    cuentasDelPeriodo = cuentasPeriodo ?? []
-    parcelasEnMora = cuentasDelPeriodo.filter(c => c.estado === 'mora').length
-  }
-  const cuentasPagadas = cuentasDelPeriodo.filter(c => c.estado === 'pagado').length
-  const pctLecturas = parcelasConEmpalme ? Math.round((lecturasSubidas / parcelasConEmpalme) * 100) : 0
-  const pctPagadas = cuentasDelPeriodo.length ? Math.round((cuentasPagadas / cuentasDelPeriodo.length) * 100) : 0
+  // Salud de TODOS los períodos de luz abiertos (puede haber más de uno)
+  const { data: periodosAbiertos } = await supabase
+    .from('periodos_facturacion')
+    .select('*')
+    .eq('estado', 'abierto')
+    .order('anio', { ascending: false })
+    .order('mes', { ascending: false })
+
+  const saludPeriodos = await Promise.all(
+    (periodosAbiertos ?? []).map(async (p) => {
+      const [{ count: countLecturas }, { data: cuentasPeriodo }] = await Promise.all([
+        supabase.from('lecturas').select('*', { count: 'exact', head: true })
+          .eq('periodo_id', p.id).neq('estado_validacion', 'rechazada'),
+        supabase.from('cuentas_parcela').select('estado').eq('periodo_id', p.id),
+      ])
+      const cuentas = cuentasPeriodo ?? []
+      const cuentasPagadas = cuentas.filter(c => c.estado === 'pagado').length
+      const parcelasEnMora = cuentas.filter(c => c.estado === 'mora').length
+      const lecturasSubidas = countLecturas ?? 0
+      return {
+        periodo: p,
+        lecturasSubidas,
+        cuentasPagadas,
+        parcelasEnMora,
+        totalCuentas: cuentas.length,
+        pctLecturas: parcelasConEmpalme ? Math.round((lecturasSubidas / parcelasConEmpalme) * 100) : 0,
+        pctPagadas: cuentas.length ? Math.round((cuentasPagadas / cuentas.length) * 100) : 0,
+      }
+    })
+  )
 
   type CLuz = { monto_prorrateado: number; monto_pagado: number; periodo: { mes: number; anio: number } | null }
   type CGC = { monto: number; monto_pagado: number; periodo: { mes: number; anio: number } | null }
@@ -174,37 +187,47 @@ export default async function ComiteDashboard() {
         </div>
       </div>
 
-      {/* Salud del período activo */}
-      {periodoActivo && (
-        <div className="bg-white rounded-xl border p-5 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">🩺 Salud del período — {meses[periodoActivo.mes - 1]} {periodoActivo.anio}</h2>
+      {/* Salud de los períodos abiertos */}
+      {saludPeriodos.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">🩺 Salud de los períodos abiertos</h2>
             {incidenciasAbiertas! > 0 && (
               <Link href="/comite/incidencias" className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-medium hover:bg-red-200">
                 🚨 {incidenciasAbiertas} incidencia{incidenciasAbiertas !== 1 ? 's' : ''} abierta{incidenciasAbiertas !== 1 ? 's' : ''}
               </Link>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">📸 Lecturas subidas</span>
-                <span className="font-semibold">{lecturasSubidas} / {parcelasConEmpalme ?? 0} ({pctLecturas}%)</span>
+          <div className="space-y-4">
+            {saludPeriodos.map(s => (
+              <div key={s.periodo.id} className="bg-white rounded-xl border p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-medium">⚡ {meses[s.periodo.mes - 1]} {s.periodo.anio}</p>
+                  <Link href={`/comite/periodos/${s.periodo.id}`} className="text-sm text-blue-600 hover:underline">Ver período →</Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">📸 Lecturas subidas</span>
+                      <span className="font-semibold">{s.lecturasSubidas} / {parcelasConEmpalme ?? 0} ({s.pctLecturas}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                      <div className={`h-2.5 rounded-full ${s.pctLecturas >= 80 ? 'bg-green-500' : s.pctLecturas >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(s.pctLecturas, 100)}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">💳 Cuentas al día</span>
+                      <span className="font-semibold">{s.cuentasPagadas} / {s.totalCuentas} ({s.pctPagadas}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                      <div className={`h-2.5 rounded-full ${s.pctPagadas >= 80 ? 'bg-green-500' : s.pctPagadas >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(s.pctPagadas, 100)}%` }} />
+                    </div>
+                    {s.parcelasEnMora > 0 && <p className="text-xs text-red-600 mt-1">{s.parcelasEnMora} parcela{s.parcelasEnMora !== 1 ? 's' : ''} en mora</p>}
+                  </div>
+                </div>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2.5">
-                <div className={`h-2.5 rounded-full ${pctLecturas >= 80 ? 'bg-green-500' : pctLecturas >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(pctLecturas, 100)}%` }} />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">💳 Cuentas al día</span>
-                <span className="font-semibold">{cuentasPagadas} / {cuentasDelPeriodo.length} ({pctPagadas}%)</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-2.5">
-                <div className={`h-2.5 rounded-full ${pctPagadas >= 80 ? 'bg-green-500' : pctPagadas >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(pctPagadas, 100)}%` }} />
-              </div>
-              {parcelasEnMora > 0 && <p className="text-xs text-red-600 mt-1">{parcelasEnMora} parcela{parcelasEnMora !== 1 ? 's' : ''} en mora</p>}
-            </div>
+            ))}
           </div>
         </div>
       )}
