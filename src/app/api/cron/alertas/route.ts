@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
-import { generarReporteMensualPDF, nombreMesAnio } from '@/lib/reporteMensual'
+import { generarReporteMensualPDF } from '@/lib/reporteMensual'
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY || 'placeholder')
@@ -82,9 +82,6 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     const yaEnviadoEsteMes = config.reporte_mensual_ultimo_enviado?.slice(0, 7) === hoy.toISOString().slice(0, 7)
     if (!forzar && yaEnviadoEsteMes) continue
 
-    const mesReporte = hoy.getMonth() === 0 ? 12 : hoy.getMonth()
-    const anioReporte = hoy.getMonth() === 0 ? hoy.getFullYear() - 1 : hoy.getFullYear()
-
     const { data: parcelasActivas } = await supabase
       .from('parcelas').select('email').eq('activa', true).not('email', 'is', null)
 
@@ -93,19 +90,18 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
       : [...new Set(((parcelasActivas ?? []) as { email: string }[]).map(p => p.email))]
 
     try {
-      const pdfBuffer = await generarReporteMensualPDF(mesReporte, anioReporte)
-      const nombrePeriodo = nombreMesAnio(mesReporte, anioReporte)
+      const pdfBuffer = await generarReporteMensualPDF()
       for (const email of destinatarios) {
         await getResend().emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
           to: email,
-          subject: `📄 Reporte mensual de transparencia — ${nombrePeriodo}`,
+          subject: `📄 Reporte mensual de transparencia — Macrolote COPOSA`,
           html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
             <h2 style="color:#1d4ed8;">📄 Reporte mensual de transparencia</h2>
-            <p>Adjunto encontrarás el reporte de ${nombrePeriodo}: recaudación, gastos y saldo de caja de la comunidad.</p>
+            <p>Adjunto encontrarás el reporte con la recaudación, gastos y saldo de caja de la comunidad.</p>
             <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA — Reporte automático mensual</p>
           </div>`,
-          attachments: [{ filename: `reporte-mensual-coposa-${anioReporte}-${String(mesReporte).padStart(2, '0')}.pdf`, content: pdfBuffer }],
+          attachments: [{ filename: `reporte-transparencia-coposa-${hoy.toISOString().slice(0, 10)}.pdf`, content: pdfBuffer }],
         })
         enviados++
       }
