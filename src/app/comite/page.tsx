@@ -236,9 +236,18 @@ export default async function ComiteDashboard() {
         <Link href="/comite/periodos/nuevo" className="bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
           + Nuevo período de luz
         </Link>
-        <a href="/api/comite/reporte-mensual" className="border border-gray-400 text-gray-700 rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-gray-50 transition-colors">
-          📄 Descargar reporte mensual (PDF)
-        </a>
+        <form action="/api/comite/reporte-mensual" method="GET" className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-1.5">
+          <span className="text-sm text-gray-600 hidden sm:inline">📄 Reporte de</span>
+          <select name="mes" defaultValue={new Date().getMonth() + 1} className="text-sm border-0 bg-transparent focus:outline-none">
+            {meses.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+          </select>
+          <select name="anio" defaultValue={new Date().getFullYear()} className="text-sm border-0 bg-transparent focus:outline-none">
+            {[new Date().getFullYear(), new Date().getFullYear() - 1].map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <button type="submit" className="text-sm bg-gray-700 text-white rounded-md px-3 py-1.5 font-medium hover:bg-gray-800 transition-colors">
+            Descargar
+          </button>
+        </form>
         {periodoActivo && (
           <Link href={`/comite/periodos/${periodoActivo.id}`} className="border border-blue-600 text-blue-600 rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-50 transition-colors">
             Ver período activo
