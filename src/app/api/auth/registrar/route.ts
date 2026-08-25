@@ -6,13 +6,16 @@ import { createServiceClient } from '@/lib/supabase/server'
 // la ficha de una parcela (y que esa parcela todavía no tiene usuario
 // vinculado). Evita que cualquiera se registre sin estar en el padrón.
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json().catch(() => ({}))
+  const { email, password, aceptaTratamientoDatos } = await req.json().catch(() => ({}))
 
   if (!email || typeof email !== 'string') {
     return NextResponse.json({ error: 'Ingresa tu correo' }, { status: 400 })
   }
   if (!password || typeof password !== 'string' || password.length < 8) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
+  }
+  if (aceptaTratamientoDatos !== true) {
+    return NextResponse.json({ error: 'Debes aceptar el tratamiento de tus datos personales para registrarte' }, { status: 400 })
   }
 
   const correo = email.trim().toLowerCase()
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const { error: errVincular } = await supabase
     .from('parcelas')
-    .update({ user_id: nuevoUsuario.user.id })
+    .update({ user_id: nuevoUsuario.user.id, consentimiento_datos_en: new Date().toISOString() })
     .eq('id', parcela.id)
 
   if (errVincular) {

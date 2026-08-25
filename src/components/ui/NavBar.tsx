@@ -45,6 +45,7 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/bitacora', label: '🕒 Bitácora' },
     { href: '/comite/configuracion', label: '⚙️ Configuración' },
     { href: '/comite/boveda', label: '🔐 Bóveda de Claves' },
+    { href: '/comite/menu', label: '🧩 Mostrar/Ocultar menú' },
   ]},
 ]
 
@@ -126,6 +127,14 @@ export default function NavBar({
   const router = useRouter()
   const [menuMovil, setMenuMovil] = useState(false)
   const [saliendo, setSaliendo] = useState(false)
+  const [ocultos, setOcultos] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    fetch('/api/menu-oculto')
+      .then(r => r.json())
+      .then(data => { if (data.ocultos) setOcultos(new Set(data.ocultos)) })
+      .catch(() => {})
+  }, [])
 
   async function salirSuplantacion() {
     setSaliendo(true)
@@ -133,11 +142,15 @@ export default function NavBar({
     router.push('/comite/parcelas')
     router.refresh()
   }
-  const grupos = rol === 'comite'
+  const gruposBase = rol === 'comite'
     ? (esSuperadmin
         ? [...GRUPOS_COMITE, { label: '🔐 Superadmin', items: [{ href: '/comite/superadmin', label: 'Usuarios y contraseñas' }] }]
         : GRUPOS_COMITE)
     : GRUPOS_PARCELERO
+
+  const grupos = gruposBase
+    .map(g => ({ ...g, items: g.items.filter(item => !ocultos.has(item.href)) }))
+    .filter(g => g.items.length > 0)
 
   useEffect(() => {
     document.body.style.overflow = menuMovil ? 'hidden' : ''

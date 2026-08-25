@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [regPassword2, setRegPassword2] = useState('')
+  const [aceptaDatos, setAceptaDatos] = useState(false)
 
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
@@ -49,12 +50,16 @@ export default function LoginPage() {
       setError('La contraseña debe tener al menos 8 caracteres')
       return
     }
+    if (!aceptaDatos) {
+      setError('Debes aceptar el tratamiento de tus datos personales para continuar')
+      return
+    }
 
     setLoading(true)
     const res = await fetch('/api/auth/registrar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: regEmail, password: regPassword }),
+      body: JSON.stringify({ email: regEmail, password: regPassword, aceptaTratamientoDatos: aceptaDatos }),
     })
     const data = await res.json()
 
@@ -196,10 +201,33 @@ export default function LoginPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 leading-relaxed">
+                <p className="font-medium text-gray-700 mb-1">Tratamiento de datos personales</p>
+                <p>
+                  Tus datos (nombre, correo, teléfono, RUT, lecturas y pagos) se usan exclusivamente para
+                  la gestión de la comunidad: cálculo y cobro de consumo eléctrico, gastos comunes, asambleas
+                  y votaciones. Te llegarán <strong>correos automáticos</strong> con recordatorios de lectura,
+                  avisos de vencimiento o pago, y anuncios del comité — puedes pedir que se ajusten escribiéndole
+                  a la directiva. No se comparten con terceros salvo obligación legal. De acuerdo a la Ley
+                  N.º 19.628 y la Ley N.º 21.719 sobre protección de datos personales, puedes solicitar en
+                  cualquier momento el acceso, rectificación, cancelación u oposición (derechos ARCO) sobre
+                  tus datos, contactando al comité.
+                </p>
+              </div>
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={aceptaDatos}
+                  onChange={e => setAceptaDatos(e.target.checked)}
+                  required
+                  className="mt-0.5"
+                />
+                <span>Acepto el tratamiento de mis datos personales y recibir notificaciones por correo, según lo descrito arriba.</span>
+              </label>
               {error && <p className="text-red-600 text-sm">{error}</p>}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !aceptaDatos}
                 className="w-full bg-emerald-700 text-white rounded-lg py-2 text-sm font-medium hover:bg-emerald-800 disabled:opacity-50 transition-colors"
               >
                 {loading ? 'Creando cuenta...' : 'Crear mi cuenta'}
