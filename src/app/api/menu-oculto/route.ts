@@ -11,7 +11,7 @@ export async function GET() {
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('menu_oculto').select('href')
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ ocultos: data.map(d => d.href) })
+  return NextResponse.json({ ocultos: (data ?? []).map((d: { href: string }) => d.href) })
 }
 
 // Solo el comité puede ocultar/mostrar opciones del menú.
