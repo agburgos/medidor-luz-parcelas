@@ -26,6 +26,7 @@ export default async function ComiteDashboard() {
     { data: movimientosCaja },
     { data: saldoInicialRow },
     { count: incidenciasAbiertas },
+    { data: periodosAbiertos },
   ] = await Promise.all([
     supabase.from('parcelas').select('*', { count: 'exact', head: true }),
     supabase.from('parcelas').select('*', { count: 'exact', head: true }).eq('activa', true).eq('tiene_empalme', true),
@@ -48,17 +49,16 @@ export default async function ComiteDashboard() {
     fetchCajaPromise,
     supabaseService.from('caja_saldos').select('saldo_final').order('fecha', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('incidencias').select('*', { count: 'exact', head: true }).in('estado', ['activa', 'investigando']),
+    // Salud de TODOS los períodos de luz abiertos (puede haber más de uno)
+    supabase
+      .from('periodos_facturacion')
+      .select('*')
+      .eq('estado', 'abierto')
+      .order('anio', { ascending: false })
+      .order('mes', { ascending: false }),
   ])
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
-
-  // Salud de TODOS los períodos de luz abiertos (puede haber más de uno)
-  const { data: periodosAbiertos } = await supabase
-    .from('periodos_facturacion')
-    .select('*')
-    .eq('estado', 'abierto')
-    .order('anio', { ascending: false })
-    .order('mes', { ascending: false })
 
   const saludPeriodos = await Promise.all(
     (periodosAbiertos ?? []).map(async (p) => {
