@@ -16,6 +16,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.activa !== undefined) update.activa = body.activa
   if (body.tiene_empalme !== undefined) update.tiene_empalme = body.tiene_empalme
 
+  const { data: parcelaPrevia } = await supabase.from('parcelas').select('user_id, email').eq('id', id).single()
+
   const { data, error } = await supabase
     .from('parcelas')
     .update(update)
@@ -24,6 +26,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+
+  // Si la parcela tiene una cuenta vinculada y el email cambió, hay que sincronizar
+  // el email de esa cuenta (Supabase Auth) o el login y la recuperación de clave
+  // dejan de funcionar con el correo nuevo.
+  if (parcelaPrevia?.user_id && update.email && update.email !== parcelaPrevia.email) {
+    const { error: errAuth } = await supabase.auth.admin.updateUserById(parcelaPrevia.user_id, {
+      email: update.email as string,
+      email_confirm: true,
+    })
+    if (errAuth) {
+      return NextResponse.json({ error: `Parcela actualizada, pero no se pudo sincronizar el correo de acceso: ${errAuth.message}` }, { status: 400 })
+    }
+  }
 
   const sesion = await getSesion()
   await registrar(sesion, 'editar_parcela', 'parcela', id, update)
