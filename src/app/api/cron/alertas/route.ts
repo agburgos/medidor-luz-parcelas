@@ -20,10 +20,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const forzar = body.forzar === true
-  return procesarAlertas(body.periodo_id || null, forzar)
+  // Botón manual: si viene "tipo", el envío forzado queda acotado a ESE tipo
+  // de alerta únicamente (nunca mezcla vencimiento con corte, ni dispara el
+  // recordatorio de lectura de paso).
+  const tipoForzado = body.tipo === 'corte' || body.tipo === 'vencimiento' ? body.tipo : null
+  return procesarAlertas(body.periodo_id || null, forzar, tipoForzado)
 }
 
-async function procesarAlertas(periodo_id_especifico: string | null, forzar = false) {
+async function procesarAlertas(periodo_id_especifico: string | null, forzar = false, tipoForzado: 'corte' | 'vencimiento' | null = null) {
   const supabase = createServiceClient()
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
@@ -134,7 +138,7 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     const diaTope = config.dia_tope_lectura ?? 10
     const fechaTope = new Date(periodo.anio, periodo.mes - 1, diaTope)
     const diasParaTope = Math.ceil((fechaTope.getTime() - hoy.getTime()) / 86400000)
-    const debeRecordarLectura = forzar ||
+    const debeRecordarLectura = (forzar && !tipoForzado) ||
       (diasParaTope <= (config.avisar_lectura_dias_antes ?? 3) && diasParaTope >= -15)
 
     if (debeRecordarLectura) {
@@ -202,9 +206,15 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     // "ya se le mandó antes" — jamás debe saltarse el switch de ese tipo de
     // alerta en Configuración, o un envío manual de vencimiento terminaría
     // mandando también corte aunque esté apagado.
-    const debeAlertarVenc = config.alerta_no_pago && (forzar || (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento))
+    const debeAlertarVenc = config.alerta_no_pago && (
+      (forzar && (!tipoForzado || tipoForzado === 'vencimiento')) ||
+      (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento)
+    )
     // Enviar alerta de corte si faltan ≤ N días (configurable)
-    const debeAlertarCorte = config.alerta_corte && (forzar || (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0))
+    const debeAlertarCorte = config.alerta_corte && (
+      (forzar && (!tipoForzado || tipoForzado === 'corte')) ||
+      (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0)
+    )
 
     if (!debeAlertarVenc && !debeAlertarCorte) continue
 

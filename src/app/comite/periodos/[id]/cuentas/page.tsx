@@ -21,7 +21,7 @@ export default function CuentasPage() {
   const [form, setForm] = useState({ estado: '', monto_pagado: '', observaciones: '', fecha_pago: '' })
   const [guardando, setGuardando] = useState(false)
   const [filtro, setFiltro] = useState<EstadoCuenta | 'todos'>('todos')
-  const [enviandoAlertas, setEnviandoAlertas] = useState(false)
+  const [enviandoAlertas, setEnviandoAlertas] = useState<'vencimiento' | 'corte' | null>(null)
   const [mensaje, setMensaje] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
@@ -62,16 +62,18 @@ export default function CuentasPage() {
 
   const [pagosDe, setPagosDe] = useState<CuentaConParcela | null>(null)
 
-  async function enviarAlertas() {
-    setEnviandoAlertas(true)
+  async function enviarAlertas(tipo: 'vencimiento' | 'corte') {
+    const etiqueta = tipo === 'corte' ? 'de CORTE de suministro' : 'de vencimiento/no pago'
+    if (!confirm(`¿Enviar ahora el correo ${etiqueta} a todas las parcelas pendientes de este período? Esto no se puede deshacer.`)) return
+    setEnviandoAlertas(tipo)
     const res = await fetch('/api/cron/alertas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ periodo_id: id, forzar: true }),
+      body: JSON.stringify({ periodo_id: id, forzar: true, tipo }),
     })
     const data = await res.json()
-    setMensaje(res.ok ? `✅ ${data.enviados} correos enviados` : `Error: ${data.error}`)
-    setEnviandoAlertas(false)
+    setMensaje(res.ok ? `✅ ${data.enviados} correos ${etiqueta} enviados` : `Error: ${data.error}`)
+    setEnviandoAlertas(null)
   }
 
   const porEstado = filtro === 'todos' ? cuentas : cuentas.filter(c => c.estado === filtro)
@@ -99,13 +101,22 @@ export default function CuentasPage() {
           <h1 className="text-2xl font-bold">Cuentas y pagos</h1>
           {periodo && <p className="text-gray-500 text-sm">{meses[periodo.mes - 1]} {periodo.anio} — Total factura: ${periodo.monto_total_factura?.toLocaleString('es-CL')}</p>}
         </div>
-        <button
-          onClick={enviarAlertas}
-          disabled={enviandoAlertas}
-          className="bg-orange-500 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
-        >
-          {enviandoAlertas ? 'Enviando...' : '📧 Enviar alertas'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => enviarAlertas('vencimiento')}
+            disabled={!!enviandoAlertas}
+            className="bg-orange-500 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
+          >
+            {enviandoAlertas === 'vencimiento' ? 'Enviando...' : '📧 Enviar alertas de pago'}
+          </button>
+          <button
+            onClick={() => enviarAlertas('corte')}
+            disabled={!!enviandoAlertas}
+            className="bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+          >
+            {enviandoAlertas === 'corte' ? 'Enviando...' : '🚨 Enviar alertas de corte'}
+          </button>
+        </div>
       </div>
 
       {mensaje && <p className="mb-4 text-sm text-blue-700 bg-blue-50 rounded p-2">{mensaje}</p>}
