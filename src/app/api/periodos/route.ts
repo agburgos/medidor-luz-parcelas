@@ -42,6 +42,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Requerido para que las alertas automáticas (config_alertas) encuentren
+  // la configuración de esta comunidad — sin esto, caen en el default apagado.
+  const { data: comunidad } = await supabase.from('comunidades').select('id').limit(1).maybeSingle()
+
   const { data, error } = await supabase
     .from('periodos_facturacion')
     .insert({
@@ -51,6 +55,7 @@ export async function POST(req: NextRequest) {
       fecha_emision: fecha_emision || undefined,
       fecha_corte: fecha_corte || undefined,
       archivo_factura_url,
+      comunidad_id: comunidad?.id ?? null,
     })
     .select()
     .single()
