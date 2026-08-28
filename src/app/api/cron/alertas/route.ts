@@ -198,9 +198,13 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     const diasCorte = fechaCorte ? Math.ceil((fechaCorte.getTime() - hoy.getTime()) / 86400000) : null
 
     // Enviar alerta de vencimiento (no pago) si faltan ≤ N días (configurable) o ya venció
-    const debeAlertarVenc = (config.alerta_no_pago || forzar) && (forzar || (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento))
+    // "forzar" (botón manual del comité) solo salta la ventana de días y el
+    // "ya se le mandó antes" — jamás debe saltarse el switch de ese tipo de
+    // alerta en Configuración, o un envío manual de vencimiento terminaría
+    // mandando también corte aunque esté apagado.
+    const debeAlertarVenc = config.alerta_no_pago && (forzar || (diasVenc !== null && diasVenc <= config.dias_aviso_vencimiento))
     // Enviar alerta de corte si faltan ≤ N días (configurable)
-    const debeAlertarCorte = (config.alerta_corte || forzar) && (forzar || (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0))
+    const debeAlertarCorte = config.alerta_corte && (forzar || (diasCorte !== null && diasCorte <= config.dias_aviso_corte && diasCorte >= 0))
 
     if (!debeAlertarVenc && !debeAlertarCorte) continue
 
