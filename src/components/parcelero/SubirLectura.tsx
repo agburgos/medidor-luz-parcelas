@@ -127,14 +127,13 @@ export default function SubirLectura() {
             <div>
               <label className="block text-xs text-gray-600 mb-1">Lectura actual del medidor *</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={lectura}
-                onChange={e => setLectura(e.target.value)}
+                onChange={e => setLectura(e.target.value.replace(',', '.').replace(/[^0-9.]/g, ''))}
                 required
-                min={0}
-                step="0.01"
                 className="border rounded-lg px-3 py-2 text-lg font-medium w-36"
-                placeholder="Ej: 4125"
+                placeholder="Ej: 4125 o 148,6"
               />
             </div>
             {lectura !== '' && lectura_anterior != null && (
