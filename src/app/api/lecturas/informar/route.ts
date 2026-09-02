@@ -22,7 +22,7 @@ export async function GET() {
 
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
-    .select('id, mes, anio')
+    .select('id, mes, anio, notas')
     .eq('estado', 'abierto')
     .order('anio', { ascending: false })
     .order('mes', { ascending: false })

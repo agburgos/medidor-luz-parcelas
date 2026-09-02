@@ -6,7 +6,7 @@ import { comprimirImagen } from '@/lib/comprimirImagen'
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 interface Estado {
-  periodo: { id: string; mes: number; anio: number } | null
+  periodo: { id: string; mes: number; anio: number; notas: string | null } | null
   sin_empalme?: boolean
   fecha_tope?: string
   lectura_anterior?: number
@@ -84,6 +84,9 @@ export default function SubirLectura() {
       <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
         <div>
           <h2 className="font-bold text-lg">📸 Subir mi lectura — {nombrePeriodo}</h2>
+          {periodo.notas && (
+            <p className="text-sm text-blue-700 font-medium">ℹ️ {periodo.notas}</p>
+          )}
           {tope && (
             <p className={`text-sm ${vencido ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
               {vencido
