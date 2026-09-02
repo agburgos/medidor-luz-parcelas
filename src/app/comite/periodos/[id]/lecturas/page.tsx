@@ -174,9 +174,23 @@ export default function LecturasPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h1 className="text-2xl font-bold">Lecturas de medidores</h1>
-        <span className="text-sm text-gray-500">{completadas}/{filas.length} ingresadas</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">{completadas}/{filas.length} ingresadas</span>
+          <a
+            href="/api/reportes/lecturas-faltantes"
+            className="text-sm bg-orange-500 text-white rounded-lg px-3 py-1.5 font-medium hover:bg-orange-600"
+          >
+            ⬇️ PDF: lecturas faltantes
+          </a>
+          <a
+            href="/api/reportes/lecturas-faltantes?publico=1"
+            className="text-sm bg-gray-500 text-white rounded-lg px-3 py-1.5 font-medium hover:bg-gray-600"
+          >
+            ⬇️ PDF solo N° parcela (para el grupo)
+          </a>
+        </div>
       </div>
 
       {cerrado && (
