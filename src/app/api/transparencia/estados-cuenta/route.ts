@@ -13,7 +13,7 @@ export async function GET() {
     supabase.from('parcelas').select('id').eq('activa', true),
     supabase.from('cuentas_parcela').select('parcela_id, monto_prorrateado, monto_pagado'),
     supabase.from('cuentas_gc').select('parcela_id, monto, monto_pagado'),
-    supabase.from('moras_anteriores').select('parcela_id, monto, monto_pagado').neq('estado', 'pagado'),
+    supabase.from('moras_anteriores').select('parcela_id, monto, monto_pagado').not('estado', 'in', '(pagado,en_revision)'),
   ])
 
   type CLuz = { parcela_id: string; monto_prorrateado: number; monto_pagado: number }

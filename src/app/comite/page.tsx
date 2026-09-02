@@ -44,7 +44,7 @@ export default async function ComiteDashboard() {
       .limit(5),
     supabase.from('cuentas_parcela').select('monto_prorrateado, monto_pagado, periodo:periodos_facturacion(mes,anio)'),
     supabase.from('cuentas_gc').select('monto, monto_pagado, periodo:periodos_gc(mes,anio)'),
-    supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').neq('estado', 'pagado'),
+    supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').not('estado', 'in', '(pagado,en_revision)'),
     supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
     fetchCajaPromise,
     supabaseService.from('caja_saldos').select('saldo_final').order('fecha', { ascending: true }).limit(1).maybeSingle(),

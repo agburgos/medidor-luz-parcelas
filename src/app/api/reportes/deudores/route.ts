@@ -33,7 +33,7 @@ export async function GET() {
     supabase
       .from('moras_anteriores')
       .select('parcela_id, monto, monto_pagado')
-      .neq('estado', 'pagado'),
+      .not('estado', 'in', '(pagado,en_revision)'),
   ])
 
   type Cuenta = {

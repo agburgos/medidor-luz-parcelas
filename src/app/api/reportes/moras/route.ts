@@ -28,7 +28,7 @@ export async function GET() {
 
   const [{ data: parcelas }, { data: moras }, { data: cuentasPeriodo }] = await Promise.all([
     supabase.from('parcelas').select('id, numero, nombre_dueno').eq('activa', true).order('numero'),
-    supabase.from('moras_anteriores').select('parcela_id, monto, monto_pagado').neq('estado', 'pagado'),
+    supabase.from('moras_anteriores').select('parcela_id, monto, monto_pagado').not('estado', 'in', '(pagado,en_revision)'),
     ultimoPeriodo
       ? supabase.from('cuentas_parcela').select('parcela_id, monto_prorrateado, monto_pagado').eq('periodo_id', ultimoPeriodo.id)
       : Promise.resolve({ data: [] as { parcela_id: string; monto_prorrateado: number; monto_pagado: number }[] }),

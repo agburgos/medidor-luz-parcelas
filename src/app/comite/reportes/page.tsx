@@ -17,7 +17,7 @@ export default async function ReportesPage() {
     supabase
       .from('moras_anteriores')
       .select('*, parcela:parcelas(numero,nombre_dueno,telefono)')
-      .neq('estado', 'pagado'),
+      .not('estado', 'in', '(pagado,en_revision)'),
   ])
 
   type Cuenta = NonNullable<typeof cuentas>[number] & {
