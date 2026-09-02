@@ -208,6 +208,12 @@ export default function NavBar({
               ← Volver al panel comité
             </Link>
           )}
+          <Link
+            href="/cuenta/cambiar-password"
+            className="hidden md:block text-sm text-gray-500 hover:text-blue-700 transition-colors whitespace-nowrap"
+          >
+            🔑 Contraseña
+          </Link>
           <button
             onClick={logout}
             className="hidden md:block text-sm text-gray-500 hover:text-red-600 transition-colors whitespace-nowrap"
@@ -265,6 +271,13 @@ export default function NavBar({
               ))}
             </div>
           ))}
+            <Link
+              href="/cuenta/cambiar-password"
+              onClick={() => setMenuMovil(false)}
+              className="block px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 border-b"
+            >
+              🔑 Cambiar contraseña
+            </Link>
             <button
               onClick={logout}
               className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50"
