@@ -18,6 +18,7 @@ interface LecturaFila {
   error: string
   fotoSubidaUrl: string | null
   estadoValidacion: string | null
+  consumoAnteriorPeriodo: number | null
 }
 
 interface PeriodoInfo {
@@ -47,7 +48,7 @@ export default function LecturasPage() {
     fetch(`/api/periodos/${id}/lecturas-iniciales`)
       .then(r => r.json())
       .then(data => {
-        setFilas(data.filas.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean; foto_url: string | null; estado_validacion: string | null }) => ({
+        setFilas(data.filas.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean; foto_url: string | null; estado_validacion: string | null; consumo_anterior_periodo: number | null }) => ({
           parcela_id: p.parcela_id,
           numero: p.numero,
           nombre_dueno: p.nombre_dueno,
@@ -62,6 +63,7 @@ export default function LecturasPage() {
           error: '',
           fotoSubidaUrl: p.foto_url ?? null,
           estadoValidacion: p.estado_validacion ?? null,
+          consumoAnteriorPeriodo: p.consumo_anterior_periodo ?? null,
         })))
         setPeriodo(data.periodo)
         setFormFactura(f => ({
@@ -314,12 +316,20 @@ export default function LecturasPage() {
               <th className="text-right px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Lect. actual</th>
               <th className="text-right px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Consumo</th>
               <th className="px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Estado</th>
+              <th className="px-3 py-3 font-medium text-gray-600 whitespace-nowrap" title="Compara contra el consumo del último período con lectura normal">⚠️ Anómalo</th>
               <th className="px-3 py-3 font-medium text-gray-600 whitespace-nowrap">Foto + OCR</th>
             </tr>
           </thead>
           <tbody>
             {filas.map(fila => {
               const consumo = fila.lectura_actual !== '' ? Number(fila.lectura_actual) - fila.lectura_anterior : null
+              const base = fila.consumoAnteriorPeriodo
+              let anomalia: string | null = null
+              if (fila.estado === 'normal' && consumo != null && base != null && base >= 10) {
+                const ratio = consumo / base
+                if (ratio > 2.5) anomalia = `Subió x${ratio.toFixed(1)} vs. ${base} kWh anterior`
+                else if (ratio < 0.35) anomalia = `Bajó a ${Math.round(ratio * 100)}% de ${base} kWh anterior`
+              }
               return (
                 <tr key={fila.parcela_id} className={`border-t ${fila.guardado ? 'bg-green-50' : ''}`}>
                   <td className="px-3 py-2 font-medium">#{fila.numero}</td>
@@ -358,6 +368,15 @@ export default function LecturasPage() {
                       <option value="saldo_af">Saldo a favor</option>
                       <option value="desconectado">Desconectado</option>
                     </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    {anomalia ? (
+                      <span className="inline-block text-xs bg-red-100 text-red-700 rounded px-2 py-1 font-medium whitespace-nowrap" title={anomalia}>
+                        ⚠️ {anomalia}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
