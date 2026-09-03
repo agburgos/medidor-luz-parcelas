@@ -102,9 +102,9 @@ export default async function ParceleroLuzPage() {
   }
 
   type Mora = { id: string; descripcion: string; monto: number; monto_pagado: number; estado: string; fecha_origen: string | null }
-  const morasPendientes = ((moras ?? []) as Mora[]).filter(m => m.estado !== 'pagado')
+  const morasPendientes = ((moras ?? []) as Mora[]).filter(m => m.estado !== 'pagado' && m.estado !== 'en_revision')
   const deudaMoras = morasPendientes.reduce((s, m) => s + (Number(m.monto) - Number(m.monto_pagado)), 0)
-  const deudaCuentas = cuentasOrd.reduce((s, c) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
+  const deudaCuentas = cuentasOrd.filter(c => c.estado !== 'desconectado').reduce((s, c) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
   const deudaTotal = deudaCuentas + deudaMoras
   const consumoAcumulado = lecturasOrd.reduce((s, l) => s + (l.estado === 'normal' && l.consumo_kwh > 0 ? Number(l.consumo_kwh) : 0), 0)
 

@@ -101,9 +101,9 @@ export async function GET() {
     }
 
     const [{ data: cuentasLuz }, { data: cuentasGC }, { data: morasPend }, { data: anunciosRecientes }, { data: lecturasRechazadas }, { data: asambleas }] = await Promise.all([
-      supabase.from('cuentas_parcela').select('id, monto_prorrateado, monto_pagado, estado, periodo:periodos_facturacion(mes,anio,fecha_vencimiento)').eq('parcela_id', sesion.parcelaId).neq('estado', 'pagado'),
+      supabase.from('cuentas_parcela').select('id, monto_prorrateado, monto_pagado, estado, periodo:periodos_facturacion(mes,anio,fecha_vencimiento)').eq('parcela_id', sesion.parcelaId).not('estado', 'in', '(pagado,desconectado)'),
       supabase.from('cuentas_gc').select('id, monto, monto_pagado, estado, periodo:periodos_gc(mes,anio,fecha_vencimiento)').eq('parcela_id', sesion.parcelaId).neq('estado', 'pagado'),
-      supabase.from('moras_anteriores').select('id, descripcion, monto, monto_pagado, tipo').eq('parcela_id', sesion.parcelaId).neq('estado', 'pagado'),
+      supabase.from('moras_anteriores').select('id, descripcion, monto, monto_pagado, tipo').eq('parcela_id', sesion.parcelaId).not('estado', 'in', '(pagado,en_revision)'),
       supabase.from('anuncios').select('id, titulo, created_at').gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()).order('created_at', { ascending: false }),
       supabase.from('lecturas').select('id, motivo_rechazo, periodo:periodos_facturacion(mes,anio)').eq('parcela_id', sesion.parcelaId).eq('estado_validacion', 'rechazada'),
       supabase.from('asambleas').select('id, titulo, fecha, tipo').eq('estado', 'planificada').neq('tipo', 'directiva').gte('fecha', hoy.toISOString().slice(0, 10)).order('fecha', { ascending: true }).limit(3),

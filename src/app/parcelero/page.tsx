@@ -32,7 +32,7 @@ export default async function ParceleroDashboard() {
   const [{ data: cuentas }, { data: cuentaGC }, { data: moras }, { data: infoFija }, { data: documentos }] = await Promise.all([
     supabase
       .from('cuentas_parcela')
-      .select('monto_prorrateado, monto_pagado')
+      .select('monto_prorrateado, monto_pagado, estado')
       .eq('parcela_id', parcela.id),
     supabase
       .from('cuentas_gc')
@@ -56,9 +56,10 @@ export default async function ParceleroDashboard() {
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
-  const deudaLuz = (cuentas ?? []).reduce((s: number, c: { monto_prorrateado: number; monto_pagado: number }) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
+  const cuentasVigentes = (cuentas ?? []).filter((c: { estado?: string }) => c.estado !== 'desconectado')
+  const deudaLuz = cuentasVigentes.reduce((s: number, c: { monto_prorrateado: number; monto_pagado: number }) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
   const deudaGC = (cuentaGC ?? []).reduce((s: number, c: { monto: number; monto_pagado: number }) => s + Math.max(c.monto - c.monto_pagado, 0), 0)
-  const morasPendientes = (moras ?? []).filter((m: { estado: string }) => m.estado !== 'pagado')
+  const morasPendientes = (moras ?? []).filter((m: { estado: string }) => m.estado !== 'pagado' && m.estado !== 'en_revision')
   const deudaMoras = morasPendientes.reduce((s: number, m: { monto: number; monto_pagado: number }) => s + Math.max(Number(m.monto) - Number(m.monto_pagado), 0), 0)
   const deudaTotal = deudaLuz + deudaGC + deudaMoras
 
