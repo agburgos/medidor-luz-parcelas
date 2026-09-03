@@ -16,6 +16,8 @@ interface LecturaFila {
   confirmado: boolean
   guardado: boolean
   error: string
+  fotoSubidaUrl: string | null
+  estadoValidacion: string | null
 }
 
 interface PeriodoInfo {
@@ -45,7 +47,7 @@ export default function LecturasPage() {
     fetch(`/api/periodos/${id}/lecturas-iniciales`)
       .then(r => r.json())
       .then(data => {
-        setFilas(data.filas.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean }) => ({
+        setFilas(data.filas.map((p: { parcela_id: string; numero: number; nombre_dueno: string; lectura_anterior: number; lectura_actual: number | null; estado?: string; guardado: boolean; foto_url: string | null; estado_validacion: string | null }) => ({
           parcela_id: p.parcela_id,
           numero: p.numero,
           nombre_dueno: p.nombre_dueno,
@@ -58,6 +60,8 @@ export default function LecturasPage() {
           confirmado: p.guardado,
           guardado: p.guardado,
           error: '',
+          fotoSubidaUrl: p.foto_url ?? null,
+          estadoValidacion: p.estado_validacion ?? null,
         })))
         setPeriodo(data.periodo)
         setFormFactura(f => ({
@@ -357,6 +361,15 @@ export default function LecturasPage() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
+                      {fila.fotoSubidaUrl && (
+                        <a href={fila.fotoSubidaUrl} target="_blank" rel="noreferrer" title={fila.estadoValidacion === 'aprobada' ? 'Foto aprobada' : fila.estadoValidacion === 'pendiente' ? 'Foto pendiente de aprobar' : 'Foto subida'}>
+                          <img
+                            src={fila.fotoSubidaUrl}
+                            alt="Foto subida"
+                            className={`h-12 w-12 rounded border object-cover hover:opacity-80 ${fila.estadoValidacion === 'aprobada' ? 'border-green-400' : fila.estadoValidacion === 'pendiente' ? 'border-yellow-400' : 'border-gray-300'}`}
+                          />
+                        </a>
+                      )}
                       <input
                         ref={el => { fileRefs.current[fila.parcela_id] = el }}
                         type="file"

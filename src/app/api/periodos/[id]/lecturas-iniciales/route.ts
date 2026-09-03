@@ -18,10 +18,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Obtener las lecturas ya guardadas para este periodo
   const { data: lecturasExistentes } = await supabase
     .from('lecturas')
-    .select('parcela_id, lectura_actual, lectura_anterior, estado, confirmado')
+    .select('parcela_id, lectura_actual, lectura_anterior, estado, confirmado, foto_url, estado_validacion')
     .eq('periodo_id', id)
 
-  type LecturaExistente = { parcela_id: string; lectura_actual: number; lectura_anterior: number; estado: string; confirmado: boolean }
+  type LecturaExistente = { parcela_id: string; lectura_actual: number; lectura_anterior: number; estado: string; confirmado: boolean; foto_url: string | null; estado_validacion: string | null }
   const lecturasMap = new Map<string, LecturaExistente>(lecturasExistentes?.map((l: LecturaExistente) => [l.parcela_id, l]))
 
   // Obtener periodo anterior para tener lectura_anterior por defecto
@@ -73,6 +73,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       lectura_actual: existente?.lectura_actual ?? null,
       estado: existente?.estado ?? ultimosEstados.get(p.id) ?? 'normal',
       guardado: !!existente,
+      foto_url: existente?.foto_url ?? null,
+      estado_validacion: existente?.estado_validacion ?? null,
     }
   })
 
