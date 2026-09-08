@@ -13,6 +13,7 @@ export default function InformarPagoPage() {
   const cuentaPreseleccionada = searchParams.get('cuenta')
   const [aplicaA, setAplicaA] = useState<'luz' | 'gc' | 'ambos'>('luz')
   const [cuentaLuzId, setCuentaLuzId] = useState('')
+  const [pagarTodo, setPagarTodo] = useState(true)
   const [form, setForm] = useState({
     monto_luz: '', monto_gc: '',
     fecha: new Date().toISOString().slice(0, 10),
@@ -32,18 +33,32 @@ export default function InformarPagoPage() {
           ? cuentaPreseleccionada
           : pendientes[0].cuenta_id
         setCuentaLuzId(preseleccionada)
-        // El monto sugerido es el del PERÍODO elegido (su cuenta + su propia
-        // cuota, si tiene), no la suma de todos los períodos pendientes.
+        // Por defecto "Pagar todo" está marcado: si hay varios períodos
+        // pendientes, se sugiere la suma completa. Al desmarcarlo, queda solo
+        // el monto del período elegido.
         const elegida = pendientes.find(p => p.cuenta_id === preseleccionada)
-        if (elegida) setForm(f => ({ ...f, monto_luz: String(elegida.saldo) }))
+        const monto = pagarTodo ? data?.luz?.saldo : elegida?.saldo
+        if (monto != null) setForm(f => ({ ...f, monto_luz: String(monto) }))
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cuentaPreseleccionada])
 
   function elegirCuenta(id: string) {
     setCuentaLuzId(id)
+    if (pagarTodo) return // el monto ya es la suma total, no cambia según el período elegido
     const elegida = resumen?.luz?.pendientes?.find(p => p.cuenta_id === id)
     if (elegida) setForm(f => ({ ...f, monto_luz: String(elegida.saldo) }))
+  }
+
+  function togglePagarTodo(checked: boolean) {
+    setPagarTodo(checked)
+    if (checked) {
+      if (resumen?.luz?.saldo != null) setForm(f => ({ ...f, monto_luz: String(resumen.luz!.saldo) }))
+    } else {
+      const elegida = resumen?.luz?.pendientes?.find(p => p.cuenta_id === cuentaLuzId)
+      if (elegida) setForm(f => ({ ...f, monto_luz: String(elegida.saldo) }))
+    }
   }
 
   const pendienteSeleccionada = resumen?.luz?.pendientes?.find(p => p.cuenta_id === cuentaLuzId)
@@ -83,13 +98,11 @@ export default function InformarPagoPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {resumen.luz && (aplicaA === 'luz' || aplicaA === 'ambos') && (
             <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-yellow-900 mb-1">⚡ Luz — {pendienteSeleccionada?.etiqueta ?? resumen.luz.etiqueta}</p>
-              <p className="text-sm text-gray-700">Saldo de este período: <strong>{$(pendienteSeleccionada?.saldo ?? resumen.luz.saldo)}</strong></p>
-              {(resumen.luz.pendientes?.length ?? 0) > 1 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Tienes otros períodos pendientes además de este (total de todo: {$(resumen.luz.saldo)}) — infórmalos por separado, uno por comprobante.
-                </p>
-              )}
+              <p className="text-xs font-semibold text-yellow-900 mb-1">⚡ Luz — {pagarTodo ? resumen.luz.etiqueta : (pendienteSeleccionada?.etiqueta ?? resumen.luz.etiqueta)}</p>
+              <p className="text-sm text-gray-700">
+                {pagarTodo ? 'Deuda total de luz: ' : 'Saldo de este período: '}
+                <strong>{$(pagarTodo ? resumen.luz.saldo : (pendienteSeleccionada?.saldo ?? resumen.luz.saldo))}</strong>
+              </p>
               <p className="text-xs text-gray-500 mt-1">
                 Factura total {$(resumen.luz.totalFactura)} · recaudado por el macrolote {$(resumen.luz.recaudado)} · falta {resumen.luz.faltante > 0 ? $(resumen.luz.faltante) : '✓ cubierto'}
               </p>
@@ -129,7 +142,18 @@ export default function InformarPagoPage() {
           <div className="space-y-3">
             {resumen?.luz?.pendientes && resumen.luz.pendientes.length > 1 && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">¿A qué período corresponde este comprobante?</label>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={pagarTodo}
+                    onChange={e => togglePagarTodo(e.target.checked)}
+                    className="rounded"
+                  />
+                  Pagar todo (suma los {resumen.luz.pendientes.length} períodos pendientes)
+                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {pagarTodo ? 'Este comprobante cubre desde:' : '¿A qué período corresponde este comprobante?'}
+                </label>
                 <select
                   value={cuentaLuzId}
                   onChange={e => elegirCuenta(e.target.value)}
@@ -139,7 +163,11 @@ export default function InformarPagoPage() {
                     <option key={p.cuenta_id} value={p.cuenta_id}>{p.etiqueta} — saldo {$(p.saldo)}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Tienes {resumen.luz.pendientes.length} períodos de luz pendientes. Si subes varios comprobantes, indica cada vez a cuál corresponde.</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {pagarTodo
+                    ? 'Desmarca "Pagar todo" si tu comprobante es solo por un período.'
+                    : `Tienes ${resumen.luz.pendientes.length} períodos de luz pendientes. Si subes varios comprobantes, indica cada vez a cuál corresponde.`}
+                </p>
               </div>
             )}
             <div>
