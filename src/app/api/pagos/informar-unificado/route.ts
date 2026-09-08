@@ -50,13 +50,19 @@ export async function POST(req: NextRequest) {
   const resultado: { luz?: string; gc?: string } = {}
 
   if (incluyeLuz) {
-    const { data: cuenta } = await supabase
+    // Se aplica a la cuenta de luz pendiente MÁS ANTIGUA (no la más reciente):
+    // si hay más de un período abierto sin pagar a la vez, el pago debe cubrir
+    // la deuda más vieja primero.
+    type CuentaPendiente = { id: string; monto_prorrateado: number; monto_pagado: number }
+    const { data: cuentasPendientesRaw } = await supabase
       .from('cuentas_parcela')
-      .select('id, periodo:periodos_facturacion(mes,anio)')
+      .select('id, monto_prorrateado, monto_pagado, periodo:periodos_facturacion(mes,anio)')
       .eq('parcela_id', sesion.parcelaId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .neq('estado', 'desconectado')
+      .order('created_at', { ascending: true })
+    const cuentasPendientes = (cuentasPendientesRaw ?? []) as unknown as CuentaPendiente[]
+    const cuenta = cuentasPendientes.find(c => c.monto_prorrateado - c.monto_pagado > 0)
+      ?? cuentasPendientes[cuentasPendientes.length - 1]
     if (!cuenta) return NextResponse.json({ error: 'No tienes cuentas de luz generadas aún' }, { status: 400 })
 
     const url = await subirComprobante('luz')

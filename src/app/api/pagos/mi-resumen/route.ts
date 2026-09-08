@@ -10,14 +10,13 @@ export async function GET() {
 
   const supabase = createServiceClient()
 
-  const [{ data: cuentaLuz }, { data: cuentaGC }] = await Promise.all([
+  const [{ data: cuentasLuz }, { data: cuentaGC }] = await Promise.all([
     supabase
       .from('cuentas_parcela')
       .select('id, monto_prorrateado, monto_pagado, estado, periodo_id, periodo:periodos_facturacion(mes,anio,monto_total_factura)')
       .eq('parcela_id', sesion.parcelaId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .neq('estado', 'desconectado')
+      .order('created_at', { ascending: true }),
     supabase
       .from('cuentas_gc')
       .select('id, monto, monto_pagado, estado, periodo_gc_id, periodo:periodos_gc(mes,anio,valor_mensual)')
@@ -27,18 +26,29 @@ export async function GET() {
       .maybeSingle(),
   ])
 
+  type CuentaLuz = { id: string; monto_prorrateado: number; monto_pagado: number; estado: string; periodo_id: string; periodo: { mes: number; anio: number; monto_total_factura: number } }
+  const todas = (cuentasLuz ?? []) as unknown as CuentaLuz[]
+  const pendientes = todas.filter(c => c.monto_prorrateado - c.monto_pagado > 0)
+
   let luz = null
-  if (cuentaLuz) {
-    const periodo = cuentaLuz.periodo as unknown as { mes: number; anio: number; monto_total_factura: number }
+  if (pendientes.length > 0) {
+    // La más antigua sin pagar es la que se muestra como referencia principal y
+    // a la que se aplica el próximo pago informado, pero el saldo sumado incluye
+    // TODOS los períodos pendientes (puede haber más de uno abierto a la vez).
+    const masAntigua = pendientes[0]
+    const periodo = masAntigua.periodo
     const { data: todasCuentasPeriodo } = await supabase
       .from('cuentas_parcela')
       .select('monto_pagado')
-      .eq('periodo_id', cuentaLuz.periodo_id)
+      .eq('periodo_id', masAntigua.periodo_id)
     const recaudado = (todasCuentasPeriodo ?? []).reduce((s: number, c: { monto_pagado: number }) => s + Number(c.monto_pagado), 0)
+    const saldoTotal = pendientes.reduce((s, c) => s + (c.monto_prorrateado - c.monto_pagado), 0)
     luz = {
-      etiqueta: periodo ? `${meses[periodo.mes - 1]} ${periodo.anio}` : null,
-      saldo: Math.max(cuentaLuz.monto_prorrateado - cuentaLuz.monto_pagado, 0),
-      estado: cuentaLuz.estado,
+      etiqueta: pendientes.length > 1
+        ? `${meses[periodo.mes - 1]} ${periodo.anio} + ${pendientes.length - 1} período${pendientes.length > 2 ? 's' : ''} más`
+        : (periodo ? `${meses[periodo.mes - 1]} ${periodo.anio}` : null),
+      saldo: saldoTotal,
+      estado: masAntigua.estado,
       totalFactura: periodo?.monto_total_factura ?? 0,
       recaudado,
       faltante: Math.max((periodo?.monto_total_factura ?? 0) - recaudado, 0),
