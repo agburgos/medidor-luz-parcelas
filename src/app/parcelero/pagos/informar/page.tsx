@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface PendienteLuz { cuenta_id: string; etiqueta: string; saldo: number }
 interface ResumenLuz { etiqueta: string | null; saldo: number; estado: string; totalFactura: number; recaudado: number; faltante: number; pendientes?: PendienteLuz[] }
@@ -9,6 +9,8 @@ interface ResumenGC { etiqueta: string | null; saldo: number; estado: string }
 
 export default function InformarPagoPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const cuentaPreseleccionada = searchParams.get('cuenta')
   const [aplicaA, setAplicaA] = useState<'luz' | 'gc' | 'ambos'>('luz')
   const [cuentaLuzId, setCuentaLuzId] = useState('')
   const [form, setForm] = useState({
@@ -24,9 +26,17 @@ export default function InformarPagoPage() {
   useEffect(() => {
     fetch('/api/pagos/mi-resumen').then(r => r.json()).then(data => {
       setResumen(data)
-      if (data?.luz?.pendientes?.length > 1) setCuentaLuzId(data.luz.pendientes[0].cuenta_id)
+      const pendientes: PendienteLuz[] = data?.luz?.pendientes ?? []
+      if (pendientes.length > 1) {
+        const preseleccionada = cuentaPreseleccionada && pendientes.some(p => p.cuenta_id === cuentaPreseleccionada)
+          ? cuentaPreseleccionada
+          : pendientes[0].cuenta_id
+        setCuentaLuzId(preseleccionada)
+        const encontrada = pendientes.find(p => p.cuenta_id === preseleccionada)
+        if (encontrada) setForm(f => ({ ...f, monto_luz: String(encontrada.saldo) }))
+      }
     })
-  }, [])
+  }, [cuentaPreseleccionada])
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 

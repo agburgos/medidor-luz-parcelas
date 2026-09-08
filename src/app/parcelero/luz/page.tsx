@@ -80,25 +80,28 @@ export default async function ParceleroLuzPage() {
       .eq('parcela_id', parcela.id),
   ])
 
-  const cuentaActual = cuentasOrd[0]
   const hoy = new Date()
-  const diasVencimiento = cuentaActual?.periodo?.fecha_vencimiento
-    ? Math.ceil((new Date(cuentaActual.periodo.fecha_vencimiento).getTime() - hoy.getTime()) / 86400000)
+  const diasVencimientoDe = (c: Cuenta) => c.periodo?.fecha_vencimiento
+    ? Math.ceil((new Date(c.periodo.fecha_vencimiento).getTime() - hoy.getTime()) / 86400000)
     : null
 
-  // Transparencia: cuánto se ha recaudado en total del período actual vs. la factura real
-  let transparenciaLuz: { totalFactura: number; recaudado: number; faltante: number } | null = null
-  if (cuentaActual) {
+  // Todos los períodos con saldo pendiente (puede haber más de uno abierto a la vez)
+  const cuentasPendientes = cuentasOrd.filter(c => c.estado !== 'desconectado' && c.monto_prorrateado - c.monto_pagado > 0)
+  const cuentaActual = cuentasOrd[0]
+
+  // Transparencia por cada período pendiente: cuánto se ha recaudado del macrolote vs. la factura real
+  const transparenciaPorCuenta = new Map<string, { totalFactura: number; recaudado: number; faltante: number }>()
+  for (const c of cuentasPendientes) {
     const { data: todasCuentasPeriodo } = await supabase
       .from('cuentas_parcela')
       .select('monto_pagado')
-      .eq('periodo_id', cuentaActual.periodo_id)
-    const recaudado = (todasCuentasPeriodo ?? []).reduce((s: number, c: { monto_pagado: number }) => s + Number(c.monto_pagado), 0)
-    transparenciaLuz = {
-      totalFactura: cuentaActual.periodo.monto_total_factura,
+      .eq('periodo_id', c.periodo_id)
+    const recaudado = (todasCuentasPeriodo ?? []).reduce((s: number, x: { monto_pagado: number }) => s + Number(x.monto_pagado), 0)
+    transparenciaPorCuenta.set(c.id, {
+      totalFactura: c.periodo.monto_total_factura,
       recaudado,
-      faltante: Math.max(cuentaActual.periodo.monto_total_factura - recaudado, 0),
-    }
+      faltante: Math.max(c.periodo.monto_total_factura - recaudado, 0),
+    })
   }
 
   type Mora = { id: string; descripcion: string; monto: number; monto_pagado: number; estado: string; fecha_origen: string | null }
@@ -146,79 +149,96 @@ export default async function ParceleroLuzPage() {
         </div>
       </div>
 
-      {/* Cuenta del período actual */}
-      {cuentaActual && (
-        <div className={`rounded-xl border p-5 mb-6 ${cuentaActual.estado === 'mora' ? 'border-red-300 bg-red-50' : cuentaActual.estado === 'pagado' ? 'border-green-300 bg-green-50' : 'bg-white'}`}>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">
-                Período actual: {meses[cuentaActual.periodo.mes - 1]} {cuentaActual.periodo.anio}
-              </p>
-              <p className="text-3xl font-bold">{$(cuentaActual.monto_prorrateado)}</p>
-              <div className="text-sm text-gray-500 mt-2 space-y-0.5">
-                <p>Consumo: {$(cuentaActual.monto_consumo ?? 0)} · Cargo fijo: {$(cuentaActual.monto_cargo_fijo ?? 0)}</p>
-                {cuentaActual.monto_pagado > 0 && (
-                  <p>Pagado: {$(cuentaActual.monto_pagado)} · Saldo: <strong className="text-red-600">{$(Math.max(cuentaActual.monto_prorrateado - cuentaActual.monto_pagado, 0))}</strong></p>
+      {/* Períodos pendientes de pago — uno por cada período abierto, no solo el más reciente */}
+      {cuentasPendientes.length > 0 && (
+        <div className="space-y-4 mb-6">
+          {cuentasPendientes.length > 1 && (
+            <p className="text-sm text-orange-600 font-medium">⚠️ Tienes {cuentasPendientes.length} períodos de luz pendientes de pago — puedes pagarlos por separado.</p>
+          )}
+          {cuentasPendientes.map(c => {
+            const diasVencimiento = diasVencimientoDe(c)
+            const transparencia = transparenciaPorCuenta.get(c.id)
+            return (
+              <div key={c.id}>
+                <div className={`rounded-xl border p-5 ${c.estado === 'mora' ? 'border-red-300 bg-red-50' : 'bg-white'}`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">
+                        Período: {meses[c.periodo.mes - 1]} {c.periodo.anio}
+                      </p>
+                      <p className="text-3xl font-bold">{$(c.monto_prorrateado)}</p>
+                      <div className="text-sm text-gray-500 mt-2 space-y-0.5">
+                        <p>Consumo: {$(c.monto_consumo ?? 0)} · Cargo fijo: {$(c.monto_cargo_fijo ?? 0)}</p>
+                        {c.monto_pagado > 0 && (
+                          <p>Pagado: {$(c.monto_pagado)} · Saldo: <strong className="text-red-600">{$(Math.max(c.monto_prorrateado - c.monto_pagado, 0))}</strong></p>
+                        )}
+                      </div>
+                    </div>
+                    <EstadoBadge estado={c.estado} />
+                  </div>
+                  <div className="mt-3 flex gap-6 text-sm">
+                    {c.periodo.fecha_vencimiento && (
+                      <div>
+                        <span className="text-gray-500">Vencimiento: </span>
+                        <span className={`font-medium ${diasVencimiento != null && diasVencimiento <= 3 ? 'text-red-600' : ''}`}>
+                          {new Date(c.periodo.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL')}
+                          {diasVencimiento != null && diasVencimiento >= 0 && diasVencimiento <= 15 && (
+                            <span className="ml-1 text-orange-600">(quedan {diasVencimiento} días)</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {c.periodo.fecha_corte && (
+                      <div>
+                        <span className="text-gray-500">Posible corte: </span>
+                        <span className="font-medium text-red-600">
+                          {new Date(c.periodo.fecha_corte + 'T00:00:00').toLocaleDateString('es-CL')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <Link href={`/parcelero/pagos/informar?cuenta=${c.id}`} className="inline-block mt-4 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
+                    💸 Informar un pago
+                  </Link>
+                </div>
+
+                {/* Transparencia de este período */}
+                {transparencia && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mt-2">
+                    <h2 className="text-sm font-semibold text-blue-900 mb-3">🔍 Transparencia — {meses[c.periodo.mes - 1]} {c.periodo.anio}</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-500">Valor factura total</p>
+                        <p className="font-bold text-lg">{$(transparencia.totalFactura)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Recaudado por el macrolote</p>
+                        <p className="font-bold text-lg text-green-700">{$(transparencia.recaudado)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">Falta por recaudar</p>
+                        <p className={`font-bold text-lg ${transparencia.faltante > 0 ? 'text-red-600' : 'text-green-600'}`}>{transparencia.faltante > 0 ? $(transparencia.faltante) : '✓ Cubierto'}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-3">
+                      Costo por kWh este período: <strong>${c.periodo.costo_unitario_kwh}</strong> · Cargo fijo: <strong>{$(c.periodo.cargo_fijo)}</strong>
+                    </p>
+                    {c.periodo.archivo_factura_url && (
+                      <a href={c.periodo.archivo_factura_url} target="_blank" rel="noreferrer" className="inline-block mt-2 text-sm text-blue-700 hover:underline">
+                        📄 Ver la factura original de IEL
+                      </a>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
-            <EstadoBadge estado={cuentaActual.estado} />
-          </div>
-          <div className="mt-3 flex gap-6 text-sm">
-            {cuentaActual.periodo.fecha_vencimiento && (
-              <div>
-                <span className="text-gray-500">Vencimiento: </span>
-                <span className={`font-medium ${diasVencimiento != null && diasVencimiento <= 3 ? 'text-red-600' : ''}`}>
-                  {new Date(cuentaActual.periodo.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL')}
-                  {diasVencimiento != null && diasVencimiento >= 0 && diasVencimiento <= 15 && (
-                    <span className="ml-1 text-orange-600">(quedan {diasVencimiento} días)</span>
-                  )}
-                </span>
-              </div>
-            )}
-            {cuentaActual.periodo.fecha_corte && cuentaActual.estado !== 'pagado' && (
-              <div>
-                <span className="text-gray-500">Posible corte: </span>
-                <span className="font-medium text-red-600">
-                  {new Date(cuentaActual.periodo.fecha_corte + 'T00:00:00').toLocaleDateString('es-CL')}
-                </span>
-              </div>
-            )}
-          </div>
-          {cuentaActual.estado !== 'pagado' && (
-            <Link href="/parcelero/pagos/informar" className="inline-block mt-4 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700">
-              💸 Informar un pago
-            </Link>
-          )}
+            )
+          })}
         </div>
       )}
-
-      {/* Transparencia: cuadre real con la factura de IEL */}
-      {transparenciaLuz && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-6">
-          <h2 className="text-sm font-semibold text-blue-900 mb-3">🔍 Transparencia — {meses[cuentaActual.periodo.mes - 1]} {cuentaActual.periodo.anio}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-            <div>
-              <p className="text-gray-500">Valor factura total</p>
-              <p className="font-bold text-lg">{$(transparenciaLuz.totalFactura)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Recaudado por el macrolote</p>
-              <p className="font-bold text-lg text-green-700">{$(transparenciaLuz.recaudado)}</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Falta por recaudar</p>
-              <p className={`font-bold text-lg ${transparenciaLuz.faltante > 0 ? 'text-red-600' : 'text-green-600'}`}>{transparenciaLuz.faltante > 0 ? $(transparenciaLuz.faltante) : '✓ Cubierto'}</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 mt-3">
-            Costo por kWh este período: <strong>${cuentaActual.periodo.costo_unitario_kwh}</strong> · Cargo fijo: <strong>{$(cuentaActual.periodo.cargo_fijo)}</strong>
-          </p>
-          {cuentaActual.periodo.archivo_factura_url && (
-            <a href={cuentaActual.periodo.archivo_factura_url} target="_blank" rel="noreferrer" className="inline-block mt-2 text-sm text-blue-700 hover:underline">
-              📄 Ver la factura original de IEL
-            </a>
-          )}
+      {cuentasPendientes.length === 0 && cuentaActual && (
+        <div className="rounded-xl border p-5 mb-6 border-green-300 bg-green-50">
+          <p className="text-sm text-gray-500 mb-1">Período: {meses[cuentaActual.periodo.mes - 1]} {cuentaActual.periodo.anio}</p>
+          <p className="text-2xl font-bold text-green-700">Al día ✓</p>
         </div>
       )}
 
