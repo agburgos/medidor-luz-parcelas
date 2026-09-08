@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface PendienteLuz { cuenta_id: string; etiqueta: string; saldo: number }
-interface ResumenLuz { etiqueta: string | null; saldo: number; estado: string; totalFactura: number; recaudado: number; faltante: number; pendientes?: PendienteLuz[] }
+interface ResumenLuz { etiqueta: string | null; saldo: number; saldoCuentas: number; deudaMoras: number; estado: string; totalFactura: number; recaudado: number; faltante: number; pendientes?: PendienteLuz[] }
 interface ResumenGC { etiqueta: string | null; saldo: number; estado: string }
 
 export default function InformarPagoPage() {
@@ -32,9 +32,10 @@ export default function InformarPagoPage() {
           ? cuentaPreseleccionada
           : pendientes[0].cuenta_id
         setCuentaLuzId(preseleccionada)
-        const encontrada = pendientes.find(p => p.cuenta_id === preseleccionada)
-        if (encontrada) setForm(f => ({ ...f, monto_luz: String(encontrada.saldo) }))
       }
+      // El monto sugerido es el saldo COMPLETO (cuenta(s) + deudas anteriores):
+      // el comprobante debe subirse por el total, no solo por la cuenta del período.
+      if (data?.luz?.saldo) setForm(f => ({ ...f, monto_luz: String(data.luz.saldo) }))
     })
   }, [cuentaPreseleccionada])
 
@@ -75,6 +76,11 @@ export default function InformarPagoPage() {
             <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
               <p className="text-xs font-semibold text-yellow-900 mb-1">⚡ Luz — {resumen.luz.etiqueta}</p>
               <p className="text-sm text-gray-700">Tu saldo pendiente: <strong>{$(resumen.luz.saldo)}</strong></p>
+              {resumen.luz.deudaMoras > 0 && (
+                <p className="text-xs text-red-600 mt-1">
+                  Incluye {$(resumen.luz.saldoCuentas)} de cuenta(s) del período + <strong>{$(resumen.luz.deudaMoras)}</strong> de deudas anteriores (repactación u otras). Sube el comprobante por el total.
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Factura total {$(resumen.luz.totalFactura)} · recaudado por el macrolote {$(resumen.luz.recaudado)} · falta {resumen.luz.faltante > 0 ? $(resumen.luz.faltante) : '✓ cubierto'}
               </p>
