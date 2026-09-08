@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { comprimirImagen } from '@/lib/comprimirImagen'
+import { rangoFechasPeriodo } from '@/lib/periodos'
 
 const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -84,6 +85,7 @@ export default function SubirLectura() {
       <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
         <div>
           <h2 className="font-bold text-lg">📸 Subir mi lectura — {nombrePeriodo}</h2>
+          <p className="text-xs text-gray-500">Consumo entre {rangoFechasPeriodo(periodo.mes, periodo.anio)}</p>
           {periodo.notas && (
             <p className="text-sm text-blue-700 font-medium">ℹ️ {periodo.notas}</p>
           )}

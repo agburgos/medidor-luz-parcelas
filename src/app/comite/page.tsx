@@ -49,13 +49,16 @@ export default async function ComiteDashboard() {
     fetchCajaPromise,
     supabaseService.from('caja_saldos').select('saldo_final').order('fecha', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('incidencias').select('*', { count: 'exact', head: true }).in('estado', ['activa', 'investigando']),
-    // Salud de TODOS los períodos de luz abiertos (puede haber más de uno)
+    // Salud de los períodos de luz "activos": los que aún están abiertos para
+    // lectura Y los que ya se cerraron pero todavía se están recaudando
+    // (prorrateo calculado, puede tener saldo pendiente) — no solo el abierto.
     supabase
       .from('periodos_facturacion')
       .select('*')
-      .eq('estado', 'abierto')
+      .or('estado.eq.abierto,prorrateo_calculado.eq.true')
       .order('anio', { ascending: false })
-      .order('mes', { ascending: false }),
+      .order('mes', { ascending: false })
+      .limit(6),
   ])
 
   const periodoActivo = periodos?.find(p => p.estado === 'abierto')
@@ -191,7 +194,7 @@ export default async function ComiteDashboard() {
       {saludPeriodos.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">🩺 Salud de los períodos abiertos</h2>
+            <h2 className="text-lg font-semibold">🩺 Salud de los períodos (recaudación en curso)</h2>
             {incidenciasAbiertas! > 0 && (
               <Link href="/comite/incidencias" className="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-medium hover:bg-red-200">
                 🚨 {incidenciasAbiertas} incidencia{incidenciasAbiertas !== 1 ? 's' : ''} abierta{incidenciasAbiertas !== 1 ? 's' : ''}
