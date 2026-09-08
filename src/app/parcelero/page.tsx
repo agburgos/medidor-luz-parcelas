@@ -29,7 +29,7 @@ export default async function ParceleroDashboard() {
     )
   }
 
-  const [{ data: cuentas }, { data: cuentaGC }, { data: moras }, { data: infoFija }, { data: documentos }] = await Promise.all([
+  const [{ data: cuentas }, { data: cuentaGC }, { data: moras }, { data: infoFija }, { data: asambleasDirectiva }] = await Promise.all([
     supabase
       .from('cuentas_parcela')
       .select('monto_prorrateado, monto_pagado, estado')
@@ -48,11 +48,24 @@ export default async function ParceleroDashboard() {
       .order('created_at', { ascending: false })
       .limit(3),
     supabase
-      .from('documentos')
-      .select('id, nombre, categoria, archivo_url, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5),
+      .from('asambleas')
+      .select('id')
+      .eq('tipo', 'directiva'),
   ])
+
+  // Nunca mostrar documentos ligados a una asamblea de directiva (privada) —
+  // mismo filtro que ya aplica /api/documentos para el resto de la app.
+  // Filtrado en JS (no en la query) para no toparse con el problema de NULL
+  // IN/NOT IN de Postgres, que excluiría por error los documentos sin asamblea.
+  const idsAsambleaDirectiva = new Set((asambleasDirectiva ?? []).map((a: { id: string }) => a.id))
+  const { data: documentosRaw } = await supabase
+    .from('documentos')
+    .select('id, nombre, categoria, archivo_url, created_at, asamblea_id')
+    .order('created_at', { ascending: false })
+    .limit(20)
+  const documentos = (documentosRaw ?? [])
+    .filter((d: { asamblea_id: string | null }) => !d.asamblea_id || !idsAsambleaDirectiva.has(d.asamblea_id))
+    .slice(0, 5)
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
