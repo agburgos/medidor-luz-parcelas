@@ -176,6 +176,22 @@ export default async function ParceleroLuzPage() {
                     </div>
                     <EstadoBadge estado={c.estado} />
                   </div>
+                  {deudaMoras > 0 && (
+                    <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+                      <div className="flex justify-between text-gray-700">
+                        <span>Deuda de luz de {meses[c.periodo.mes - 1]}</span>
+                        <span>{$(Math.max(c.monto_prorrateado - c.monto_pagado, 0))}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Cuotas pactadas / deuda de períodos anteriores</span>
+                        <span>{$(deudaMoras)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-orange-800 border-t border-orange-200 mt-1 pt-1">
+                        <span>Total a pagar</span>
+                        <span>{$(Math.max(c.monto_prorrateado - c.monto_pagado, 0) + deudaMoras)}</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-3 flex gap-6 text-sm">
                     {c.periodo.fecha_vencimiento && (
                       <div>
