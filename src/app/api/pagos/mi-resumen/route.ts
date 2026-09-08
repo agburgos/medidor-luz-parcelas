@@ -26,25 +26,47 @@ export async function GET() {
       .maybeSingle(),
     supabase
       .from('moras_anteriores')
-      .select('id, descripcion, monto, monto_pagado, estado')
+      .select('id, descripcion, monto, monto_pagado, estado, fecha_origen')
       .eq('parcela_id', sesion.parcelaId)
       .eq('tipo', 'luz')
       .not('estado', 'in', '(pagado,en_revision)'),
   ])
 
-  const deudaMoras = (morasLuz ?? []).reduce((s: number, m: { monto: number; monto_pagado: number }) => s + (Number(m.monto) - Number(m.monto_pagado)), 0)
+  type MoraLuz = { id: string; monto: number; monto_pagado: number; fecha_origen: string | null }
+  const morasPendientes = (morasLuz ?? []) as unknown as MoraLuz[]
+  const saldoDe = (m: MoraLuz) => Number(m.monto) - Number(m.monto_pagado)
 
   type CuentaLuz = { id: string; monto_prorrateado: number; monto_pagado: number; estado: string; periodo_id: string; periodo: { mes: number; anio: number; monto_total_factura: number } }
   const todas = (cuentasLuz ?? []) as unknown as CuentaLuz[]
   const pendientes = todas.filter(c => c.monto_prorrateado - c.monto_pagado > 0)
 
+  // La cuota que corresponde a cada período es la mora cuya fecha_origen cae en
+  // el mismo mes/año de ese período (p. ej. la cuota de julio de una repactación
+  // solo se suma a la cuenta de julio, no a todas). Las moras sin fecha_origen,
+  // o cuyo mes no calza con ningún período pendiente, quedan como "otras deudas".
+  const cuotaDelPeriodo = (c: CuentaLuz) => morasPendientes
+    .filter(m => {
+      if (!m.fecha_origen) return false
+      const f = new Date(m.fecha_origen + 'T00:00:00')
+      return f.getMonth() + 1 === c.periodo.mes && f.getFullYear() === c.periodo.anio
+    })
+    .reduce((s, m) => s + saldoDe(m), 0)
+  const idsAsignadas = new Set(
+    pendientes.flatMap(c => morasPendientes.filter(m => {
+      if (!m.fecha_origen) return false
+      const f = new Date(m.fecha_origen + 'T00:00:00')
+      return f.getMonth() + 1 === c.periodo.mes && f.getFullYear() === c.periodo.anio
+    }).map(m => m.id))
+  )
+  const otrasDeudas = morasPendientes.filter(m => !idsAsignadas.has(m.id)).reduce((s, m) => s + saldoDe(m), 0)
+
   let luz = null
-  if (pendientes.length > 0 || deudaMoras > 0) {
+  if (pendientes.length > 0 || otrasDeudas > 0) {
     // La más antigua sin pagar es la que se muestra como referencia principal y
     // a la que se aplica el próximo pago informado, pero el saldo sumado incluye
     // TODOS los períodos pendientes (puede haber más de uno abierto a la vez)
-    // MÁS las deudas anteriores (moras, repactaciones, etc.) — el parcelero sube
-    // un solo comprobante que debe cubrir todo junto.
+    // MÁS las cuotas/deudas correspondientes — el parcelero sube un solo
+    // comprobante que debe cubrir la cuenta de ese período + su cuota, si tiene.
     const masAntigua = pendientes[0]
     const periodo = masAntigua?.periodo
     let recaudado = 0
@@ -56,6 +78,7 @@ export async function GET() {
       recaudado = (todasCuentasPeriodo ?? []).reduce((s: number, c: { monto_pagado: number }) => s + Number(c.monto_pagado), 0)
     }
     const saldoCuentas = pendientes.reduce((s, c) => s + (c.monto_prorrateado - c.monto_pagado), 0)
+    const deudaMoras = pendientes.reduce((s, c) => s + cuotaDelPeriodo(c), 0) + otrasDeudas
     const saldoTotal = saldoCuentas + deudaMoras
     const etiquetaPeriodos = periodo ? `${meses[periodo.mes - 1]} ${periodo.anio}` : null
     luz = {
@@ -72,7 +95,7 @@ export async function GET() {
       pendientes: pendientes.map(c => ({
         cuenta_id: c.id,
         etiqueta: `${meses[c.periodo.mes - 1]} ${c.periodo.anio}`,
-        saldo: c.monto_prorrateado - c.monto_pagado,
+        saldo: c.monto_prorrateado - c.monto_pagado + cuotaDelPeriodo(c),
       })),
     }
   }

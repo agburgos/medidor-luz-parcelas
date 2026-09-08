@@ -109,6 +109,18 @@ export default async function ParceleroLuzPage() {
   const deudaMoras = morasPendientes.reduce((s, m) => s + (Number(m.monto) - Number(m.monto_pagado)), 0)
   const deudaCuentas = cuentasOrd.filter(c => c.estado !== 'desconectado').reduce((s, c) => s + Math.max(c.monto_prorrateado - c.monto_pagado, 0), 0)
   const deudaTotal = deudaCuentas + deudaMoras
+
+  // Cuota de la mora que corresponde a CADA período (por fecha_origen mes/año) —
+  // no la suma total de todas las cuotas, para no repetir el mismo total en
+  // cada tarjeta. Las moras sin fecha_origen (deuda histórica genérica) no se
+  // asignan a ningún mes específico; se ven solo en la tabla de abajo.
+  const deudaDelMes = (c: Cuenta) => morasPendientes
+    .filter(m => {
+      if (!m.fecha_origen) return false
+      const f = new Date(m.fecha_origen + 'T00:00:00')
+      return f.getMonth() + 1 === c.periodo.mes && f.getFullYear() === c.periodo.anio
+    })
+    .reduce((s, m) => s + (Number(m.monto) - Number(m.monto_pagado)), 0)
   const consumoAcumulado = lecturasOrd.reduce((s, l) => s + (l.estado === 'normal' && l.consumo_kwh > 0 ? Number(l.consumo_kwh) : 0), 0)
 
   // Datos para gráfico: últimos 12 períodos, orden cronológico
@@ -176,19 +188,19 @@ export default async function ParceleroLuzPage() {
                     </div>
                     <EstadoBadge estado={c.estado} />
                   </div>
-                  {deudaMoras > 0 && (
+                  {deudaDelMes(c) > 0 && (
                     <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
                       <div className="flex justify-between text-gray-700">
                         <span>Deuda de luz de {meses[c.periodo.mes - 1]}</span>
                         <span>{$(Math.max(c.monto_prorrateado - c.monto_pagado, 0))}</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
-                        <span>Cuotas pactadas / deuda de períodos anteriores</span>
-                        <span>{$(deudaMoras)}</span>
+                        <span>Cuota pactada de este mes</span>
+                        <span>{$(deudaDelMes(c))}</span>
                       </div>
                       <div className="flex justify-between font-bold text-orange-800 border-t border-orange-200 mt-1 pt-1">
                         <span>Total a pagar</span>
-                        <span>{$(Math.max(c.monto_prorrateado - c.monto_pagado, 0) + deudaMoras)}</span>
+                        <span>{$(Math.max(c.monto_prorrateado - c.monto_pagado, 0) + deudaDelMes(c))}</span>
                       </div>
                     </div>
                   )}
