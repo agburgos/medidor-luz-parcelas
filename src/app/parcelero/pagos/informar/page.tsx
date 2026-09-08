@@ -157,23 +157,38 @@ export default function InformarPagoPage() {
                   />
                   Pagar todo (suma los {resumen.luz.pendientes.length} períodos pendientes)
                 </label>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {pagarTodo ? 'Este comprobante cubre desde:' : '¿A qué período corresponde este comprobante?'}
-                </label>
-                <select
-                  value={cuentaLuzId}
-                  onChange={e => elegirCuenta(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                >
-                  {resumen.luz.pendientes.map(p => (
-                    <option key={p.cuenta_id} value={p.cuenta_id}>{p.etiqueta} — saldo {$(p.saldo)}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {pagarTodo
-                    ? 'Desmarca "Pagar todo" si tu comprobante es solo por un período.'
-                    : `Tienes ${resumen.luz.pendientes.length} períodos de luz pendientes. Si subes varios comprobantes, indica cada vez a cuál corresponde.`}
-                </p>
+                {pagarTodo ? (
+                  <div className="bg-gray-50 border rounded-lg p-3 text-sm space-y-1">
+                    <p className="text-xs text-gray-500 mb-1">Este comprobante va a cubrir estos períodos:</p>
+                    {resumen.luz.pendientes.map(p => (
+                      <div key={p.cuenta_id} className="flex justify-between">
+                        <span>{p.etiqueta}</span>
+                        <span className="font-medium">{$(p.saldo)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between border-t pt-1 mt-1 font-bold">
+                      <span>Total</span>
+                      <span>{$(resumen.luz.pendientes.reduce((s, p) => s + p.saldo, 0))}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Al validarse, los {resumen.luz.pendientes.length} períodos quedarán marcados como pagados.</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">¿A qué período corresponde este comprobante?</label>
+                    <select
+                      value={cuentaLuzId}
+                      onChange={e => elegirCuenta(e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                    >
+                      {resumen.luz.pendientes.map(p => (
+                        <option key={p.cuenta_id} value={p.cuenta_id}>{p.etiqueta} — saldo {$(p.saldo)}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tienes {resumen.luz.pendientes.length} períodos de luz pendientes. Si subes varios comprobantes, indica cada vez a cuál corresponde.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             <div>
