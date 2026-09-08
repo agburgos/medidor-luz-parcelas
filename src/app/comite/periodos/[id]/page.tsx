@@ -22,7 +22,7 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
 
   if (!periodo) notFound()
 
-  const [{ data: lecturas, count: totalLecturas }, { data: cuentas }] = await Promise.all([
+  const [{ data: lecturas, count: totalLecturas }, { data: cuentas }, { count: parcelasConEmpalme }] = await Promise.all([
     supabase
       .from('lecturas')
       .select('*, parcela:parcelas(numero,nombre_dueno)', { count: 'exact' })
@@ -32,6 +32,11 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
       .from('cuentas_parcela')
       .select('estado, monto_pagado')
       .eq('periodo_id', id),
+    supabase
+      .from('parcelas')
+      .select('*', { count: 'exact', head: true })
+      .eq('activa', true)
+      .eq('tiene_empalme', true),
   ])
 
   const resumen = {
@@ -71,7 +76,7 @@ export default async function PeriodoDetallePage({ params }: { params: Promise<{
         </div>
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Lecturas cargadas</p>
-          <p className="text-xl font-bold">{totalLecturas ?? 0}/80</p>
+          <p className="text-xl font-bold">{totalLecturas ?? 0}/{parcelasConEmpalme ?? 0}</p>
         </div>
         <div className="bg-white rounded-xl border p-4">
           <p className="text-xs text-gray-500">Pagados</p>
