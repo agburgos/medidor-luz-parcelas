@@ -32,7 +32,7 @@ export async function GET() {
       .select('periodo_id, parcela_id, monto_prorrateado, monto_pagado, estado, parcela:parcelas(numero, nombre_dueno, telefono)'),
     supabase
       .from('moras_anteriores')
-      .select('parcela_id, monto, monto_pagado')
+      .select('parcela_id, monto, monto_pagado, parcela:parcelas(numero, nombre_dueno, telefono)')
       .not('estado', 'in', '(pagado,en_revision)'),
   ])
 
@@ -41,9 +41,11 @@ export async function GET() {
     parcela: { numero: number; nombre_dueno: string; telefono: string | null }
   }
   const todas = (cuentas ?? []) as unknown as Cuenta[]
+  type MoraConParcela = { parcela_id: string; monto: number; monto_pagado: number; parcela: { numero: number; nombre_dueno: string; telefono: string | null } }
+  const morasConParcela = (moras ?? []) as unknown as MoraConParcela[]
 
   const deudaMoraPorParcela = new Map<string, number>()
-  for (const m of (moras ?? []) as { parcela_id: string; monto: number; monto_pagado: number }[]) {
+  for (const m of morasConParcela) {
     const saldo = Math.max(Number(m.monto) - Number(m.monto_pagado), 0)
     deudaMoraPorParcela.set(m.parcela_id, (deudaMoraPorParcela.get(m.parcela_id) ?? 0) + saldo)
   }
@@ -55,22 +57,47 @@ export async function GET() {
     deudaTotalPorParcela.set(c.parcela_id, (deudaTotalPorParcela.get(c.parcela_id) ?? 0) + saldo)
   }
 
-  // Solo quienes tienen saldo pendiente específicamente en el último período facturado
-  const filas = todas
-    .filter(c => c.periodo_id === ultimoPeriodo.id && (c.monto_prorrateado - c.monto_pagado) > 0)
-    .map(c => {
-      const deudaUltimoPeriodo = c.monto_prorrateado - c.monto_pagado
-      const mora = deudaMoraPorParcela.get(c.parcela_id) ?? 0
-      const otrosPendientes = (deudaTotalPorParcela.get(c.parcela_id) ?? 0) - deudaUltimoPeriodo
-      const acumulado = deudaUltimoPeriodo + mora + Math.max(otrosPendientes, 0)
+  // TODOS los que tienen algún saldo pendiente (en el último período o en
+  // cualquier período anterior, o solo en moras) — no solo quienes deben
+  // específicamente en el último período facturado. Así el total de este PDF
+  // siempre cuadra contra el total del reporte web de cobranza.
+  const parcelaInfoPorId = new Map<string, { numero: number; nombre: string; telefono: string }>()
+  for (const c of todas) {
+    if (!parcelaInfoPorId.has(c.parcela_id)) {
+      parcelaInfoPorId.set(c.parcela_id, { numero: c.parcela.numero, nombre: c.parcela.nombre_dueno, telefono: c.parcela.telefono || '—' })
+    }
+  }
+  for (const m of morasConParcela) {
+    if (!parcelaInfoPorId.has(m.parcela_id) && m.parcela) {
+      parcelaInfoPorId.set(m.parcela_id, { numero: m.parcela.numero, nombre: m.parcela.nombre_dueno, telefono: m.parcela.telefono || '—' })
+    }
+  }
+  const deudaUltimoPorParcela = new Map<string, number>()
+  for (const c of todas) {
+    if (c.periodo_id === ultimoPeriodo.id) {
+      const saldo = Math.max(c.monto_prorrateado - c.monto_pagado, 0)
+      deudaUltimoPorParcela.set(c.parcela_id, (deudaUltimoPorParcela.get(c.parcela_id) ?? 0) + saldo)
+    }
+  }
+
+  const idsConDeuda = new Set<string>([...deudaTotalPorParcela.keys(), ...deudaMoraPorParcela.keys()])
+  const filas = [...idsConDeuda]
+    .map(parcelaId => {
+      const info = parcelaInfoPorId.get(parcelaId)
+      const deudaUltimoPeriodo = deudaUltimoPorParcela.get(parcelaId) ?? 0
+      const mora = deudaMoraPorParcela.get(parcelaId) ?? 0
+      const otrosPendientes = deudaTotalPorParcela.get(parcelaId) ?? 0
+      const acumulado = otrosPendientes + mora
+      if (acumulado <= 0 || !info) return null
       return {
-        numero: c.parcela.numero,
-        nombre: c.parcela.nombre_dueno,
-        telefono: c.parcela.telefono || '—',
+        numero: info.numero,
+        nombre: info.nombre,
+        telefono: info.telefono,
         deudaUltimoPeriodo,
         acumulado,
       }
     })
+    .filter((f): f is NonNullable<typeof f> => f !== null)
     .sort((a, b) => b.acumulado - a.acumulado)
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
@@ -85,8 +112,9 @@ export async function GET() {
     doc.on('end', () => resolve(Buffer.concat(chunks)))
   })
 
-  doc.fontSize(16).text('COPOSA — Deudores del último período facturado', { align: 'left' })
-  doc.fontSize(10).fillColor('#666').text(`Período: ${nombrePeriodo}  ·  Generado: ${new Date().toLocaleDateString('es-CL')}`)
+  doc.fontSize(16).text('COPOSA — Deudores (todos los saldos pendientes)', { align: 'left' })
+  doc.fontSize(10).fillColor('#666').text(`Último período facturado: ${nombrePeriodo}  ·  Generado: ${new Date().toLocaleDateString('es-CL')}`)
+  doc.fontSize(9).fillColor('#888').text('Incluye deuda de cualquier período pendiente y moras anteriores, no solo el último período. El total de este reporte cuadra contra "Deuda total por cobrar" de Reportes de cobranza.')
   doc.moveDown(1)
 
   const colX = [40, 90, 260, 340, 440]
