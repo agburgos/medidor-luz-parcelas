@@ -1,4 +1,5 @@
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 export function nombreMes(mes: number): string {
   return MESES[mes - 1]
@@ -13,4 +14,10 @@ export function rangoFechasPeriodo(mes: number, anio: number): string {
   const mesAnteriorIdx = mes === 1 ? 12 : mes - 1
   const anioAnterior = mes === 1 ? anio - 1 : anio
   return `11 de ${nombreMes(mesAnteriorIdx)}${anioAnterior !== anio ? ` ${anioAnterior}` : ''} al 10 de ${nombreMes(mes)} ${anio}`
+}
+
+/** Versión corta para meter directo en el nombre/título del período, ej: "Junio 2026 (11 may - 10 jun)" */
+export function nombrePeriodoConRango(mes: number, anio: number): string {
+  const mesAnteriorIdx = mes === 1 ? 12 : mes - 1
+  return `${nombreMes(mes)} ${anio} (11 ${MESES_CORTO[mesAnteriorIdx - 1]} - 10 ${MESES_CORTO[mes - 1]})`
 }

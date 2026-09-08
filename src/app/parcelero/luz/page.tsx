@@ -5,7 +5,7 @@ import EstadoBadge from '@/components/ui/EstadoBadge'
 import Link from 'next/link'
 import SubirLectura from '@/components/parcelero/SubirLectura'
 import GraficoConsumoHistorico from '@/components/parcelero/GraficoConsumoHistorico'
-import { rangoFechasPeriodo } from '@/lib/periodos'
+import { nombrePeriodoConRango } from '@/lib/periodos'
 
 export const metadata = { title: 'Cuenta de Luz — COPOSA' }
 
@@ -177,8 +177,7 @@ export default async function ParceleroLuzPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm text-gray-500 mb-1">
-                        Período: {meses[c.periodo.mes - 1]} {c.periodo.anio}
-                        <span className="block text-xs text-gray-400">({rangoFechasPeriodo(c.periodo.mes, c.periodo.anio)})</span>
+                        Período: {nombrePeriodoConRango(c.periodo.mes, c.periodo.anio)}
                       </p>
                       <p className="text-3xl font-bold">{$(c.monto_prorrateado)}</p>
                       <div className="text-sm text-gray-500 mt-2 space-y-0.5">
@@ -324,7 +323,7 @@ export default async function ParceleroLuzPage() {
           <tbody>
             {lecturasOrd.map(l => (
               <tr key={l.id} className="border-t">
-                <td className="px-4 py-2" title={rangoFechasPeriodo(l.periodo.mes, l.periodo.anio)}>{meses[l.periodo.mes - 1]} {l.periodo.anio}</td>
+                <td className="px-4 py-2">{nombrePeriodoConRango(l.periodo.mes, l.periodo.anio)}</td>
                 <td className="px-4 py-2 text-right">{l.lectura_anterior}</td>
                 <td className="px-4 py-2 text-right">{l.lectura_actual}</td>
                 <td className="px-4 py-2 text-right font-medium">
@@ -359,7 +358,7 @@ export default async function ParceleroLuzPage() {
               const saldo = Math.max(c.monto_prorrateado - c.monto_pagado, 0)
               return (
                 <tr key={c.id} className="border-t">
-                  <td className="px-4 py-2" title={rangoFechasPeriodo(c.periodo.mes, c.periodo.anio)}>{meses[c.periodo.mes - 1]} {c.periodo.anio}</td>
+                  <td className="px-4 py-2">{nombrePeriodoConRango(c.periodo.mes, c.periodo.anio)}</td>
                   <td className="px-4 py-2 text-right">{$(c.monto_consumo ?? 0)}</td>
                   <td className="px-4 py-2 text-right">{$(c.monto_cargo_fijo ?? 0)}</td>
                   <td className="px-4 py-2 text-right font-medium">{$(c.monto_prorrateado)}</td>

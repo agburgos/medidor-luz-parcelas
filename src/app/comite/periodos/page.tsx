@@ -1,11 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { rangoFechasPeriodo } from '@/lib/periodos'
+import { nombrePeriodoConRango } from '@/lib/periodos'
 
 export const metadata = { title: 'Períodos de Luz — COPOSA' }
-
-
-const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 export default async function PeriodosPage() {
   const supabase = await createClient()
@@ -40,8 +37,7 @@ export default async function PeriodosPage() {
             {periodos?.map(p => (
               <tr key={p.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium whitespace-nowrap">
-                  {meses[p.mes - 1]} {p.anio}
-                  <span className="block text-xs font-normal text-gray-400">{rangoFechasPeriodo(p.mes, p.anio)}</span>
+                  {nombrePeriodoConRango(p.mes, p.anio)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">${p.monto_total_factura?.toLocaleString('es-CL')}</td>
                 <td className="px-4 py-3 whitespace-nowrap">{p.fecha_vencimiento ? new Date(p.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-CL') : '—'}</td>
