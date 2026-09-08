@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   const fd = await req.formData()
 
   const aplica_a = fd.get('aplica_a') as string
+  const cuentaLuzId = (fd.get('cuenta_id_luz') as string) || null
   const montoLuz = Number(fd.get('monto_luz') || 0)
   const montoGC = Number(fd.get('monto_gc') || 0)
   const fecha = (fd.get('fecha') as string) || new Date().toISOString().slice(0, 10)
@@ -50,19 +51,32 @@ export async function POST(req: NextRequest) {
   const resultado: { luz?: string; gc?: string } = {}
 
   if (incluyeLuz) {
-    // Se aplica a la cuenta de luz pendiente MÁS ANTIGUA (no la más reciente):
-    // si hay más de un período abierto sin pagar a la vez, el pago debe cubrir
-    // la deuda más vieja primero.
-    type CuentaPendiente = { id: string; monto_prorrateado: number; monto_pagado: number }
-    const { data: cuentasPendientesRaw } = await supabase
-      .from('cuentas_parcela')
-      .select('id, monto_prorrateado, monto_pagado, periodo:periodos_facturacion(mes,anio)')
-      .eq('parcela_id', sesion.parcelaId)
-      .neq('estado', 'desconectado')
-      .order('created_at', { ascending: true })
-    const cuentasPendientes = (cuentasPendientesRaw ?? []) as unknown as CuentaPendiente[]
-    const cuenta = cuentasPendientes.find(c => c.monto_prorrateado - c.monto_pagado > 0)
-      ?? cuentasPendientes[cuentasPendientes.length - 1]
+    // Si el parcelero indicó a qué período corresponde (cuando hay más de uno
+    // pendiente a la vez), se usa esa cuenta directamente. Si no indicó nada
+    // (caso normal, un solo período abierto), se aplica a la más antigua sin
+    // pagar.
+    let cuenta: { id: string } | null = null
+    if (cuentaLuzId) {
+      const { data } = await supabase
+        .from('cuentas_parcela')
+        .select('id')
+        .eq('id', cuentaLuzId)
+        .eq('parcela_id', sesion.parcelaId)
+        .maybeSingle()
+      cuenta = data
+    } else {
+      type CuentaPendiente = { id: string; monto_prorrateado: number; monto_pagado: number }
+      const { data: cuentasPendientesRaw } = await supabase
+        .from('cuentas_parcela')
+        .select('id, monto_prorrateado, monto_pagado, periodo:periodos_facturacion(mes,anio)')
+        .eq('parcela_id', sesion.parcelaId)
+        .neq('estado', 'desconectado')
+        .order('created_at', { ascending: true })
+      const cuentasPendientes = (cuentasPendientesRaw ?? []) as unknown as CuentaPendiente[]
+      cuenta = cuentasPendientes.find(c => c.monto_prorrateado - c.monto_pagado > 0)
+        ?? cuentasPendientes[cuentasPendientes.length - 1]
+        ?? null
+    }
     if (!cuenta) return NextResponse.json({ error: 'No tienes cuentas de luz generadas aún' }, { status: 400 })
 
     const url = await subirComprobante('luz')

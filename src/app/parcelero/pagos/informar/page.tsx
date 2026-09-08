@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-interface ResumenLuz { etiqueta: string | null; saldo: number; estado: string; totalFactura: number; recaudado: number; faltante: number }
+interface PendienteLuz { cuenta_id: string; etiqueta: string; saldo: number }
+interface ResumenLuz { etiqueta: string | null; saldo: number; estado: string; totalFactura: number; recaudado: number; faltante: number; pendientes?: PendienteLuz[] }
 interface ResumenGC { etiqueta: string | null; saldo: number; estado: string }
 
 export default function InformarPagoPage() {
   const router = useRouter()
   const [aplicaA, setAplicaA] = useState<'luz' | 'gc' | 'ambos'>('luz')
+  const [cuentaLuzId, setCuentaLuzId] = useState('')
   const [form, setForm] = useState({
     monto_luz: '', monto_gc: '',
     fecha: new Date().toISOString().slice(0, 10),
@@ -20,7 +22,10 @@ export default function InformarPagoPage() {
   const [resumen, setResumen] = useState<{ luz: ResumenLuz | null; gc: ResumenGC | null } | null>(null)
 
   useEffect(() => {
-    fetch('/api/pagos/mi-resumen').then(r => r.json()).then(setResumen)
+    fetch('/api/pagos/mi-resumen').then(r => r.json()).then(data => {
+      setResumen(data)
+      if (data?.luz?.pendientes?.length > 1) setCuentaLuzId(data.luz.pendientes[0].cuenta_id)
+    })
   }, [])
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
@@ -31,6 +36,7 @@ export default function InformarPagoPage() {
     setMensaje('')
     const fd = new FormData()
     fd.append('aplica_a', aplicaA)
+    if (cuentaLuzId) fd.append('cuenta_id_luz', cuentaLuzId)
     fd.append('monto_luz', form.monto_luz)
     fd.append('monto_gc', form.monto_gc)
     fd.append('fecha', form.fecha)
@@ -95,14 +101,31 @@ export default function InformarPagoPage() {
         </div>
 
         {(aplicaA === 'luz' || aplicaA === 'ambos') && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Monto para Luz ($)</label>
-            <input
-              type="number" value={form.monto_luz}
-              onChange={e => setForm(f => ({ ...f, monto_luz: e.target.value }))}
-              required min={1}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            />
+          <div className="space-y-3">
+            {resumen?.luz?.pendientes && resumen.luz.pendientes.length > 1 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">¿A qué período corresponde este comprobante?</label>
+                <select
+                  value={cuentaLuzId}
+                  onChange={e => setCuentaLuzId(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  {resumen.luz.pendientes.map(p => (
+                    <option key={p.cuenta_id} value={p.cuenta_id}>{p.etiqueta} — saldo {$(p.saldo)}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Tienes {resumen.luz.pendientes.length} períodos de luz pendientes. Si subes varios comprobantes, indica cada vez a cuál corresponde.</p>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Monto para Luz ($)</label>
+              <input
+                type="number" value={form.monto_luz}
+                onChange={e => setForm(f => ({ ...f, monto_luz: e.target.value }))}
+                required min={1}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
           </div>
         )}
 

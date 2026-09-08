@@ -52,6 +52,11 @@ export async function GET() {
       totalFactura: periodo?.monto_total_factura ?? 0,
       recaudado,
       faltante: Math.max((periodo?.monto_total_factura ?? 0) - recaudado, 0),
+      pendientes: pendientes.map(c => ({
+        cuenta_id: c.id,
+        etiqueta: `${meses[c.periodo.mes - 1]} ${c.periodo.anio}`,
+        saldo: c.monto_prorrateado - c.monto_pagado,
+      })),
     }
   }
 
