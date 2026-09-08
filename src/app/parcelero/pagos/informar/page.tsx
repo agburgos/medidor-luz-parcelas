@@ -27,17 +27,26 @@ export default function InformarPagoPage() {
     fetch('/api/pagos/mi-resumen').then(r => r.json()).then(data => {
       setResumen(data)
       const pendientes: PendienteLuz[] = data?.luz?.pendientes ?? []
-      if (pendientes.length > 1) {
+      if (pendientes.length > 0) {
         const preseleccionada = cuentaPreseleccionada && pendientes.some(p => p.cuenta_id === cuentaPreseleccionada)
           ? cuentaPreseleccionada
           : pendientes[0].cuenta_id
         setCuentaLuzId(preseleccionada)
+        // El monto sugerido es el del PERÍODO elegido (su cuenta + su propia
+        // cuota, si tiene), no la suma de todos los períodos pendientes.
+        const elegida = pendientes.find(p => p.cuenta_id === preseleccionada)
+        if (elegida) setForm(f => ({ ...f, monto_luz: String(elegida.saldo) }))
       }
-      // El monto sugerido es el saldo COMPLETO (cuenta(s) + deudas anteriores):
-      // el comprobante debe subirse por el total, no solo por la cuenta del período.
-      if (data?.luz?.saldo) setForm(f => ({ ...f, monto_luz: String(data.luz.saldo) }))
     })
   }, [cuentaPreseleccionada])
+
+  function elegirCuenta(id: string) {
+    setCuentaLuzId(id)
+    const elegida = resumen?.luz?.pendientes?.find(p => p.cuenta_id === id)
+    if (elegida) setForm(f => ({ ...f, monto_luz: String(elegida.saldo) }))
+  }
+
+  const pendienteSeleccionada = resumen?.luz?.pendientes?.find(p => p.cuenta_id === cuentaLuzId)
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
@@ -74,11 +83,11 @@ export default function InformarPagoPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           {resumen.luz && (aplicaA === 'luz' || aplicaA === 'ambos') && (
             <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-              <p className="text-xs font-semibold text-yellow-900 mb-1">⚡ Luz — {resumen.luz.etiqueta}</p>
-              <p className="text-sm text-gray-700">Tu saldo pendiente: <strong>{$(resumen.luz.saldo)}</strong></p>
-              {resumen.luz.deudaMoras > 0 && (
-                <p className="text-xs text-red-600 mt-1">
-                  Incluye {$(resumen.luz.saldoCuentas)} de cuenta(s) del período + <strong>{$(resumen.luz.deudaMoras)}</strong> de deudas anteriores (repactación u otras). Sube el comprobante por el total.
+              <p className="text-xs font-semibold text-yellow-900 mb-1">⚡ Luz — {pendienteSeleccionada?.etiqueta ?? resumen.luz.etiqueta}</p>
+              <p className="text-sm text-gray-700">Saldo de este período: <strong>{$(pendienteSeleccionada?.saldo ?? resumen.luz.saldo)}</strong></p>
+              {(resumen.luz.pendientes?.length ?? 0) > 1 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Tienes otros períodos pendientes además de este (total de todo: {$(resumen.luz.saldo)}) — infórmalos por separado, uno por comprobante.
                 </p>
               )}
               <p className="text-xs text-gray-500 mt-1">
@@ -123,7 +132,7 @@ export default function InformarPagoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">¿A qué período corresponde este comprobante?</label>
                 <select
                   value={cuentaLuzId}
-                  onChange={e => setCuentaLuzId(e.target.value)}
+                  onChange={e => elegirCuenta(e.target.value)}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
                 >
                   {resumen.luz.pendientes.map(p => (
