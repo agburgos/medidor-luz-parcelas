@@ -71,7 +71,13 @@ export default function InformarPagoPage() {
     setMensaje('')
     const fd = new FormData()
     fd.append('aplica_a', aplicaA)
-    if (cuentaLuzId) fd.append('cuenta_id_luz', cuentaLuzId)
+    if (pagarTodo && resumen?.luz?.pendientes && resumen.luz.pendientes.length > 1) {
+      // Un pago por cada período pendiente, cada uno por su propio saldo —
+      // así al validarse quedan TODOS marcados como pagados, no solo uno.
+      fd.append('cuentas_luz', JSON.stringify(resumen.luz.pendientes.map(p => ({ cuenta_id: p.cuenta_id, monto: p.saldo }))))
+    } else if (cuentaLuzId) {
+      fd.append('cuenta_id_luz', cuentaLuzId)
+    }
     fd.append('monto_luz', form.monto_luz)
     fd.append('monto_gc', form.monto_gc)
     fd.append('fecha', form.fecha)
