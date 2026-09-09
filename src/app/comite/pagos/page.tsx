@@ -68,20 +68,27 @@ export default function ValidarPagosPage() {
   useEffect(() => { cargar() }, [cargar])
 
   async function accion(pago: PagoPendiente, tipo: 'validar' | 'rechazar') {
-    const verbo = tipo === 'validar' ? 'Validar' : 'RECHAZAR'
-    if (!confirm(`¿${verbo} el pago de $${pago.monto.toLocaleString('es-CL')} (${TIPO_LABEL[pago.tipo]}) de #${pago.cuenta.parcela.numero} ${pago.cuenta.parcela.nombre_dueno}?`)) return
+    let motivo: string | null = null
+    if (tipo === 'rechazar') {
+      motivo = window.prompt('Motivo del rechazo (el parcelero lo verá):', 'Comprobante ilegible o monto no coincide')
+      if (motivo === null) return
+      if (!motivo.trim()) { setMensaje('❌ Debes indicar un motivo para rechazar'); return }
+    } else {
+      const verbo = 'Validar'
+      if (!confirm(`¿${verbo} el pago de $${pago.monto.toLocaleString('es-CL')} (${TIPO_LABEL[pago.tipo]}) de #${pago.cuenta.parcela.numero} ${pago.cuenta.parcela.nombre_dueno}?`)) return
+    }
     setProcesando(pago.id)
     const endpoint = pago.tipo === 'gc' ? `/api/gc/pagos/${pago.id}/validar` : `/api/pagos/${pago.id}/validar`
     const res = await fetch(endpoint, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accion: tipo }),
+      body: JSON.stringify({ accion: tipo, motivo }),
     })
     const data = await res.json()
     setMensaje(res.ok
       ? tipo === 'validar'
         ? `✅ Pago validado. Estado de la cuenta: ${data.estado_cuenta}`
-        : '🚫 Pago rechazado (no afecta el saldo)'
+        : '🚫 Pago rechazado (no afecta el saldo, el parcelero verá el motivo)'
       : `❌ ${data.error}`)
     setProcesando(null)
     await cargar()

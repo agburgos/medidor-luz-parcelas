@@ -11,9 +11,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const supabase = createServiceClient()
-  const { accion } = await req.json()
+  const { accion, motivo } = await req.json()
   if (!['validar', 'rechazar'].includes(accion)) {
     return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+  }
+  if (accion === 'rechazar' && !motivo) {
+    return NextResponse.json({ error: 'Debes indicar el motivo del rechazo' }, { status: 400 })
   }
 
   const { data: pago } = await supabase
@@ -29,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       estado: accion === 'validar' ? 'validado' : 'rechazado',
       validado_por: user.id,
       validado_en: new Date().toISOString(),
+      motivo_rechazo: accion === 'rechazar' ? motivo : null,
     })
     .eq('id', id)
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 400 })
@@ -76,7 +80,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const sesion = await getSesion()
-  await registrar(sesion, accion === 'validar' ? 'validar_pago_gc' : 'rechazar_pago_gc', 'pago_gc', id, { cuenta_gc_id: pago.cuenta_gc_id, registrado_en_caja: accion === 'validar' })
+  await registrar(sesion, accion === 'validar' ? 'validar_pago_gc' : 'rechazar_pago_gc', 'pago_gc', id, { cuenta_gc_id: pago.cuenta_gc_id, registrado_en_caja: accion === 'validar', motivo: accion === 'rechazar' ? motivo : undefined })
 
   return NextResponse.json({ ok: true, monto_pagado: totalPagado, estado_cuenta: nuevoEstado })
 }

@@ -391,7 +391,7 @@ export default async function ParceleroLuzPage() {
             </tr>
           </thead>
           <tbody>
-            {(pagos ?? []).map((p: { id: string; fecha: string; monto: number; metodo: string; estado?: string; comprobante_url?: string | null; observacion: string | null; cuenta: { periodo: { mes: number; anio: number } } }) => (
+            {(pagos ?? []).map((p: { id: string; fecha: string; monto: number; metodo: string; estado?: string; comprobante_url?: string | null; observacion: string | null; motivo_rechazo?: string | null; cuenta: { periodo: { mes: number; anio: number } } }) => (
               <tr key={p.id} className={`border-t ${p.estado === 'rechazado' ? 'opacity-50' : ''}`}>
                 <td className="px-4 py-2">{new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                 <td className="px-4 py-2">{p.cuenta?.periodo ? `${meses[p.cuenta.periodo.mes - 1]} ${p.cuenta.periodo.anio}` : '—'}</td>
@@ -405,6 +405,9 @@ export default async function ParceleroLuzPage() {
                   }`}>
                     {p.estado === 'validado' ? '✓ Validado' : p.estado === 'rechazado' ? '✗ Rechazado' : '⏳ Por validar'}
                   </span>
+                  {p.estado === 'rechazado' && p.motivo_rechazo && (
+                    <p className="text-xs text-red-600 mt-1 max-w-48">Motivo: {p.motivo_rechazo}</p>
+                  )}
                 </td>
                 <td className="px-4 py-2">
                   {p.comprobante_url
