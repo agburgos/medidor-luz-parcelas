@@ -116,10 +116,6 @@ export default function CajaPage() {
   }
 
   async function eliminarMovimiento(m: Movimiento) {
-    if (m.pago_id || m.pago_gc_id) {
-      alert('Este movimiento proviene de un pago. Elimínalo desde el historial de pagos de la cuenta correspondiente (período → Pagos).')
-      return
-    }
     if (!confirm(`¿Eliminar el movimiento "${m.concepto}" por ${'$' + Math.round(m.monto).toLocaleString('es-CL')}?`)) return
     setEliminando(m.id)
     const res = await fetch(`/api/caja/movimientos/${m.id}`, { method: 'DELETE' })
@@ -127,6 +123,19 @@ export default function CajaPage() {
     setMensaje(res.ok ? '✅ Movimiento eliminado' : `❌ ${data.error}`)
     if (res.ok) await cargar()
     setEliminando(null)
+  }
+
+  // Cuenta cuántos movimientos comparten el mismo pago_id/pago_gc_id — si hay
+  // más de uno es un duplicado real (p. ej. doble clic al validar) y sí se
+  // puede borrar el sobrante sin perder el registro del pago.
+  const conteoPorPago = new Map<string, number>()
+  for (const m of movimientos) {
+    const clave = m.pago_id ? `p:${m.pago_id}` : m.pago_gc_id ? `g:${m.pago_gc_id}` : null
+    if (clave) conteoPorPago.set(clave, (conteoPorPago.get(clave) ?? 0) + 1)
+  }
+  const esDuplicadoDePago = (m: Movimiento) => {
+    const clave = m.pago_id ? `p:${m.pago_id}` : m.pago_gc_id ? `g:${m.pago_gc_id}` : null
+    return !!clave && (conteoPorPago.get(clave) ?? 0) > 1
   }
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
@@ -373,13 +382,14 @@ export default function CajaPage() {
                     <td className="px-4 py-3 text-right">
                       {!esSuperadmin ? (
                         <span className="text-gray-300 text-xs" title="Solo el superadministrador puede eliminar movimientos">🔒</span>
-                      ) : m.pago_id || m.pago_gc_id ? (
+                      ) : (m.pago_id || m.pago_gc_id) && !esDuplicadoDePago(m) ? (
                         <span className="text-gray-300 text-xs" title="Vinculado a un pago; elimínalo desde la cuenta">🔒</span>
                       ) : (
                         <button
                           onClick={() => eliminarMovimiento(m)}
                           disabled={eliminando === m.id}
                           className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-40"
+                          title={esDuplicadoDePago(m) ? 'Duplicado del mismo pago — se puede eliminar el sobrante' : undefined}
                         >
                           {eliminando === m.id ? '...' : '🗑️'}
                         </button>

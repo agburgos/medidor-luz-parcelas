@@ -26,6 +26,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .single()
   if (!pago) return NextResponse.json({ error: 'Pago no encontrado' }, { status: 404 })
 
+  // Idempotencia: si ya estaba en el estado pedido (doble clic, reintento de
+  // red), no reprocesar — evita duplicar el movimiento de caja.
+  const yaEstabaEnEseEstado = (accion === 'validar' && pago.estado === 'validado') || (accion === 'rechazar' && pago.estado === 'rechazado')
+  if (yaEstabaEnEseEstado) {
+    return NextResponse.json({ ok: true, ya_procesado: true })
+  }
+
   const { error: updErr } = await supabase
     .from('pagos_gc')
     .update({
@@ -63,7 +70,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('id', pago.cuenta_gc_id)
 
   // Si es validación de pago (no rechazo), registrar en CAJA como INGRESO
-  if (accion === 'validar' && pago.monto && pago.monto > 0) {
+  // (solo si no existe ya un movimiento para este pago — evita duplicados)
+  const { count: cajaExistenteGC } = await supabase
+    .from('caja_movimientos')
+    .select('id', { count: 'exact', head: true })
+    .eq('pago_gc_id', pago.id)
+  if (accion === 'validar' && pago.monto && pago.monto > 0 && !cajaExistenteGC) {
     const numeroParc = (pago.cuenta as any)?.parcela?.numero || '?'
     const { error: errCaja } = await supabase
       .from('caja_movimientos')

@@ -24,9 +24,20 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!mov) return NextResponse.json({ error: 'Movimiento no encontrado' }, { status: 404 })
 
   if (mov.pago_id || mov.pago_gc_id) {
-    return NextResponse.json({
-      error: 'Este movimiento proviene de un pago. Elimínalo desde el historial de pagos de la cuenta correspondiente.',
-    }, { status: 400 })
+    // Excepción: si hay OTRO movimiento de caja ligado al mismo pago (duplicado
+    // real, por ejemplo un doble clic al validar), sí se puede borrar el
+    // sobrante — sigue quedando un movimiento por cada pago, consistente.
+    const columna = mov.pago_id ? 'pago_id' : 'pago_gc_id'
+    const valor = mov.pago_id ?? mov.pago_gc_id
+    const { count } = await supabase
+      .from('caja_movimientos')
+      .select('id', { count: 'exact', head: true })
+      .eq(columna, valor as string)
+    if (!count || count <= 1) {
+      return NextResponse.json({
+        error: 'Este movimiento proviene de un pago. Elimínalo desde el historial de pagos de la cuenta correspondiente.',
+      }, { status: 400 })
+    }
   }
 
   const { error } = await supabase.from('caja_movimientos').delete().eq('id', id)
