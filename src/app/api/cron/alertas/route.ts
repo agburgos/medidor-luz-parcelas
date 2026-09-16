@@ -120,6 +120,13 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     }
   }
 
+  // Deuda de luz pendiente por parcela, acumulada de TODOS los períodos —
+  // se manda un solo correo por parcela con todos sus períodos vencidos,
+  // no un correo separado por cada uno.
+  type ItemDeuda = { periodoId: string; nombrePeriodo: string; monto: number; saldo: number; tipo: 'vencimiento' | 'corte'; diasVenc: number | null; fecha: string }
+  const deudaPorParcela = new Map<string, { nombre: string; email: string; numero: number; items: ItemDeuda[] }>()
+  const marcasPendientes: { tipo: string; periodo_id: string; parcela_id: string }[] = []
+
   for (const periodo of periodos) {
     const config = configPorComunidad.get(periodo.comunidad_id) ?? configDefault
     if (!config.alertas_activas && !forzar) continue
@@ -251,69 +258,67 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     )
 
     for (const cuenta of cuentas) {
-      if (enviados >= config.max_por_dia && !forzar) break
       const parcela = cuenta.parcela as { nombre_dueno: string; email: string; numero: number }
       const saldo = cuenta.monto_prorrateado - cuenta.monto_pagado
       const nombrePeriodo = `${meses[periodo.mes - 1]} ${periodo.anio}`
+      if (!parcela.email) continue
+
+      const entry = deudaPorParcela.get(cuenta.parcela_id) ?? { nombre: parcela.nombre_dueno, email: destinatario(config, parcela.email), numero: parcela.numero, items: [] }
 
       if (debeAlertarVenc && (forzar || !alertasSet.has(`vencimiento:${cuenta.parcela_id}`))) {
-        const subject = diasVenc !== null && diasVenc < 0
-          ? `⚠️ Cuenta vencida - ${nombrePeriodo}`
-          : `⏰ Vencimiento próximo - ${nombrePeriodo}`
-
-        await getResend().emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
-          to: destinatario(config, parcela.email),
-          subject,
-          html: emailVencimiento({
-            nombre: parcela.nombre_dueno,
-            numeroParcela: parcela.numero,
-            periodo: nombrePeriodo,
-            monto: cuenta.monto_prorrateado,
-            saldo,
-            fechaVencimiento: fechaVenc?.toLocaleDateString('es-CL') || '',
-            diasRestantes: diasVenc,
-            appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
-          }),
+        entry.items.push({
+          periodoId: periodo.id, nombrePeriodo, monto: cuenta.monto_prorrateado, saldo,
+          tipo: 'vencimiento', diasVenc, fecha: fechaVenc?.toLocaleDateString('es-CL') || '',
         })
-
-        if (!forzar) {
-          await supabase.from('alertas_enviadas').upsert({
-            tipo: 'vencimiento',
-            periodo_id: periodo.id,
-            parcela_id: cuenta.parcela_id,
-            ultima_vez: new Date().toISOString(),
-          }, { onConflict: 'tipo,periodo_id,parcela_id' })
-        }
-        enviados++
+        if (!forzar) marcasPendientes.push({ tipo: 'vencimiento', periodo_id: periodo.id, parcela_id: cuenta.parcela_id })
       }
 
       if (debeAlertarCorte && (forzar || !alertasSet.has(`corte:${cuenta.parcela_id}`))) {
-        await getResend().emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
-          to: destinatario(config, parcela.email),
-          subject: `🚨 Aviso de corte de suministro - ${nombrePeriodo}`,
-          html: emailCorte({
-            nombre: parcela.nombre_dueno,
-            numeroParcela: parcela.numero,
-            periodo: nombrePeriodo,
-            saldo,
-            fechaCorte: fechaCorte?.toLocaleDateString('es-CL') || '',
-            appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
-          }),
+        entry.items.push({
+          periodoId: periodo.id, nombrePeriodo, monto: cuenta.monto_prorrateado, saldo,
+          tipo: 'corte', diasVenc: diasCorte, fecha: fechaCorte?.toLocaleDateString('es-CL') || '',
         })
-
-        if (!forzar) {
-          await supabase.from('alertas_enviadas').upsert({
-            tipo: 'corte',
-            periodo_id: periodo.id,
-            parcela_id: cuenta.parcela_id,
-            ultima_vez: new Date().toISOString(),
-          }, { onConflict: 'tipo,periodo_id,parcela_id' })
-        }
-        enviados++
+        if (!forzar) marcasPendientes.push({ tipo: 'corte', periodo_id: periodo.id, parcela_id: cuenta.parcela_id })
       }
+
+      if (entry.items.length > 0) deudaPorParcela.set(cuenta.parcela_id, entry)
     }
+  }
+
+  // Un solo correo por parcela con TODOS sus períodos pendientes juntos —
+  // no un correo separado por cada período vencido.
+  const config0 = (configs ?? [])[0] as Config | undefined
+  const maxPorDia = config0?.max_por_dia ?? configDefault.max_por_dia
+  for (const [, d] of deudaPorParcela) {
+    if (enviados >= maxPorDia && !forzar) break
+
+    const hayCorte = d.items.some(i => i.tipo === 'corte')
+    const hayVencida = d.items.some(i => i.tipo === 'vencimiento' && i.diasVenc !== null && i.diasVenc < 0)
+    const subject = hayCorte
+      ? `🚨 Aviso de corte de suministro`
+      : hayVencida
+        ? `⚠️ Cuenta(s) vencida(s) — ${d.items.length} período${d.items.length !== 1 ? 's' : ''}`
+        : `⏰ Vencimiento próximo — ${d.items.length} período${d.items.length !== 1 ? 's' : ''}`
+
+    await getResend().emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'Comité <noreply@resend.dev>',
+      to: d.email,
+      subject,
+      html: emailResumenDeuda({
+        nombre: d.nombre,
+        numeroParcela: d.numero,
+        items: d.items,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL || '',
+      }),
+    })
+    enviados++
+  }
+
+  if (!forzar && marcasPendientes.length > 0) {
+    await supabase.from('alertas_enviadas').upsert(
+      marcasPendientes.map(m => ({ ...m, ultima_vez: new Date().toISOString() })),
+      { onConflict: 'tipo,periodo_id,parcela_id' }
+    )
   }
 
   return NextResponse.json({ enviados })
@@ -336,42 +341,53 @@ function emailLectura(d: {
 </div>`
 }
 
-function emailVencimiento(d: {
-  nombre: string; numeroParcela: number; periodo: string;
-  monto: number; saldo: number; fechaVencimiento: string;
-  diasRestantes: number | null; appUrl: string
+// Un solo correo que lista TODOS los períodos pendientes de la parcela junto
+// (en vez de un correo separado por cada período vencido) — evita el spam.
+function emailResumenDeuda(d: {
+  nombre: string; numeroParcela: number
+  items: { periodoId: string; nombrePeriodo: string; monto: number; saldo: number; tipo: 'vencimiento' | 'corte'; diasVenc: number | null; fecha: string }[]
+  appUrl: string
 }) {
-  const alerta = d.diasRestantes !== null && d.diasRestantes < 0
-    ? `<p style="color:#dc2626;font-weight:bold;">Tu cuenta está VENCIDA desde el ${d.fechaVencimiento}.</p>`
-    : `<p>Tu cuenta vence el <strong>${d.fechaVencimiento}</strong>${d.diasRestantes !== null ? ` (en ${d.diasRestantes} día${d.diasRestantes !== 1 ? 's' : ''})` : ''}.</p>`
+  const totalSaldo = d.items.reduce((s, i) => s + i.saldo, 0)
+  const hayCorte = d.items.some(i => i.tipo === 'corte')
+
+  const filas = d.items.map(i => {
+    const vencida = i.tipo === 'vencimiento' && i.diasVenc !== null && i.diasVenc < 0
+    const etiqueta = i.tipo === 'corte'
+      ? `<span style="color:#dc2626;font-weight:bold;">Corte el ${i.fecha}</span>`
+      : vencida
+        ? `<span style="color:#dc2626;font-weight:bold;">Vencida desde el ${i.fecha}</span>`
+        : `Vence el ${i.fecha}${i.diasVenc !== null ? ` (${i.diasVenc} día${i.diasVenc !== 1 ? 's' : ''})` : ''}`
+    return `<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">${i.nombrePeriodo}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;color:#dc2626;font-weight:bold;">$${i.saldo.toLocaleString('es-CL')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:13px;">${etiqueta}</td>
+    </tr>`
+  }).join('')
+
+  const encabezado = hayCorte
+    ? `<h2 style="color:#dc2626;">🚨 Macrolote COPOSA — Aviso de corte de suministro</h2>`
+    : `<h2 style="color:#1d4ed8;">⚡ Macrolote COPOSA — Cuentas pendientes</h2>`
 
   return `
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-  <h2 style="color:#1d4ed8;">⚡ Macrolote COPOSA — Aviso de vencimiento</h2>
+<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+  ${encabezado}
   <p>Hola <strong>${d.nombre}</strong> (Parcela #${d.numeroParcela}),</p>
-  <p>Tienes una cuenta pendiente del período <strong>${d.periodo}</strong>:</p>
-  <div style="background:#f1f5f9;border-radius:8px;padding:16px;margin:16px 0;">
-    <p style="margin:4px 0;">Monto total: <strong>$${d.monto.toLocaleString('es-CL')}</strong></p>
-    <p style="margin:4px 0;">Saldo pendiente: <strong style="color:#dc2626;">$${d.saldo.toLocaleString('es-CL')}</strong></p>
-  </div>
-  ${alerta}
-  <a href="${d.appUrl}/parcelero" style="display:inline-block;background:#1d4ed8;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Ver mi cuenta</a>
-  <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité de Parcelas — Sistema automático de notificaciones</p>
-</div>`
-}
-
-function emailCorte(d: {
-  nombre: string; numeroParcela: number; periodo: string;
-  saldo: number; fechaCorte: string; appUrl: string
-}) {
-  return `
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-  <h2 style="color:#dc2626;">🚨 Aviso de corte de suministro eléctrico</h2>
-  <p>Hola <strong>${d.nombre}</strong> (Parcela #${d.numeroParcela}),</p>
-  <p>Te informamos que existe un saldo pendiente del período <strong>${d.periodo}</strong> por <strong>$${d.saldo.toLocaleString('es-CL')}</strong>.</p>
-  <p style="color:#dc2626;font-weight:bold;">El suministro eléctrico podría ser cortado el <strong>${d.fechaCorte}</strong> si no se regulariza el pago antes de esa fecha.</p>
-  <p>Por favor contacta al comité para coordinar el pago a la brevedad.</p>
-  <a href="${d.appUrl}/parcelero" style="display:inline-block;background:#dc2626;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Ver mi cuenta</a>
-  <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité de Parcelas — Sistema automático de notificaciones</p>
+  <p>Tienes ${d.items.length} período${d.items.length !== 1 ? 's' : ''} de luz pendiente${d.items.length !== 1 ? 's' : ''}:</p>
+  <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+    <thead>
+      <tr style="background:#f1f5f9;">
+        <th style="padding:6px 8px;text-align:left;font-size:13px;">Período</th>
+        <th style="padding:6px 8px;text-align:right;font-size:13px;">Saldo</th>
+        <th style="padding:6px 8px;text-align:left;font-size:13px;">Estado</th>
+      </tr>
+    </thead>
+    <tbody>${filas}</tbody>
+  </table>
+  <p style="font-size:16px;">Total pendiente: <strong style="color:#dc2626;">$${totalSaldo.toLocaleString('es-CL')}</strong></p>
+  ${hayCorte ? `<p style="color:#dc2626;font-weight:bold;">El suministro eléctrico podría ser cortado si no se regulariza el pago a la brevedad.</p>` : ''}
+  <p>Puedes pagar todos tus períodos pendientes de una vez desde la app, marcando la opción "Pagar todo".</p>
+  <a href="${d.appUrl}/parcelero/luz" style="display:inline-block;background:#1d4ed8;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Ver e informar mi pago</a>
+  <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA — Sistema automático de notificaciones</p>
 </div>`
 }
