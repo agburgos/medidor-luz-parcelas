@@ -32,11 +32,13 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
 
-  // Obtener períodos abiertos
+  // Períodos "abierto" (para el recordatorio de lectura) Y "cerrado" con
+  // factura ya calculada (para vencimiento/corte/mora) — un período cerrado
+  // sigue teniendo cuentas pendientes que cobrar, así que igual debe alertar.
   let periodoQuery = supabase
     .from('periodos_facturacion')
     .select('*')
-    .eq('estado', 'abierto')
+    .or('estado.eq.abierto,and(estado.eq.cerrado,prorrateo_calculado.eq.true)')
   if (periodo_id_especifico) {
     periodoQuery = periodoQuery.eq('id', periodo_id_especifico)
   }
@@ -138,8 +140,10 @@ async function procesarAlertas(periodo_id_especifico: string | null, forzar = fa
     const diaTope = config.dia_tope_lectura ?? 10
     const fechaTope = new Date(periodo.anio, periodo.mes - 1, diaTope)
     const diasParaTope = Math.ceil((fechaTope.getTime() - hoy.getTime()) / 86400000)
-    const debeRecordarLectura = (forzar && !tipoForzado) ||
+    const debeRecordarLectura = periodo.estado === 'abierto' && (
+      (forzar && !tipoForzado) ||
       (diasParaTope <= (config.avisar_lectura_dias_antes ?? 3) && diasParaTope >= -15)
+    )
 
     if (debeRecordarLectura) {
       const [{ data: parcelasActivas }, { data: lecturasPeriodo }, { data: alertasLectura }] = await Promise.all([
