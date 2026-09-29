@@ -19,6 +19,7 @@ export default function AnunciosPage() {
   const [documentos, setDocumentos] = useState<FileList | null>(null)
   const [publicando, setPublicando] = useState(false)
   const [expandido, setExpandido] = useState<string | null>(null)
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null)
   const [reacciones, setReacciones] = useState<Reaccion[]>([])
   const [cargandoReacciones, setCargandoReacciones] = useState(false)
 
@@ -116,7 +117,13 @@ export default function AnunciosPage() {
               <div className="flex gap-2 mt-3 flex-wrap">
                 {a.archivos.filter(f => f.tipo === 'foto').map((f, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={f.url} alt="" className="h-24 rounded-lg border object-cover" />
+                  <img
+                    key={i}
+                    src={f.url}
+                    alt=""
+                    onClick={() => setFotoAmpliada(f.url)}
+                    className="h-24 rounded-lg border object-cover cursor-zoom-in hover:opacity-90 transition-opacity"
+                  />
                 ))}
               </div>
             )}
@@ -168,6 +175,23 @@ export default function AnunciosPage() {
           <div className="bg-white rounded-xl border p-8 text-center text-gray-400">Sin anuncios publicados aún</div>
         )}
       </div>
+
+      {fotoAmpliada && (
+        <div
+          onClick={() => setFotoAmpliada(null)}
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          <button
+            onClick={() => setFotoAmpliada(null)}
+            className="absolute top-4 right-4 text-white text-3xl leading-none hover:opacity-70"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={fotoAmpliada} alt="" className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain" />
+        </div>
+      )}
     </div>
   )
 }
