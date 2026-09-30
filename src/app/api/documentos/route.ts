@@ -18,13 +18,16 @@ export async function GET(req: NextRequest) {
 
   if (sesion?.rol === 'comite') return NextResponse.json(data)
 
+  // Ocultar documentos marcados como solo para el comité
+  const visibles = (data ?? []).filter((d: { solo_comite?: boolean }) => !d.solo_comite)
+
   // Ocultar documentos de asambleas de directiva a los parceleros
-  const idsAsamblea = [...new Set((data ?? []).map((d: { asamblea_id: string | null }) => d.asamblea_id).filter(Boolean))]
+  const idsAsamblea = [...new Set(visibles.map((d: { asamblea_id: string | null }) => d.asamblea_id).filter(Boolean))]
   const { data: directivas } = idsAsamblea.length
     ? await supabase.from('asambleas').select('id').in('id', idsAsamblea).eq('tipo', 'directiva')
     : { data: [] }
   const idsOcultos = new Set((directivas ?? []).map((a: { id: string }) => a.id))
-  return NextResponse.json((data ?? []).filter((d: { asamblea_id: string | null }) => !idsOcultos.has(d.asamblea_id)))
+  return NextResponse.json(visibles.filter((d: { asamblea_id: string | null }) => !idsOcultos.has(d.asamblea_id)))
 }
 
 export async function POST(req: NextRequest) {
@@ -37,6 +40,7 @@ export async function POST(req: NextRequest) {
   const nombre = fd.get('nombre') as string
   const categoria = (fd.get('categoria') as string) || 'general'
   const asamblea_id = (fd.get('asamblea_id') as string) || null
+  const solo_comite = fd.get('solo_comite') === 'true'
 
   if (!archivo || !nombre) return NextResponse.json({ error: 'Archivo y nombre son requeridos' }, { status: 400 })
 
@@ -59,6 +63,7 @@ export async function POST(req: NextRequest) {
       nombre,
       archivo_url,
       subido_por: sesion.userId,
+      solo_comite,
     })
     .select()
     .single()

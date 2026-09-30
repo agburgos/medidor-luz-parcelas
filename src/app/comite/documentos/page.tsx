@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 interface Documento {
   id: string; nombre: string; categoria: string; archivo_url: string; created_at: string
-  asamblea_id: string | null
+  asamblea_id: string | null; solo_comite: boolean
 }
 
 const CATEGORIAS: Record<string, string> = { acta: '📋 Acta', contable: '💰 Contable', reglamento: '📜 Reglamento', general: '📄 General' }
@@ -18,6 +18,7 @@ export default function DocumentosComitePage() {
   const [nombre, setNombre] = useState('')
   const [categoria, setCategoria] = useState('general')
   const [archivo, setArchivo] = useState<File | null>(null)
+  const [soloComite, setSoloComite] = useState(false)
   const [subiendo, setSubiendo] = useState(false)
 
   const cargar = useCallback(async () => {
@@ -38,10 +39,11 @@ export default function DocumentosComitePage() {
     fd.append('archivo', archivo)
     fd.append('nombre', nombre)
     fd.append('categoria', categoria)
+    fd.append('solo_comite', String(soloComite))
     const res = await fetch('/api/documentos', { method: 'POST', body: fd })
     const data = await res.json()
     setMensaje(res.ok ? '✅ Documento publicado' : `❌ ${data.error}`)
-    setNombre(''); setArchivo(null)
+    setNombre(''); setArchivo(null); setSoloComite(false)
     setSubiendo(false)
     await cargar()
   }
@@ -82,6 +84,10 @@ export default function DocumentosComitePage() {
           <label className="block text-xs text-gray-600 mb-1">Archivo</label>
           <input type="file" required onChange={e => setArchivo(e.target.files?.[0] || null)} className="text-sm" />
         </div>
+        <label className="flex items-center gap-2 text-xs text-gray-600 pb-2">
+          <input type="checkbox" checked={soloComite} onChange={e => setSoloComite(e.target.checked)} />
+          🔒 Solo comité (no lo verán los parceleros)
+        </label>
         <button type="submit" disabled={subiendo} className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
           {subiendo ? 'Subiendo...' : '+ Publicar'}
         </button>
@@ -113,7 +119,11 @@ export default function DocumentosComitePage() {
           <tbody>
             {filtrados.map(d => (
               <tr key={d.id} className="border-t">
-                <td className="px-4 py-2">{d.nombre}{d.asamblea_id && <span className="ml-2 text-xs text-gray-400">(de asamblea)</span>}</td>
+                <td className="px-4 py-2">
+                  {d.nombre}
+                  {d.asamblea_id && <span className="ml-2 text-xs text-gray-400">(de asamblea)</span>}
+                  {d.solo_comite && <span className="ml-2 text-xs text-amber-600">🔒 solo comité</span>}
+                </td>
                 <td className="px-4 py-2">{CATEGORIAS[d.categoria] ?? d.categoria}</td>
                 <td className="px-4 py-2 text-gray-500">{new Date(d.created_at).toLocaleDateString('es-CL')}</td>
                 <td className="px-4 py-2"><a href={d.archivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Ver</a></td>
