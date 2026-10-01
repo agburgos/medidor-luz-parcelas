@@ -13,7 +13,7 @@ export default function InformarPagoPage() {
   const cuentaPreseleccionada = searchParams.get('cuenta')
   const [aplicaA, setAplicaA] = useState<'luz' | 'gc' | 'ambos'>('luz')
   const [cuentaLuzId, setCuentaLuzId] = useState('')
-  const [pagarTodo, setPagarTodo] = useState(true)
+  const [pagarTodo, setPagarTodo] = useState(false)
   const [form, setForm] = useState({
     monto_luz: '', monto_gc: '',
     fecha: new Date().toISOString().slice(0, 10),
@@ -33,9 +33,9 @@ export default function InformarPagoPage() {
           ? cuentaPreseleccionada
           : pendientes[0].cuenta_id
         setCuentaLuzId(preseleccionada)
-        // Por defecto "Pagar todo" está marcado: si hay varios períodos
-        // pendientes, se sugiere la suma completa. Al desmarcarlo, queda solo
-        // el monto del período elegido.
+        // "Pagar todo" parte desmarcado: por defecto se sugiere solo el monto
+        // del período más antiguo pendiente, que es lo más común. El parcelero
+        // debe marcarlo explícitamente si de verdad paga varios meses de una vez.
         const elegida = pendientes.find(p => p.cuenta_id === preseleccionada)
         const monto = pagarTodo ? data?.luz?.saldo : elegida?.saldo
         if (monto != null) setForm(f => ({ ...f, monto_luz: String(monto) }))
