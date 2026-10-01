@@ -20,6 +20,7 @@ export default async function ComiteDashboard() {
     { data: periodos },
     { data: periodosGC },
     { data: cuentasLuz },
+    { data: todosPeriodosFactura },
     { data: cuentasGC },
     { data: moras },
     { data: anuncios },
@@ -43,6 +44,7 @@ export default async function ComiteDashboard() {
       .order('mes', { ascending: false })
       .limit(5),
     supabase.from('cuentas_parcela').select('monto_prorrateado, monto_pagado, periodo:periodos_facturacion(mes,anio)'),
+    supabase.from('periodos_facturacion').select('mes, anio, monto_total_factura'),
     supabase.from('cuentas_gc').select('monto, monto_pagado, periodo:periodos_gc(mes,anio)'),
     supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').not('estado', 'in', '(pagado,en_revision)'),
     supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
@@ -140,6 +142,14 @@ export default async function ComiteDashboard() {
     porMes.set(key, item)
   }
   const filasMes = [...porMes.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+
+  // Facturado Luz = valor REAL de la factura IEL del período (no el cobro
+  // interno prorrateado entre parcelas, que es otra cosa).
+  type PeriodoFactura = { mes: number; anio: number; monto_total_factura: number | null }
+  const facturaRealPorMes = new Map<string, number>()
+  for (const p of (todosPeriodosFactura ?? []) as PeriodoFactura[]) {
+    facturaRealPorMes.set(`${p.anio}-${String(p.mes).padStart(2, '0')}`, p.monto_total_factura ?? 0)
+  }
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
@@ -266,6 +276,7 @@ export default async function ComiteDashboard() {
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-600">Mes</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Facturado Luz</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Cobro interno</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Recaudado Luz</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Facturado GC</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Recaudado GC</th>
@@ -278,6 +289,7 @@ export default async function ComiteDashboard() {
               return (
                 <tr key={key} className="border-t">
                   <td className="px-4 py-2 font-medium">{mesesCorto[mes - 1]} {anio}</td>
+                  <td className="px-4 py-2 text-right">{$(facturaRealPorMes.get(key) ?? 0)}</td>
                   <td className="px-4 py-2 text-right">{$(m.facturadoLuz)}</td>
                   <td className="px-4 py-2 text-right text-green-700">{$(m.recaudadoLuz)}</td>
                   <td className="px-4 py-2 text-right">{$(m.facturadoGC)}</td>
@@ -287,7 +299,7 @@ export default async function ComiteDashboard() {
               )
             })}
             {filasMes.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Sin datos aún</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">Sin datos aún</td></tr>
             )}
           </tbody>
         </table>
