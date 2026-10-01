@@ -51,6 +51,20 @@ export async function POST(req: NextRequest) {
   const combinado = aplica_a === 'ambos'
   const resultado: { luz?: string; gc?: string } = {}
 
+  // Evita comprobantes duplicados: si la parcela ya tiene un pago pendiente de
+  // validar o ya validado para esa misma cuenta, no deja informar otro (causa
+  // frecuente de dobles aprobaciones cuando el parcelero sube el mismo
+  // comprobante dos veces).
+  async function cuentasConPagoVigente(cuentaIds: string[]): Promise<Set<string>> {
+    if (cuentaIds.length === 0) return new Set()
+    const { data } = await supabase
+      .from('pagos')
+      .select('cuenta_id')
+      .in('cuenta_id', cuentaIds)
+      .in('estado', ['por_validar', 'validado'])
+    return new Set((data ?? []).map((p: { cuenta_id: string }) => p.cuenta_id))
+  }
+
   if (incluyeLuz) {
     // "Pagar todo": el frontend manda la lista de cuentas pendientes con el
     // monto exacto de cada una (cuentas_luz), y se crea UN pago por cuenta —
@@ -76,6 +90,12 @@ export async function POST(req: NextRequest) {
       const idsPropios = new Set((propias ?? []).map((c: { id: string }) => c.id))
       cuentasAPagar = cuentasAPagar.filter(c => idsPropios.has(c.cuenta_id))
       if (cuentasAPagar.length === 0) return NextResponse.json({ error: 'Las cuentas indicadas no corresponden a tu parcela' }, { status: 400 })
+
+      const bloqueadas = await cuentasConPagoVigente(cuentasAPagar.map(c => c.cuenta_id))
+      cuentasAPagar = cuentasAPagar.filter(c => !bloqueadas.has(c.cuenta_id))
+      if (cuentasAPagar.length === 0) {
+        return NextResponse.json({ error: 'Ya informaste un pago para estos períodos: está pendiente de validación o ya fue aprobado. Si crees que es un error, contacta al comité.' }, { status: 400 })
+      }
 
       const url = await subirComprobante('luz')
       const filas = cuentasAPagar.map(c => ({
@@ -114,6 +134,11 @@ export async function POST(req: NextRequest) {
       }
       if (!cuenta) return NextResponse.json({ error: 'No tienes cuentas de luz generadas aún' }, { status: 400 })
 
+      const bloqueadas = await cuentasConPagoVigente([cuenta.id])
+      if (bloqueadas.has(cuenta.id)) {
+        return NextResponse.json({ error: 'Ya informaste un pago para este período: está pendiente de validación o ya fue aprobado. Si crees que es un error, contacta al comité.' }, { status: 400 })
+      }
+
       const url = await subirComprobante('luz')
       const { error } = await supabase.from('pagos').insert({
         cuenta_id: cuenta.id, monto: montoLuz, fecha, metodo, observacion,
@@ -133,6 +158,17 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle()
     if (!cuenta) return NextResponse.json({ error: 'No tienes cuentas de Gastos Comunes generadas aún' }, { status: 400 })
+
+    const { data: pagoGcVigente } = await supabase
+      .from('pagos_gc')
+      .select('id')
+      .eq('cuenta_gc_id', cuenta.id)
+      .in('estado', ['por_validar', 'validado'])
+      .limit(1)
+      .maybeSingle()
+    if (pagoGcVigente) {
+      return NextResponse.json({ error: 'Ya informaste un pago de Gastos Comunes para este período: está pendiente de validación o ya fue aprobado. Si crees que es un error, contacta al comité.' }, { status: 400 })
+    }
 
     const url = await subirComprobante('gc')
     const { error } = await supabase.from('pagos_gc').insert({
