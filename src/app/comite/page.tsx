@@ -151,6 +151,15 @@ export default async function ComiteDashboard() {
     facturaRealPorMes.set(`${p.anio}-${String(p.mes).padStart(2, '0')}`, p.monto_total_factura ?? 0)
   }
 
+  // Excedente = lo cobrado internamente (incluye cargo fijo a toda parcela con
+  // empalme) menos el valor real de la factura IEL de ese período. Es lo que
+  // va acumulando el fondo de reserva.
+  const excedentePorMes = filasMes.map(([key, m]) => {
+    const facturaReal = facturaRealPorMes.get(key) ?? 0
+    return { key, excedente: m.facturadoLuz - facturaReal }
+  })
+  const excedenteAcumulado = excedentePorMes.reduce((s, e) => s + e.excedente, 0)
+
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
 
   return (
@@ -270,6 +279,13 @@ export default async function ComiteDashboard() {
 
       {/* Reporte por meses */}
       <h2 className="text-lg font-semibold mb-3">📊 Reporte de recaudación por mes</h2>
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold text-blue-900">💰 Fondo de reserva acumulado</p>
+          <p className="text-xs text-gray-500">Suma de lo cobrado internamente (incluye cargo fijo) por sobre el valor real de cada factura</p>
+        </div>
+        <p className="text-xl font-bold text-blue-900">{$(excedenteAcumulado)}</p>
+      </div>
       <div className="bg-white rounded-xl border overflow-auto mb-8">
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
@@ -277,6 +293,7 @@ export default async function ComiteDashboard() {
               <th className="text-left px-4 py-3 font-medium text-gray-600">Mes</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Facturado Luz</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Cobro interno</th>
+              <th className="text-right px-4 py-3 font-medium text-gray-600">Excedente</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Recaudado Luz</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Facturado GC</th>
               <th className="text-right px-4 py-3 font-medium text-gray-600">Recaudado GC</th>
@@ -286,11 +303,13 @@ export default async function ComiteDashboard() {
           <tbody>
             {filasMes.map(([key, m]) => {
               const [anio, mes] = key.split('-').map(Number)
+              const excedente = m.facturadoLuz - (facturaRealPorMes.get(key) ?? 0)
               return (
                 <tr key={key} className="border-t">
                   <td className="px-4 py-2 font-medium">{mesesCorto[mes - 1]} {anio}</td>
                   <td className="px-4 py-2 text-right">{$(facturaRealPorMes.get(key) ?? 0)}</td>
                   <td className="px-4 py-2 text-right">{$(m.facturadoLuz)}</td>
+                  <td className="px-4 py-2 text-right text-blue-700">{$(excedente)}</td>
                   <td className="px-4 py-2 text-right text-green-700">{$(m.recaudadoLuz)}</td>
                   <td className="px-4 py-2 text-right">{$(m.facturadoGC)}</td>
                   <td className="px-4 py-2 text-right text-green-700">{$(m.recaudadoGC)}</td>
@@ -299,7 +318,7 @@ export default async function ComiteDashboard() {
               )
             })}
             {filasMes.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">Sin datos aún</td></tr>
+              <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-400">Sin datos aún</td></tr>
             )}
           </tbody>
         </table>
