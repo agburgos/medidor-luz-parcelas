@@ -88,7 +88,7 @@ export default function CuentasPage() {
 
   const totales = {
     total: cuentas.reduce((s, c) => s + c.monto_prorrateado, 0),
-    pagado: cuentas.filter(c => c.estado === 'pagado').reduce((s, c) => s + c.monto_prorrateado, 0),
+    pagado: cuentas.reduce((s, c) => s + c.monto_pagado, 0),
     mora: cuentas.filter(c => c.estado === 'mora').length,
   }
 
