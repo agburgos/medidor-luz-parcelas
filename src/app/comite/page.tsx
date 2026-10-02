@@ -120,7 +120,14 @@ export default async function ComiteDashboard() {
   const egresosMovimientos = movsCaja.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
   const totalIngresosCaja = ingresosCaja.reduce((s, m) => s + Number(m.monto), 0)
   // Ingresos extraordinarios = ingresos de caja que NO son pagos de cuotas
-  const ingresosExtraordinarios = ingresosCaja.filter(m => !esPago(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
+  const esDeposito = (c: string) => /^Dep[óo]sito a plazo/i.test(c)
+  const esRescate = (c: string) => /^Rescate dep[óo]sito/i.test(c)
+  const ingresosExtraordinarios = ingresosCaja.filter(m => !esPago(m.concepto) && !esRescate(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
+  // Fondos separados en depósito a plazo: egresos "Depósito a plazo…" menos
+  // lo rescatado ("Rescate depósito…"). Salen de la caja diaria pero siguen siendo plata de la comunidad.
+  const enDepositoAPlazo =
+    movsCaja.filter(m => m.tipo === 'egreso' && esDeposito(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
+    - movsCaja.filter(m => m.tipo === 'ingreso' && esRescate(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
   const saldoCaja = SALDO_INICIAL + totalIngresosCaja - egresosMovimientos
 
   // Reporte por mes: combina luz y GC
@@ -176,8 +183,11 @@ export default async function ComiteDashboard() {
           <p className="text-2xl font-bold text-green-700">{$(totalRecaudado)}</p>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-          <p className="text-sm text-blue-700">🏦 Caja</p>
+          <p className="text-sm text-blue-700">🏦 Caja diaria</p>
           <p className="text-2xl font-bold text-blue-700">{$(saldoCaja)}</p>
+          {enDepositoAPlazo > 0 && (
+            <p className="text-xs text-blue-600 mt-1">+ {$(enDepositoAPlazo)} en depósito a plazo = {$(saldoCaja + enDepositoAPlazo)} total</p>
+          )}
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
           <p className="text-sm text-emerald-700">📥 Ingresos</p>
