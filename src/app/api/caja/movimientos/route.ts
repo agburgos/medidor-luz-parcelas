@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
   const fecha = formData.get('fecha') as string
   const observacion = formData.get('observacion') as string
   const documento = formData.get('documento') as File | null
+  const cuentaId = (formData.get('cuenta_id') as string) || null
 
   if (!tipo || !concepto || !monto || !fecha) {
     return NextResponse.json({ error: 'Tipo, concepto, monto y fecha son requeridos' }, { status: 400 })
@@ -41,6 +42,11 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServiceClient()
+
+  if (cuentaId) {
+    const { data: cuenta } = await supabase.from('caja_cuentas').select('id').eq('id', cuentaId).eq('activa', true).maybeSingle()
+    if (!cuenta) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 400 })
+  }
 
   // Subir documento a Storage si se proporciona (usa mismo bucket que lecturas/pagos)
   let documento_url = null
@@ -65,6 +71,7 @@ export async function POST(req: NextRequest) {
       documento_url,
       observacion: observacion || null,
       usuario_id: sesion.userId,
+      ...(cuentaId ? { cuenta_id: cuentaId } : {}),
     })
     .select()
     .single()

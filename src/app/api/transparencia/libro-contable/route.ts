@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { cargarCuentasConSaldo } from '@/lib/caja'
 
 // GET: libro contable, solo lectura, para el menú de transparencia de parceleros
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
   const supabase = createServiceClient()
   const { data: movimientos, error } = await supabase
     .from('caja_movimientos')
-    .select('id, tipo, concepto, monto, fecha')
+    .select('id, tipo, concepto, monto, fecha, cuenta_id, transferencia_id')
     .order('fecha', { ascending: true })
     .order('created_at', { ascending: true })
 
@@ -27,13 +28,15 @@ export async function GET() {
   const saldoIni = saldoInicial?.saldo_final ?? 0
 
   let saldoActual = saldoIni
-  const registro = movs.map((m: { tipo: string; monto: number; fecha: string; concepto: string; id: string }) => {
+  const registro = movs.map((m: { tipo: string; monto: number; fecha: string; concepto: string; id: string; cuenta_id: string; transferencia_id: string | null }) => {
     saldoActual += m.tipo === 'ingreso' ? Number(m.monto) : -Number(m.monto)
     return { ...m, saldo_acumulado: saldoActual }
   })
 
   const resumenPorMes = new Map<string, { ingresos: Map<string, number>; egresos: Map<string, number> }>()
-  for (const m of movs) {
+  // Las transferencias internas no son ingreso ni gasto: se excluyen de resumen y totales.
+  const reales = movs.filter((m: { transferencia_id?: string | null }) => !m.transferencia_id)
+  for (const m of reales) {
     const mes = m.fecha.slice(0, 7)
     if (!resumenPorMes.has(mes)) {
       resumenPorMes.set(mes, { ingresos: new Map(), egresos: new Map() })
@@ -50,11 +53,15 @@ export async function GET() {
     totalEgresos: Array.from(egresos.values()).reduce((s: number, m: number) => s + m, 0),
   }))
 
-  const totalIngresos = movs.filter((m: { tipo: string }) => m.tipo === 'ingreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
-  const totalEgresos = movs.filter((m: { tipo: string }) => m.tipo === 'egreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
+  const totalIngresos = reales.filter((m: { tipo: string }) => m.tipo === 'ingreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
+  const totalEgresos = reales.filter((m: { tipo: string }) => m.tipo === 'egreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
   const saldoFinal = saldoIni + totalIngresos - totalEgresos
 
+  const { cuentas, total: totalCuentas } = await cargarCuentasConSaldo()
+
   return NextResponse.json({
+    cuentas,
+    totalCuentas,
     estadoResultados: {
       saldoInicial: saldoIni,
       totalIngresos,

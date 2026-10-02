@@ -14,7 +14,11 @@ interface Movimiento {
   created_at: string
   pago_id?: string | null
   pago_gc_id?: string | null
+  cuenta_id: string
+  transferencia_id: string | null
 }
+
+interface CuentaCaja { id: string; nombre: string; tipo: string; saldo: number }
 
 export default function CajaPage() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
@@ -28,10 +32,11 @@ export default function CajaPage() {
     fecha: new Date().toISOString().slice(0, 10),
     documento: null as File | null,
     observacion: '',
+    cuenta_id: '',
   })
   const [nombreDoc, setNombreDoc] = useState('')
   const [eliminando, setEliminando] = useState<string | null>(null)
-  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'ingreso' | 'egreso'>('todos')
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'ingreso' | 'egreso' | 'transferencia'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
   const POR_PAGINA = 15
@@ -40,12 +45,29 @@ export default function CajaPage() {
   const [editandoSaldo, setEditandoSaldo] = useState(false)
   const [nuevoSaldo, setNuevoSaldo] = useState('')
   const [guardandoSaldo, setGuardandoSaldo] = useState(false)
+  const [cuentas, setCuentas] = useState<CuentaCaja[]>([])
+  const [totalCuentas, setTotalCuentas] = useState(0)
+  const [transf, setTransf] = useState({
+    origen_id: '', destino_id: '', monto: '', fecha: new Date().toISOString().slice(0, 10), observacion: '',
+    documento: null as File | null,
+  })
+  const [transfiriendo, setTransfiriendo] = useState(false)
+  const [nuevaCuenta, setNuevaCuenta] = useState('')
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/caja/movimientos')
     const data = await res.json()
     setMovimientos(Array.isArray(data) ? data : [])
     setLoading(false)
+  }, [])
+
+  const cargarCuentas = useCallback(async () => {
+    const res = await fetch('/api/caja/cuentas')
+    const data = await res.json()
+    if (Array.isArray(data.cuentas)) {
+      setCuentas(data.cuentas)
+      setTotalCuentas(data.total ?? 0)
+    }
   }, [])
 
   const cargarSaldoInicial = useCallback(async () => {
@@ -61,7 +83,8 @@ export default function CajaPage() {
   useEffect(() => {
     cargar()
     cargarSaldoInicial()
-  }, [cargar, cargarSaldoInicial])
+    cargarCuentas()
+  }, [cargar, cargarSaldoInicial, cargarCuentas])
 
   async function guardarSaldoInicial() {
     const valor = Number(nuevoSaldo)
@@ -98,6 +121,7 @@ export default function CajaPage() {
     formData.append('fecha', form.fecha)
     formData.append('observacion', form.observacion)
     if (form.documento) formData.append('documento', form.documento)
+    if (form.cuenta_id) formData.append('cuenta_id', form.cuenta_id)
 
     const res = await fetch('/api/caja/movimientos', {
       method: 'POST',
@@ -108,11 +132,45 @@ export default function CajaPage() {
       setMensaje(`❌ ${data.error}`)
     } else {
       setMensaje(`✅ ${form.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} registrado`)
-      setForm({ tipo: 'ingreso', concepto: '', monto: '', fecha: new Date().toISOString().slice(0, 10), documento: null, observacion: '' })
+      setForm({ tipo: 'ingreso', concepto: '', monto: '', fecha: new Date().toISOString().slice(0, 10), documento: null, observacion: '', cuenta_id: '' })
       setNombreDoc('')
-      await cargar()
+      await Promise.all([cargar(), cargarCuentas()])
     }
     setGuardando(false)
+  }
+
+  async function transferir(e: React.FormEvent) {
+    e.preventDefault()
+    setTransfiriendo(true)
+    setMensaje('')
+    const fd = new FormData()
+    fd.append('origen_id', transf.origen_id)
+    fd.append('destino_id', transf.destino_id)
+    fd.append('monto', transf.monto)
+    fd.append('fecha', transf.fecha)
+    fd.append('observacion', transf.observacion)
+    if (transf.documento) fd.append('documento', transf.documento)
+    const res = await fetch('/api/caja/transferencias', { method: 'POST', body: fd })
+    const data = await res.json()
+    if (!res.ok) {
+      setMensaje(`❌ ${data.error}`)
+    } else {
+      setMensaje('✅ Transferencia interna registrada')
+      setTransf(t => ({ ...t, monto: '', observacion: '', documento: null }))
+      await Promise.all([cargar(), cargarCuentas()])
+    }
+    setTransfiriendo(false)
+  }
+
+  async function crearCuenta() {
+    if (!nuevaCuenta.trim()) return
+    const res = await fetch('/api/caja/cuentas', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: nuevaCuenta }),
+    })
+    const data = await res.json()
+    setMensaje(res.ok ? `✅ Cuenta "${data.nombre}" creada` : `❌ ${data.error}`)
+    if (res.ok) { setNuevaCuenta(''); await cargarCuentas() }
   }
 
   async function eliminarMovimiento(m: Movimiento) {
@@ -121,7 +179,7 @@ export default function CajaPage() {
     const res = await fetch(`/api/caja/movimientos/${m.id}`, { method: 'DELETE' })
     const data = await res.json()
     setMensaje(res.ok ? '✅ Movimiento eliminado' : `❌ ${data.error}`)
-    if (res.ok) await cargar()
+    if (res.ok) await Promise.all([cargar(), cargarCuentas()])
     setEliminando(null)
   }
 
@@ -139,14 +197,16 @@ export default function CajaPage() {
   }
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
-  const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
-  const totalEgresos = movimientos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const saldoActual = (saldoInicial ?? 0) + totalIngresos - totalEgresos
+  // Las transferencias internas no cuentan como ingreso ni egreso.
+  const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso' && !m.transferencia_id).reduce((s, m) => s + Number(m.monto), 0)
+  const totalEgresos = movimientos.filter(m => m.tipo === 'egreso' && !m.transferencia_id).reduce((s, m) => s + Number(m.monto), 0)
+  const saldoActual = cuentas.length > 0 ? totalCuentas : (saldoInicial ?? 0) + totalIngresos - totalEgresos
+  const nombreCuenta = (id: string) => cuentas.find(c => c.id === id)?.nombre ?? '—'
 
   // Filtrado + paginación de la grilla de movimientos
   const q = busqueda.trim().toLowerCase()
   const filtrados = movimientos.filter(m =>
-    (filtroTipo === 'todos' || m.tipo === filtroTipo) &&
+    (filtroTipo === 'todos' || (filtroTipo === 'transferencia' ? !!m.transferencia_id : m.tipo === filtroTipo && !m.transferencia_id)) &&
     (!q || m.concepto.toLowerCase().includes(q) || (m.observacion ?? '').toLowerCase().includes(q))
   )
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA))
@@ -220,9 +280,71 @@ export default function CajaPage() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 mb-8">
-        <p className="text-sm opacity-90">Saldo Actual</p>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 mb-4">
+        <p className="text-sm opacity-90">Saldo total (suma de todas las cuentas)</p>
         <p className="text-4xl font-bold">{$(saldoActual)}</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        {cuentas.map(c => (
+          <div key={c.id} className="bg-white rounded-xl border p-4">
+            <p className="text-xs text-gray-500">{c.tipo === 'diaria' ? '🏦' : c.tipo === 'deposito' ? '📈' : '💼'} {c.nombre}</p>
+            <p className="text-xl font-bold text-blue-700">{$(c.saldo)}</p>
+          </div>
+        ))}
+        <div className="bg-white rounded-xl border border-dashed p-4 flex items-center gap-2">
+          <input
+            type="text" value={nuevaCuenta} onChange={e => setNuevaCuenta(e.target.value)}
+            placeholder="+ Nueva cuenta" className="flex-1 border rounded-lg px-2 py-1.5 text-sm min-w-0"
+          />
+          <button type="button" onClick={crearCuenta} className="text-xs bg-gray-700 text-white rounded-lg px-3 py-1.5 hover:bg-gray-800">Crear</button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border p-6 mb-8">
+        <h2 className="text-lg font-semibold mb-1">🔁 Transferencia interna</h2>
+        <p className="text-xs text-gray-500 mb-4">Mueve plata entre cuentas (ej. de Caja diaria a Depósito a plazo). No es ingreso ni gasto: el total no cambia.</p>
+        <form onSubmit={transferir} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Desde</label>
+              <select value={transf.origen_id} onChange={e => setTransf(t => ({ ...t, origen_id: e.target.value }))} required className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">Elegir cuenta…</option>
+                {cuentas.map(c => <option key={c.id} value={c.id}>{c.nombre} ({$(c.saldo)})</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Hacia</label>
+              <select value={transf.destino_id} onChange={e => setTransf(t => ({ ...t, destino_id: e.target.value }))} required className="w-full border rounded-lg px-3 py-2 text-sm">
+                <option value="">Elegir cuenta…</option>
+                {cuentas.filter(c => c.id !== transf.origen_id).map(c => <option key={c.id} value={c.id}>{c.nombre} ({$(c.saldo)})</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Monto $</label>
+              <input type="number" value={transf.monto} onChange={e => setTransf(t => ({ ...t, monto: e.target.value }))} required min={1} className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Fecha</label>
+              <input type="date" value={transf.fecha} onChange={e => setTransf(t => ({ ...t, fecha: e.target.value }))} required className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Observación</label>
+              <input type="text" value={transf.observacion} onChange={e => setTransf(t => ({ ...t, observacion: e.target.value }))} placeholder="Ej: Depósito a plazo 90 días, Banco X" className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Comprobante (opcional)</label>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setTransf(t => ({ ...t, documento: e.target.files?.[0] || null }))} className="w-full border rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <button type="submit" disabled={transfiriendo} className="w-full bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            {transfiriendo ? 'Transfiriendo...' : '🔁 Transferir'}
+          </button>
+        </form>
       </div>
 
       <div className="bg-white rounded-xl border p-6 mb-8">
@@ -280,6 +402,19 @@ export default function CajaPage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-1">Cuenta</label>
+            <select
+              value={form.cuenta_id}
+              onChange={e => setForm(f => ({ ...f, cuenta_id: e.target.value }))}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">{cuentas.find(c => c.tipo === 'diaria')?.nombre ?? 'Caja diaria'} (por defecto)</option>
+              {cuentas.filter(c => c.tipo !== 'diaria').map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Para intereses u otros ingresos/gastos de una cuenta específica.</p>
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-1">Documento (archivo opcional)</label>
             <input
               type="file"
@@ -328,12 +463,13 @@ export default function CajaPage() {
             />
             <select
               value={filtroTipo}
-              onChange={e => { setFiltroTipo(e.target.value as 'todos' | 'ingreso' | 'egreso'); setPagina(1) }}
+              onChange={e => { setFiltroTipo(e.target.value as 'todos' | 'ingreso' | 'egreso' | 'transferencia'); setPagina(1) }}
               className="border rounded-lg px-3 py-1.5 text-sm"
             >
               <option value="todos">Todos</option>
               <option value="ingreso">📥 Ingresos</option>
               <option value="egreso">📤 Egresos</option>
+              <option value="transferencia">🔁 Transferencias</option>
             </select>
           </div>
         </div>
@@ -351,6 +487,7 @@ export default function CajaPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Fecha</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Concepto</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Cuenta</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Monto</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Observación</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Acción</th>
@@ -362,12 +499,13 @@ export default function CajaPage() {
                     <td className="px-4 py-3">{new Date(m.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        m.tipo === 'ingreso' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        m.transferencia_id ? 'bg-indigo-100 text-indigo-700' : m.tipo === 'ingreso' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
-                        {m.tipo === 'ingreso' ? '📥 Ingreso' : '📤 Egreso'}
+                        {m.transferencia_id ? '🔁 Transferencia' : m.tipo === 'ingreso' ? '📥 Ingreso' : '📤 Egreso'}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-medium">{m.concepto}</td>
+                    <td className="px-4 py-3 text-gray-500">{nombreCuenta(m.cuenta_id)}</td>
                     <td className={`px-4 py-3 text-right font-bold ${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
                       {m.tipo === 'ingreso' ? '+' : '-'}{$(Number(m.monto))}
                     </td>

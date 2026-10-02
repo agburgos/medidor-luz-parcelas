@@ -10,7 +10,7 @@ export async function GET() {
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from('caja_movimientos')
-    .select('id, tipo, concepto, monto, fecha, documento_url, observacion, created_at')
+    .select('id, tipo, concepto, monto, fecha, documento_url, observacion, created_at, cuenta_id, transferencia_id')
     .order('fecha', { ascending: false })
     .order('created_at', { ascending: false })
 

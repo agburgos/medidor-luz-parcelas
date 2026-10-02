@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getSesion } from '@/lib/auth'
+import { cargarCuentasConSaldo } from '@/lib/caja'
 
 export async function GET(req: NextRequest) {
   const sesion = await getSesion()
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   // 1. Registro cronológico detallado
   let saldoActual = saldoIni
-  const registro = movs.map((m: { tipo: string; monto: number; fecha: string; concepto: string; id: string }) => {
+  const registro = movs.map((m: { tipo: string; monto: number; fecha: string; concepto: string; id: string; cuenta_id: string; transferencia_id: string | null }) => {
     saldoActual += m.tipo === 'ingreso' ? Number(m.monto) : -Number(m.monto)
     return {
       ...m,
@@ -38,7 +39,9 @@ export async function GET(req: NextRequest) {
 
   // 2. Resumen mensual por concepto
   const resumenPorMes = new Map<string, { ingresos: Map<string, number>; egresos: Map<string, number> }>()
-  for (const m of movs) {
+  // Las transferencias internas no son ingreso ni gasto: se excluyen de resumen y totales.
+  const reales = movs.filter((m: { transferencia_id?: string | null }) => !m.transferencia_id)
+  for (const m of reales) {
     const mes = m.fecha.slice(0, 7) // YYYY-MM
     if (!resumenPorMes.has(mes)) {
       resumenPorMes.set(mes, { ingresos: new Map(), egresos: new Map() })
@@ -58,11 +61,15 @@ export async function GET(req: NextRequest) {
   }))
 
   // 3. Estado de Resultados (Balance)
-  const totalIngresos = movs.filter((m: { tipo: string }) => m.tipo === 'ingreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
-  const totalEgresos = movs.filter((m: { tipo: string }) => m.tipo === 'egreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
+  const totalIngresos = reales.filter((m: { tipo: string }) => m.tipo === 'ingreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
+  const totalEgresos = reales.filter((m: { tipo: string }) => m.tipo === 'egreso').reduce((s: number, m: { monto: number }) => s + Number(m.monto), 0)
   const saldoFinal = saldoIni + totalIngresos - totalEgresos
 
+  const { cuentas, total: totalCuentas } = await cargarCuentasConSaldo()
+
   return NextResponse.json({
+    cuentas,
+    totalCuentas,
     estadoResultados: {
       saldoInicial: saldoIni,
       totalIngresos,

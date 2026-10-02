@@ -12,15 +12,21 @@ interface Movimiento {
   documento_url: string | null
   observacion: string | null
   created_at: string
+  cuenta_id: string
+  transferencia_id: string | null
 }
+
+interface CuentaCaja { id: string; nombre: string; tipo: string; saldo: number }
 
 export default function CajaPage() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'ingreso' | 'egreso'>('todos')
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'ingreso' | 'egreso' | 'transferencia'>('todos')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
   const [saldoInicial, setSaldoInicial] = useState<number | null>(null)
+  const [cuentas, setCuentas] = useState<CuentaCaja[]>([])
+  const [totalCuentas, setTotalCuentas] = useState<number | null>(null)
   const POR_PAGINA = 15
 
   const cargar = useCallback(async () => {
@@ -32,17 +38,23 @@ export default function CajaPage() {
 
   useEffect(() => { cargar() }, [cargar])
   useEffect(() => {
+    fetch('/api/caja/cuentas').then(r => r.json()).then(d => {
+      if (Array.isArray(d.cuentas)) { setCuentas(d.cuentas); setTotalCuentas(d.total ?? 0) }
+    }).catch(() => {})
+  }, [])
+  useEffect(() => {
     fetch('/api/caja/saldo-inicial').then(r => r.json()).then(d => setSaldoInicial(d.saldo_inicial ?? 0)).catch(() => setSaldoInicial(0))
   }, [])
 
   const $ = (n: number) => '$' + Math.round(n).toLocaleString('es-CL')
-  const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
-  const totalEgresos = movimientos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const saldoActual = (saldoInicial ?? 0) + totalIngresos - totalEgresos
+  const totalIngresos = movimientos.filter(m => m.tipo === 'ingreso' && !m.transferencia_id).reduce((s, m) => s + Number(m.monto), 0)
+  const totalEgresos = movimientos.filter(m => m.tipo === 'egreso' && !m.transferencia_id).reduce((s, m) => s + Number(m.monto), 0)
+  const saldoActual = totalCuentas ?? ((saldoInicial ?? 0) + totalIngresos - totalEgresos)
+  const nombreCuenta = (id: string) => cuentas.find(c => c.id === id)?.nombre ?? '—'
 
   const q = busqueda.trim().toLowerCase()
   const filtrados = movimientos.filter(m =>
-    (filtroTipo === 'todos' || m.tipo === filtroTipo) &&
+    (filtroTipo === 'todos' || (filtroTipo === 'transferencia' ? !!m.transferencia_id : m.tipo === filtroTipo && !m.transferencia_id)) &&
     (!q || m.concepto.toLowerCase().includes(q) || (m.observacion ?? '').toLowerCase().includes(q))
   )
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / POR_PAGINA))
@@ -79,10 +91,21 @@ export default function CajaPage() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 mb-8">
-        <p className="text-sm opacity-90">Saldo Actual</p>
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl p-6 mb-4">
+        <p className="text-sm opacity-90">Saldo total (suma de todas las cuentas)</p>
         <p className="text-4xl font-bold">{$(saldoActual)}</p>
       </div>
+
+      {cuentas.length > 1 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          {cuentas.map(c => (
+            <div key={c.id} className="bg-white rounded-xl border p-4">
+              <p className="text-xs text-gray-500">{c.tipo === 'diaria' ? '🏦' : c.tipo === 'deposito' ? '📈' : '💼'} {c.nombre}</p>
+              <p className="text-xl font-bold text-blue-700">{$(c.saldo)}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -97,12 +120,13 @@ export default function CajaPage() {
             />
             <select
               value={filtroTipo}
-              onChange={e => { setFiltroTipo(e.target.value as 'todos' | 'ingreso' | 'egreso'); setPagina(1) }}
+              onChange={e => { setFiltroTipo(e.target.value as 'todos' | 'ingreso' | 'egreso' | 'transferencia'); setPagina(1) }}
               className="border rounded-lg px-3 py-1.5 text-sm"
             >
               <option value="todos">Todos</option>
               <option value="ingreso">📥 Ingresos</option>
               <option value="egreso">📤 Egresos</option>
+              <option value="transferencia">🔁 Transferencias</option>
             </select>
           </div>
         </div>
@@ -120,6 +144,7 @@ export default function CajaPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Fecha</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Concepto</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Cuenta</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Monto</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Observación</th>
                 </tr>
@@ -130,12 +155,13 @@ export default function CajaPage() {
                     <td className="px-4 py-3">{new Date(m.fecha + 'T00:00:00').toLocaleDateString('es-CL')}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        m.tipo === 'ingreso' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        m.transferencia_id ? 'bg-indigo-100 text-indigo-700' : m.tipo === 'ingreso' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
-                        {m.tipo === 'ingreso' ? '📥 Ingreso' : '📤 Egreso'}
+                        {m.transferencia_id ? '🔁 Transferencia' : m.tipo === 'ingreso' ? '📥 Ingreso' : '📤 Egreso'}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-medium">{m.concepto}</td>
+                    <td className="px-4 py-3 text-gray-500">{nombreCuenta(m.cuenta_id)}</td>
                     <td className={`px-4 py-3 text-right font-bold ${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
                       {m.tipo === 'ingreso' ? '+' : '-'}{$(Number(m.monto))}
                     </td>

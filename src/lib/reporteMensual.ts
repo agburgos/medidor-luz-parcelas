@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit'
 import { createServiceClient } from '@/lib/supabase/server'
+import { cargarCuentasConSaldo } from '@/lib/caja'
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const AZUL = '#1d4ea8'
@@ -79,17 +80,15 @@ export async function generarReporteMensualPDF(mes: number, anio: number): Promi
   const [
     { data: periodoLuz },
     { data: periodoGC },
-    { data: saldoInicialRow },
-    { data: todosMovimientos },
+    { cuentas: cuentasCaja, total: saldoCajaActual },
     { data: ingresosMes },
     { data: egresosMes },
   ] = await Promise.all([
     supabase.from('periodos_facturacion').select('*').eq('mes', mes).eq('anio', anio).maybeSingle(),
     supabase.from('periodos_gc').select('*').eq('mes', mes).eq('anio', anio).maybeSingle(),
-    supabase.from('caja_saldos').select('saldo_final').order('fecha', { ascending: true }).limit(1).maybeSingle(),
-    supabase.from('caja_movimientos').select('tipo, monto'),
-    supabase.from('caja_movimientos').select('tipo, monto, concepto, fecha').eq('tipo', 'ingreso').gte('fecha', desde).lt('fecha', hasta).order('fecha', { ascending: false }),
-    supabase.from('caja_movimientos').select('tipo, monto, concepto, fecha').eq('tipo', 'egreso').gte('fecha', desde).lt('fecha', hasta).order('fecha', { ascending: false }),
+    cargarCuentasConSaldo(),
+    supabase.from('caja_movimientos').select('tipo, monto, concepto, fecha').eq('tipo', 'ingreso').is('transferencia_id', null).gte('fecha', desde).lt('fecha', hasta).order('fecha', { ascending: false }),
+    supabase.from('caja_movimientos').select('tipo, monto, concepto, fecha').eq('tipo', 'egreso').is('transferencia_id', null).gte('fecha', desde).lt('fecha', hasta).order('fecha', { ascending: false }),
   ])
 
   let luz: { monto_prorrateado: number; monto_pagado: number; estado: string }[] = []
@@ -110,12 +109,6 @@ export async function generarReporteMensualPDF(mes: number, anio: number): Promi
   const facturadoGC = gcRows.reduce((s, c) => s + Number(c.monto), 0)
   const recaudadoGC = gcRows.reduce((s, c) => s + Number(c.monto_pagado), 0)
   const pagadasGC = gcRows.filter(c => c.estado === 'pagado').length
-
-  const SALDO_INICIAL = saldoInicialRow?.saldo_final ?? 0
-  const todos = (todosMovimientos ?? []) as { tipo: string; monto: number }[]
-  const saldoCajaActual = SALDO_INICIAL
-    + todos.filter(m => m.tipo === 'ingreso').reduce((s, m) => s + Number(m.monto), 0)
-    - todos.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
 
   const ingresos = (ingresosMes ?? []) as Movimiento[]
   const egresos = (egresosMes ?? []) as Movimiento[]
@@ -148,10 +141,20 @@ export async function generarReporteMensualPDF(mes: number, anio: number): Promi
 
   doc.y = doc.y + Math.max(altoLuz, altoGC) + 24
 
-  doc.roundedRect(margin, doc.y, doc.page.width - margin * 2, 44, 6).fill('#eff6ff')
-  doc.fillColor(AZUL).font('Helvetica-Bold').fontSize(11).text('Saldo de caja actual', margin + 14, doc.y + 14)
-  doc.fontSize(14).text($(saldoCajaActual), margin, doc.y + 12, { width: doc.page.width - margin * 2 - 14, align: 'right' })
-  doc.y += 44 + 22
+  const altoSaldo = cuentasCaja.length > 1 ? 44 + cuentasCaja.length * 16 : 44
+  const ySaldo = doc.y
+  doc.roundedRect(margin, ySaldo, doc.page.width - margin * 2, altoSaldo, 6).fill('#eff6ff')
+  doc.fillColor(AZUL).font('Helvetica-Bold').fontSize(11).text('Saldo de caja total', margin + 14, ySaldo + 14)
+  doc.fontSize(14).text($(saldoCajaActual), margin, ySaldo + 12, { width: doc.page.width - margin * 2 - 14, align: 'right' })
+  if (cuentasCaja.length > 1) {
+    let cy = ySaldo + 38
+    for (const c of cuentasCaja) {
+      doc.font('Helvetica').fontSize(9.5).fillColor(GRIS).text(sinEmoji(c.nombre), margin + 14, cy)
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#0f172a').text($(c.saldo), margin, cy, { width: doc.page.width - margin * 2 - 14, align: 'right' })
+      cy += 16
+    }
+  }
+  doc.y = ySaldo + altoSaldo + 22
   doc.fillColor('#000').font('Helvetica')
 
   const yListas = doc.y

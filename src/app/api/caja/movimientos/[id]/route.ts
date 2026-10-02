@@ -18,7 +18,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { data: mov } = await supabase
     .from('caja_movimientos')
-    .select('id, concepto, monto, pago_id, pago_gc_id')
+    .select('id, concepto, monto, pago_id, pago_gc_id, transferencia_id')
     .eq('id', id)
     .single()
   if (!mov) return NextResponse.json({ error: 'Movimiento no encontrado' }, { status: 404 })
@@ -40,7 +40,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  const { error } = await supabase.from('caja_movimientos').delete().eq('id', id)
+  // Una transferencia interna son dos movimientos ligados: se borran juntos.
+  const { error } = mov.transferencia_id
+    ? await supabase.from('caja_movimientos').delete().eq('transferencia_id', mov.transferencia_id)
+    : await supabase.from('caja_movimientos').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   await registrar(sesion, 'eliminar_movimiento_caja', 'caja', id, { concepto: mov.concepto, monto: mov.monto })

@@ -18,6 +18,8 @@ interface Movimiento {
   monto: number
   fecha: string
   saldo_acumulado: number
+  cuenta_id: string
+  transferencia_id: string | null
 }
 
 interface ResumenMensual {
@@ -29,6 +31,8 @@ interface ResumenMensual {
 }
 
 interface LibroContable {
+  cuentas: { id: string; nombre: string; saldo: number }[]
+  totalCuentas: number
   estadoResultados: EstadoResultados
   resumenMensual: ResumenMensual[]
   registroCronologico: Movimiento[]
@@ -108,6 +112,23 @@ export default function LibroContablePage() {
 
       {/* RESUMEN MENSUAL */}
       <div className="bg-white rounded-xl border p-6 mb-8">
+        <h2 className="text-lg font-semibold mb-4">Saldos por cuenta</h2>
+        <div className="space-y-2 text-sm">
+          {libro.cuentas.map(c => (
+            <div key={c.id} className="flex justify-between items-center">
+              <span className="text-gray-600">{c.nombre}</span>
+              <span className="font-medium">{$(c.saldo)}</span>
+            </div>
+          ))}
+          <div className="border-t-2 border-black pt-2 flex justify-between items-center bg-blue-50 px-3 py-2 rounded">
+            <span className="font-bold">Total (suma de todas las cuentas)</span>
+            <span className="font-bold text-lg text-blue-700">{$(libro.totalCuentas)}</span>
+          </div>
+          <p className="text-xs text-gray-400">Las transferencias internas entre cuentas no se cuentan como ingresos ni egresos.</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border p-6 mb-8">
         <h2 className="text-lg font-semibold mb-4">Resumen Mensual por Concepto</h2>
         <div className="space-y-6">
           {libro.resumenMensual.length === 0 ? (
@@ -186,8 +207,9 @@ export default function LibroContablePage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Fecha</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Tipo</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Concepto</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Cuenta</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Movimiento</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">Saldo Acumulado</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Saldo total acumulado</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,10 +220,11 @@ export default function LibroContablePage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         m.tipo === 'ingreso' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
-                        {m.tipo === 'ingreso' ? '📥' : '📤'}
+                        {m.transferencia_id ? '🔁' : m.tipo === 'ingreso' ? '📥' : '📤'}
                       </span>
                     </td>
                     <td className="px-4 py-3">{m.concepto}</td>
+                    <td className="px-4 py-3 text-gray-500">{libro.cuentas.find(c => c.id === m.cuenta_id)?.nombre ?? '—'}</td>
                     <td className={`px-4 py-3 text-right font-bold ${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'}`}>
                       {m.tipo === 'ingreso' ? '+' : '-'}{$(Number(m.monto))}
                     </td>

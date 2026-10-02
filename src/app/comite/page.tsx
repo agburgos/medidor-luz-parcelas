@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { cargarCuentasConSaldo } from '@/lib/caja'
 
 export const metadata = { title: 'Dashboard Comité — COPOSA' }
 
@@ -12,7 +13,7 @@ export default async function ComiteDashboard() {
 
   // Fetch caja sin RLS usando service client
   const supabaseService = createServiceClient()
-  const fetchCajaPromise = supabaseService.from('caja_movimientos').select('tipo, monto, concepto')
+  const fetchCajaPromise = supabaseService.from('caja_movimientos').select('tipo, monto, concepto, transferencia_id')
 
   const [
     { count: totalParcelas },
@@ -25,7 +26,6 @@ export default async function ComiteDashboard() {
     { data: moras },
     { data: anuncios },
     { data: movimientosCaja },
-    { data: saldoInicialRow },
     { count: incidenciasAbiertas },
     { data: periodosAbiertos },
   ] = await Promise.all([
@@ -49,7 +49,6 @@ export default async function ComiteDashboard() {
     supabase.from('moras_anteriores').select('monto, monto_pagado, tipo').not('estado', 'in', '(pagado,en_revision)'),
     supabase.from('anuncios').select('*').order('created_at', { ascending: false }).limit(5),
     fetchCajaPromise,
-    supabaseService.from('caja_saldos').select('saldo_final').order('fecha', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('incidencias').select('*', { count: 'exact', head: true }).in('estado', ['activa', 'investigando']),
     // Salud de los períodos de luz "activos": los que aún están abiertos para
     // lectura Y los que ya se cerraron pero todavía se están recaudando
@@ -112,23 +111,14 @@ export default async function ComiteDashboard() {
   // Cálculos de Caja: la Caja sale 100% de caja_movimientos (única fuente de verdad).
   // Todos los pagos validados (luz/GC/abonos) se registran como ingresos aquí,
   // por eso NO se vuelve a sumar totalRecaudado (evita doble conteo).
-  const SALDO_INICIAL = saldoInicialRow?.saldo_final ?? 0
-  type MovCaja = { tipo: string; monto: number; concepto: string }
+  type MovCaja = { tipo: string; monto: number; concepto: string; transferencia_id: string | null }
   const movsCaja = (movimientosCaja ?? []) as MovCaja[]
   const esPago = (c: string) => /^(Pago Luz|Pago Gastos Comunes|Abono)/i.test(c)
   const ingresosCaja = movsCaja.filter(m => m.tipo === 'ingreso')
-  const egresosMovimientos = movsCaja.filter(m => m.tipo === 'egreso').reduce((s, m) => s + Number(m.monto), 0)
-  const totalIngresosCaja = ingresosCaja.reduce((s, m) => s + Number(m.monto), 0)
   // Ingresos extraordinarios = ingresos de caja que NO son pagos de cuotas
-  const esDeposito = (c: string) => /^Dep[óo]sito a plazo/i.test(c)
-  const esRescate = (c: string) => /^Rescate dep[óo]sito/i.test(c)
-  const ingresosExtraordinarios = ingresosCaja.filter(m => !esPago(m.concepto) && !esRescate(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
-  // Fondos separados en depósito a plazo: egresos "Depósito a plazo…" menos
-  // lo rescatado ("Rescate depósito…"). Salen de la caja diaria pero siguen siendo plata de la comunidad.
-  const enDepositoAPlazo =
-    movsCaja.filter(m => m.tipo === 'egreso' && esDeposito(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
-    - movsCaja.filter(m => m.tipo === 'ingreso' && esRescate(m.concepto)).reduce((s, m) => s + Number(m.monto), 0)
-  const saldoCaja = SALDO_INICIAL + totalIngresosCaja - egresosMovimientos
+  // Las transferencias internas entre cuentas no son ingresos reales.
+  const ingresosExtraordinarios = ingresosCaja.filter(m => !esPago(m.concepto) && !m.transferencia_id).reduce((s, m) => s + Number(m.monto), 0)
+  const { cuentas: cuentasCaja, total: saldoCajaTotal } = await cargarCuentasConSaldo()
 
   // Reporte por mes: combina luz y GC
   const porMes = new Map<string, { facturadoLuz: number; recaudadoLuz: number; facturadoGC: number; recaudadoGC: number }>()
@@ -183,10 +173,14 @@ export default async function ComiteDashboard() {
           <p className="text-2xl font-bold text-green-700">{$(totalRecaudado)}</p>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-          <p className="text-sm text-blue-700">🏦 Caja diaria</p>
-          <p className="text-2xl font-bold text-blue-700">{$(saldoCaja)}</p>
-          {enDepositoAPlazo > 0 && (
-            <p className="text-xs text-blue-600 mt-1">+ {$(enDepositoAPlazo)} en depósito a plazo = {$(saldoCaja + enDepositoAPlazo)} total</p>
+          <p className="text-sm text-blue-700">🏦 Caja total</p>
+          <p className="text-2xl font-bold text-blue-700">{$(saldoCajaTotal)}</p>
+          {cuentasCaja.length > 1 && (
+            <div className="mt-1 space-y-0.5">
+              {cuentasCaja.map(c => (
+                <p key={c.id} className="text-xs text-blue-600 flex justify-between"><span>{c.nombre}</span><span>{$(c.saldo)}</span></p>
+              ))}
+            </div>
           )}
         </div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5">
