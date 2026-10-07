@@ -122,7 +122,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
   doc.font('Helvetica').fontSize(8).fillColor('#9ca3af')
-    .text(`Generado ${new Date().toLocaleDateString('es-CL')} · Comité Macrolote COPOSA`, 40, doc.page.height - 40, { width: ancho, align: 'center', lineBreak: false })
+    .text(`Generado ${new Date().toLocaleDateString('es-CL')} · Comité Macrolote COPOSA`, 40, doc.page.height - 60, { width: ancho, align: 'center', lineBreak: false })
   doc.end()
 
   return new NextResponse(new Uint8Array(await listo), {
