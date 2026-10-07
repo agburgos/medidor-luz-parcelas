@@ -60,6 +60,19 @@ export default function VotacionDetailPage() {
 
   useEffect(() => { cargar() }, [id])
 
+  async function fusionar(origen: Opcion, destinoId: string) {
+    const destino = datos?.opciones.find(o => o.id === destinoId)
+    if (!destino) return
+    if (!confirm(`¿Fusionar "${origen.texto}" dentro de "${destino.texto}"? Los ${origen.votos} votos de "${origen.texto}" pasarán a "${destino.texto}" y esa opción desaparecerá.`)) return
+    const res = await fetch(`/api/votaciones/${id}/opciones/fusionar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origen_id: origen.id, destino_id: destinoId }),
+    })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error); return }
+    cargar()
+  }
+
   async function retirarOpcion(op: Opcion) {
     if (!confirm(`¿Retirar la opción "${op.texto}"? Los votos que la eligieron se borrarán y esos vecinos deberán votar de nuevo.`)) return
     const res = await fetch(`/api/votaciones/${id}/opciones?opcion_id=${op.id}`, { method: 'DELETE' })
@@ -157,9 +170,15 @@ export default function VotacionDetailPage() {
 
       {/* Resultados por opción */}
       <div className="bg-white rounded-xl border p-6">
-        <h2 className="text-lg font-semibold mb-4">🗳️ Resultados</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <h2 className="text-lg font-semibold">🗳️ Resultados (de mayor a menor)</h2>
+          <div className="flex gap-2">
+            <a href={`/api/votaciones/${id}/exportar?formato=pdf`} className="border rounded-lg px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">📄 Descargar PDF</a>
+            <a href={`/api/votaciones/${id}/exportar?formato=csv`} className="border rounded-lg px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">📊 Descargar Excel (CSV)</a>
+          </div>
+        </div>
         <div className="space-y-4">
-          {datos.opciones.map((op, idx) => (
+          {[...datos.opciones].sort((a, b) => b.votos - a.votos).map((op, idx) => (
             <div key={op.id}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex-1">
@@ -182,6 +201,19 @@ export default function VotacionDetailPage() {
                 </div>
                 <span className="text-sm font-semibold text-gray-600">{op.votos} votos ({op.porcentaje}%)</span>
               </div>
+              {datos.opciones.length > 1 && (
+                <div className="mb-2">
+                  <select
+                    value=""
+                    onChange={e => { if (e.target.value) fusionar(op, e.target.value) }}
+                    className="text-xs border rounded px-2 py-1 text-gray-500"
+                    title="Suma los votos de esta opción a otra y la elimina"
+                  >
+                    <option value="">↪ Fusionar en…</option>
+                    {datos.opciones.filter(o => o.id !== op.id).map(o => <option key={o.id} value={o.id}>{o.texto}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-blue-500 to-blue-600 h-full transition-all"
