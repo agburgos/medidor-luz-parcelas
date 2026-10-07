@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('votaciones')
-    .select('id, titulo, descripcion, tipo_conteo, es_secreta, visibilidad_resultados, estado, fecha_inicio, fecha_cierre')
+    .select('id, titulo, descripcion, tipo_conteo, es_secreta, visibilidad_resultados, estado, fecha_inicio, fecha_cierre, permite_opciones_vecinos')
     .order('fecha_cierre', { ascending: true })
 
   // Parceleros ven solo votaciones abiertas
@@ -72,10 +72,15 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceClient()
   const body = await req.json()
 
-  const { titulo, descripcion, tipo_conteo, es_secreta, visibilidad_resultados, fecha_inicio, fecha_cierre, opciones, asamblea_id } = body
+  const { titulo, descripcion, tipo_conteo, es_secreta, visibilidad_resultados, fecha_inicio, fecha_cierre, opciones, asamblea_id, permite_opciones_vecinos } = body
 
   if (!titulo || !tipo_conteo || !fecha_inicio || !fecha_cierre) {
     return NextResponse.json({ error: 'Campos requeridos: titulo, tipo_conteo, fecha_inicio, fecha_cierre' }, { status: 400 })
+  }
+
+  const hayOpciones = Array.isArray(opciones) && opciones.some((o: { texto?: string }) => o.texto?.trim())
+  if (!hayOpciones && !permite_opciones_vecinos) {
+    return NextResponse.json({ error: 'Agrega al menos una opción, o permite que los vecinos propongan las suyas' }, { status: 400 })
   }
 
   const { data: votacion, error: errVot } = await supabase
@@ -89,6 +94,7 @@ export async function POST(req: NextRequest) {
       fecha_inicio,
       fecha_cierre,
       asamblea_id,
+      permite_opciones_vecinos: !!permite_opciones_vecinos,
     })
     .select()
     .single()
@@ -96,10 +102,10 @@ export async function POST(req: NextRequest) {
   if (errVot) return NextResponse.json({ error: errVot.message }, { status: 400 })
 
   // Insertar opciones si se proporcionan
-  if (opciones && Array.isArray(opciones) && opciones.length > 0) {
-    const opcionesData = opciones.map((o: { texto: string; foto_url?: string; orden?: number }, i: number) => ({
+  if (hayOpciones) {
+    const opcionesData = opciones.filter((o: { texto?: string }) => o.texto?.trim()).map((o: { texto: string; foto_url?: string; orden?: number }, i: number) => ({
       votacion_id: votacion.id,
-      texto: o.texto,
+      texto: o.texto.trim(),
       foto_url: o.foto_url || null,
       orden: o.orden !== undefined ? o.orden : i,
     }))
@@ -117,6 +123,7 @@ export async function POST(req: NextRequest) {
   <h2 style="color:#1d4ed8;">🗳️ Nueva votación abierta</h2>
   <p><strong>${titulo}</strong></p>
   ${descripcion ? `<p>${descripcion}</p>` : ''}
+  ${permite_opciones_vecinos ? '<p>Además de elegir, puedes <strong>proponer tu propia opción</strong>.</p>' : ''}
   <p>Cierra: <strong>${fechaCierreFmt}</strong></p>
   <a href="${process.env.NEXT_PUBLIC_APP_URL || ''}/parcelero/votaciones" style="display:inline-block;background:#1d4ed8;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;margin-top:8px;">Ir a votar</a>
   <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Comité COPOSA</p>

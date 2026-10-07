@@ -7,6 +7,7 @@ interface Opcion {
   texto: string
   foto_url: string | null
   orden: number
+  propuesta_por_parcela_id: string | null
 }
 
 interface Voto {
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Obtener opciones con recuento de votos
   const { data: opciones, error: errOpc } = await supabase
     .from('opciones_votacion')
-    .select('id, texto, foto_url, orden')
+    .select('id, texto, foto_url, orden, propuesta_por_parcela_id')
     .eq('votacion_id', votacion_id)
     .order('orden', { ascending: true })
 
@@ -83,6 +84,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
+  // Quién propuso cada opción: solo lo ve el comité
+  const proponentes = new Map<string, { numero: number; nombre_dueno: string }>()
+  if (sesion.rol === 'comite') {
+    const ids = [...new Set(((opciones as Opcion[]) || []).map(o => o.propuesta_por_parcela_id).filter((x): x is string => !!x))]
+    if (ids.length > 0) {
+      const { data: ps } = await supabase.from('parcelas').select('id, numero, nombre_dueno').in('id', ids)
+      for (const p of (ps ?? []) as { id: string; numero: number; nombre_dueno: string }[]) proponentes.set(p.id, { numero: p.numero, nombre_dueno: p.nombre_dueno })
+    }
+  }
+
   // Construir respuesta
   const opcionesConVotos = ((opciones as Opcion[]) || []).map((op: Opcion) => {
     const votosCount = conteoOpciones[op.id] || 0
@@ -93,6 +104,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       foto_url: op.foto_url,
       votos: votosCount,
       porcentaje,
+      propuesta: !!op.propuesta_por_parcela_id,
+      propuesta_por: op.propuesta_por_parcela_id ? (proponentes.get(op.propuesta_por_parcela_id) ?? null) : null,
     }
   })
 

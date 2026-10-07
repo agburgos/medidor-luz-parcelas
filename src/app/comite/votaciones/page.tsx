@@ -14,6 +14,7 @@ interface Votacion {
   fecha_inicio: string
   fecha_cierre: string
   estado: 'abierta' | 'cerrada'
+  permite_opciones_vecinos?: boolean
 }
 
 export default function VotacionesPage() {
@@ -29,6 +30,7 @@ export default function VotacionesPage() {
     visibilidad_resultados: 'en_vivo' as 'solo_al_cerrar' | 'en_vivo' | 'en_vivo_comite',
     fecha_inicio: new Date().toISOString(),
     fecha_cierre: '',
+    permite_opciones_vecinos: false,
     opciones: [{ texto: '', foto: null as File | null }],
   })
   const [enviando, setEnviando] = useState(false)
@@ -49,7 +51,7 @@ export default function VotacionesPage() {
     setEnviando(true)
 
     const opcionesConFotos = await Promise.all(
-      formData.opciones.map(async (op) => {
+      formData.opciones.filter(op => op.texto.trim()).map(async (op) => {
         let foto_url = null
         if (op.foto) {
           const fotoComprimida = await comprimirImagen(op.foto)
@@ -72,6 +74,7 @@ export default function VotacionesPage() {
       visibilidad_resultados: formData.visibilidad_resultados,
       fecha_inicio: formData.fecha_inicio,
       fecha_cierre: formData.fecha_cierre,
+      permite_opciones_vecinos: formData.permite_opciones_vecinos,
       opciones: opcionesConFotos,
     }
 
@@ -96,6 +99,7 @@ export default function VotacionesPage() {
         visibilidad_resultados: 'en_vivo',
         fecha_inicio: new Date().toISOString(),
         fecha_cierre: '',
+        permite_opciones_vecinos: false,
         opciones: [{ texto: '', foto: null }],
       })
       cargarVotaciones()
@@ -128,6 +132,7 @@ export default function VotacionesPage() {
       visibilidad_resultados: v.visibilidad_resultados,
       fecha_inicio: v.fecha_inicio,
       fecha_cierre: v.fecha_cierre,
+      permite_opciones_vecinos: !!v.permite_opciones_vecinos,
       opciones: [{ texto: '', foto: null }],
     })
     setEditando(v.id)
@@ -145,6 +150,7 @@ export default function VotacionesPage() {
       visibilidad_resultados: 'en_vivo',
       fecha_inicio: new Date().toISOString(),
       fecha_cierre: '',
+      permite_opciones_vecinos: false,
       opciones: [{ texto: '', foto: null }],
     })
   }
@@ -248,7 +254,7 @@ export default function VotacionesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Opciones de votación *</label>
+                  <label className="block text-sm font-medium mb-2">Opciones de votación {formData.permite_opciones_vecinos ? '(opcionales: los vecinos pueden agregar las suyas)' : '*'}</label>
                   <div className="space-y-3">
                     {formData.opciones.map((op, idx) => (
                       <div key={idx} className="flex gap-2">
@@ -263,7 +269,7 @@ export default function VotacionesPage() {
                             }}
                             placeholder={`Opción ${idx + 1}`}
                             className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
+                            required={!formData.permite_opciones_vecinos}
                           />
                         </div>
                         {formData.opciones.length > 1 && (
@@ -288,6 +294,21 @@ export default function VotacionesPage() {
                 </div>
               </>
             )}
+
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.permite_opciones_vecinos}
+                  onChange={e => setFormData(f => ({ ...f, permite_opciones_vecinos: e.target.checked }))}
+                  className="mt-1 rounded"
+                />
+                <span className="text-sm">
+                  <strong>Los vecinos pueden proponer su propia opción</strong>
+                  <span className="block text-xs text-gray-500">Además de elegir entre las opciones, cada vecino podrá escribir una nueva (hasta 3). Puedes dejar la lista vacía para una encuesta de opciones abiertas.</span>
+                </span>
+              </label>
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Visibilidad de resultados *</label>

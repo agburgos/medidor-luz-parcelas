@@ -14,6 +14,7 @@ interface Votacion {
   fecha_inicio: string
   fecha_cierre: string
   estado: 'abierta' | 'cerrada'
+  permite_opciones_vecinos?: boolean
 }
 
 interface Opcion {
@@ -22,6 +23,8 @@ interface Opcion {
   foto_url: string | null
   votos: number
   porcentaje: number
+  propuesta?: boolean
+  propuesta_por?: { numero: number; nombre_dueno: string } | null
 }
 
 interface DetalleVoto {
@@ -56,6 +59,14 @@ export default function VotacionDetailPage() {
   }
 
   useEffect(() => { cargar() }, [id])
+
+  async function retirarOpcion(op: Opcion) {
+    if (!confirm(`¿Retirar la opción "${op.texto}"? Los votos que la eligieron se borrarán y esos vecinos deberán votar de nuevo.`)) return
+    const res = await fetch(`/api/votaciones/${id}/opciones?opcion_id=${op.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error); return }
+    cargar()
+  }
 
   async function cerrarAhora() {
     if (!confirm('¿Cerrar esta votación ahora, antes de su fecha programada? Los parceleros ya no podrán votar ni editar su voto.')) return
@@ -160,6 +171,14 @@ export default function VotacionDetailPage() {
                     />
                   )}
                   <span className="font-medium">{op.texto}</span>
+                  {op.propuesta && (
+                    <span className="ml-2 text-xs text-indigo-600">
+                      💡 propuesta{op.propuesta_por ? ` por #${op.propuesta_por.numero} ${op.propuesta_por.nombre_dueno}` : ''}
+                    </span>
+                  )}
+                  {op.propuesta && v.estado === 'abierta' && (
+                    <button onClick={() => retirarOpcion(op)} className="ml-2 text-xs text-red-500 hover:underline">Retirar</button>
+                  )}
                 </div>
                 <span className="text-sm font-semibold text-gray-600">{op.votos} votos ({op.porcentaje}%)</span>
               </div>

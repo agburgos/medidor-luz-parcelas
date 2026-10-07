@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Verificar que existe y está abierta
   const { data: votacion, error: errGet } = await supabase
     .from('votaciones')
-    .select('id, estado, fecha_cierre')
+    .select('id, estado, fecha_cierre, permite_opciones_vecinos')
     .eq('id', votacion_id)
     .single()
 
@@ -48,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   // Actualizar
-  const { titulo, descripcion, visibilidad_resultados, fecha_cierre } = body
+  const { titulo, descripcion, visibilidad_resultados, fecha_cierre, permite_opciones_vecinos } = body
   const { data, error } = await supabase
     .from('votaciones')
     .update({
@@ -56,6 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       descripcion: descripcion ?? null,
       visibilidad_resultados: visibilidad_resultados ?? 'solo_al_cerrar',
       fecha_cierre: fecha_cierre ?? votacion.fecha_cierre,
+      permite_opciones_vecinos: permite_opciones_vecinos ?? votacion.permite_opciones_vecinos,
     })
     .eq('id', votacion_id)
     .select()

@@ -12,6 +12,7 @@ interface Votacion {
   fecha_cierre: string
   yaVoto?: boolean
   miVotoOpciones?: string[]
+  permite_opciones_vecinos?: boolean
 }
 
 interface Opcion {
@@ -19,6 +20,8 @@ interface Opcion {
   texto: string
   foto_url: string | null
   orden: number
+  propuesta?: boolean
+  mia?: boolean
 }
 
 export default function VotacionesPage() {
@@ -29,6 +32,8 @@ export default function VotacionesPage() {
   const [opcionesSeleccionadas, setOpcionesSeleccionadas] = useState<string[]>([])
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const [nuevaOpcion, setNuevaOpcion] = useState('')
+  const [proponiendo, setProponiendo] = useState(false)
 
   const cargar = useCallback(async () => {
     const res = await fetch('/api/votaciones')
@@ -42,6 +47,7 @@ export default function VotacionesPage() {
   async function abrirVotacion(votacionId: string) {
     setVotacionSeleccionada(votacionId)
     setMensaje('')
+    setNuevaOpcion('')
 
     const res = await fetch(`/api/votaciones/${votacionId}/opciones`)
     const data = await res.json()
@@ -58,6 +64,28 @@ export default function VotacionesPage() {
     } else {
       setOpcionesSeleccionadas([])
     }
+  }
+
+  async function proponerOpcion() {
+    if (!votacionSeleccionada || !nuevaOpcion.trim()) return
+    setProponiendo(true)
+    setMensaje('')
+    const res = await fetch(`/api/votaciones/${votacionSeleccionada}/opciones`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: nuevaOpcion }),
+    })
+    const data = await res.json()
+    setProponiendo(false)
+    if (!res.ok) { setMensaje(`❌ ${data.error}`); return }
+    // Se agrega a la lista (si ya existía una igual, se reutiliza) y queda marcada
+    setOpciones(prev => prev.some(o => o.id === data.id) ? prev : [...prev, data])
+    const votacion = votaciones.find(v => v.id === votacionSeleccionada)
+    setOpcionesSeleccionadas(prev =>
+      votacion?.tipo_conteo === 'unica' ? [data.id] : prev.includes(data.id) ? prev : [...prev, data.id]
+    )
+    setNuevaOpcion('')
+    setMensaje(data.existente ? 'ℹ️ Esa opción ya existía, la dejé seleccionada' : '✅ Tu opción fue agregada y quedó seleccionada. Confirma tu voto abajo.')
   }
 
   async function enviarVoto() {
@@ -141,10 +169,37 @@ export default function VotacionesPage() {
                     <img src={opcion.foto_url} alt={opcion.texto} className="w-full h-32 object-cover rounded mb-2" />
                   )}
                   <p className="font-medium">{opcion.texto}</p>
+                  {opcion.propuesta && <p className="text-xs text-indigo-600">💡 {opcion.mia ? 'Propuesta tuya' : 'Propuesta de un vecino'}</p>}
                 </div>
               </label>
             ))}
           </div>
+
+          {votacion?.permite_opciones_vecinos && (
+            <div className="mb-6 border border-dashed border-indigo-300 bg-indigo-50 rounded-lg p-3">
+              <p className="text-sm font-medium text-indigo-900 mb-2">¿No está tu opción? Propón la tuya</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={nuevaOpcion}
+                  onChange={e => setNuevaOpcion(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); proponerOpcion() } }}
+                  maxLength={120}
+                  placeholder="Escribe tu opción…"
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm min-w-0"
+                />
+                <button
+                  type="button"
+                  onClick={proponerOpcion}
+                  disabled={proponiendo || !nuevaOpcion.trim()}
+                  className="bg-indigo-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 whitespace-nowrap"
+                >
+                  {proponiendo ? '...' : '+ Agregar'}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Todos los vecinos podrán verla y votarla. Máximo 3 propuestas por parcela.</p>
+            </div>
+          )}
 
           {mensaje && <p className="mb-4 text-sm text-center text-gray-700 bg-blue-50 rounded p-2">{mensaje}</p>}
 
