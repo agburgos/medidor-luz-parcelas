@@ -29,23 +29,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }, { status: 403 })
   }
 
-  // Upsert lecturas (puede haber lecturas ya guardadas de antes)
-  const rows = lecturas.map((l: { parcela_id: string; lectura_actual: number; lectura_anterior: number; estado?: string }) => ({
+  // Upsert lecturas (puede haber lecturas ya guardadas de antes). La foto solo se
+  // escribe cuando viene una nueva: así guardar números no borra fotos existentes.
+  type LecturaIn = { parcela_id: string; lectura_actual: number; lectura_anterior: number; estado?: string; foto_url?: string | null }
+  const armar = (l: LecturaIn) => ({
     periodo_id,
     parcela_id: l.parcela_id,
     lectura_actual: l.lectura_actual ?? 0,
     lectura_anterior: l.lectura_anterior ?? 0,
     estado: l.estado || 'normal',
     confirmado: true,
-  }))
+  })
+  const conFoto = (lecturas as LecturaIn[]).filter(l => l.foto_url)
+  const sinFoto = (lecturas as LecturaIn[]).filter(l => !l.foto_url)
+  const rows = [...sinFoto.map(armar), ...conFoto.map(l => ({ ...armar(l), foto_url: l.foto_url }))]
 
-  const { error } = await supabase
-    .from('lecturas')
-    .upsert(rows, { onConflict: 'periodo_id,parcela_id' })
+  for (const grupo of [sinFoto.map(armar), conFoto.map(l => ({ ...armar(l), foto_url: l.foto_url }))]) {
+    if (grupo.length === 0) continue
+    const { error } = await supabase.from('lecturas').upsert(grupo, { onConflict: 'periodo_id,parcela_id' })
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-
-  await registrar(sesion, 'guardar_lecturas_masivo', 'periodo_facturacion', periodo_id, { cantidad: rows.length })
+  await registrar(sesion, 'guardar_lecturas_masivo', 'periodo_facturacion', periodo_id, { cantidad: rows.length, con_foto: conFoto.length })
 
   return NextResponse.json({ guardadas: rows.length })
 }

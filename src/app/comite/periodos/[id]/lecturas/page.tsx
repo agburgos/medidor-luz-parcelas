@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { comprimirImagen } from '@/lib/comprimirImagen'
 
 interface LecturaFila {
   parcela_id: string
@@ -36,6 +37,7 @@ export default function LecturasPage() {
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [esSuperadmin, setEsSuperadmin] = useState(false)
+  const [filtro, setFiltro] = useState<'todas' | 'faltan' | 'subidas'>('todas')
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const [formFactura, setFormFactura] = useState({ monto_total_factura: '', fecha_vencimiento: '', fecha_emision: '', fecha_corte: '' })
@@ -137,14 +139,36 @@ export default function LecturasPage() {
   async function guardarTodas() {
     setGuardando(true)
     setMensaje('')
-    const payload = filas
-      .filter(f => f.lectura_actual !== '' || f.estado !== 'normal')
-      .map(f => ({
-        parcela_id: f.parcela_id,
-        lectura_actual: f.lectura_actual !== '' ? Number(f.lectura_actual) : 0,
-        lectura_anterior: f.lectura_anterior,
-        estado: f.estado,
-      }))
+    const aGuardar = filas.filter(f => f.lectura_actual !== '' || f.estado !== 'normal')
+
+    // 1) Subir las fotos elegidas (comprimidas, para no pasar el límite de tamaño)
+    const urls: Record<string, string> = {}
+    const fallasFoto: number[] = []
+    for (const f of aGuardar) {
+      if (!f.foto) continue
+      try {
+        const comprimida = await comprimirImagen(f.foto)
+        const fd = new FormData()
+        fd.append('file', comprimida)
+        fd.append('bucket', 'archivos')
+        fd.append('folder', 'lecturas')
+        const resFoto = await fetch('/api/upload', { method: 'POST', body: fd })
+        const dataFoto = await resFoto.json()
+        if (!resFoto.ok || !dataFoto.url) throw new Error(dataFoto.error || 'sin URL')
+        urls[f.parcela_id] = dataFoto.url
+      } catch {
+        fallasFoto.push(f.numero)
+      }
+    }
+
+    // 2) Guardar lecturas (con la URL de la foto cuando se subió)
+    const payload = aGuardar.map(f => ({
+      parcela_id: f.parcela_id,
+      lectura_actual: f.lectura_actual !== '' ? Number(f.lectura_actual) : 0,
+      lectura_anterior: f.lectura_anterior,
+      estado: f.estado,
+      ...(urls[f.parcela_id] ? { foto_url: urls[f.parcela_id] } : {}),
+    }))
     const res = await fetch(`/api/periodos/${id}/lecturas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -152,7 +176,19 @@ export default function LecturasPage() {
     })
     const data = await res.json()
     if (!res.ok) { setMensaje(`❌ ${data.error}`); setGuardando(false); return }
-    setMensaje(`✅ ${data.guardadas} lecturas guardadas`)
+
+    // 3) Reflejar lo guardado en pantalla (las fotos que fallaron quedan elegidas para reintentar)
+    const guardadas = new Set(aGuardar.map(f => f.parcela_id))
+    setFilas(prev => prev.map(f => {
+      if (!guardadas.has(f.parcela_id)) return f
+      const url = urls[f.parcela_id]
+      return { ...f, guardado: true, confirmado: true, ...(url ? { fotoSubidaUrl: url, foto: null, fotoPreview: null, estadoValidacion: 'aprobada' } : {}) }
+    }))
+    const nFotos = Object.keys(urls).length
+    setMensaje(
+      `✅ ${data.guardadas} lecturas guardadas${nFotos ? `, ${nFotos} fotos subidas` : ''}` +
+      (fallasFoto.length ? ` — ⚠️ no se pudo subir la foto de la(s) parcela(s) ${fallasFoto.map(n => '#' + n).join(', ')}: vuelve a elegirla y guarda de nuevo` : '')
+    )
     setGuardando(false)
   }
 
@@ -177,6 +213,8 @@ export default function LecturasPage() {
   const faltaFactura = !periodo?.montoTotalFactura || periodo.montoTotalFactura <= 0
   const cerrado = !!periodo?.prorrateoCalculado
   const bloqueado = cerrado && !esSuperadmin
+  const faltan = filas.filter(f => !f.guardado).length
+  const filasVisibles = filas.filter(f => filtro === 'todas' || (filtro === 'faltan' ? !f.guardado : f.guardado))
 
   return (
     <div>
@@ -306,6 +344,23 @@ export default function LecturasPage() {
 
       {mensaje && <p className="mb-4 text-sm text-blue-700 bg-blue-50 rounded p-2">{mensaje}</p>}
 
+      <div className="flex flex-wrap gap-2 mb-3">
+        {([
+          { v: 'todas', l: `Todas (${filas.length})` },
+          { v: 'faltan', l: `⏳ Faltan por subir (${faltan})` },
+          { v: 'subidas', l: `✅ Ya subidas (${filas.length - faltan})` },
+        ] as const).map(op => (
+          <button
+            key={op.v}
+            type="button"
+            onClick={() => setFiltro(op.v)}
+            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${filtro === op.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+          >
+            {op.l}
+          </button>
+        ))}
+      </div>
+
       <div className="bg-white rounded-xl border overflow-x-auto">
         <table className="w-full min-w-[860px] text-sm">
           <thead className="bg-gray-50 sticky top-0">
@@ -321,7 +376,7 @@ export default function LecturasPage() {
             </tr>
           </thead>
           <tbody>
-            {filas.map(fila => {
+            {filasVisibles.map(fila => {
               const consumo = fila.lectura_actual !== '' ? Number(fila.lectura_actual) - fila.lectura_anterior : null
               const base = fila.consumoAnteriorPeriodo
               let anomalia: string | null = null
@@ -429,6 +484,11 @@ export default function LecturasPage() {
                 </tr>
               )
             })}
+            {filasVisibles.length === 0 && (
+              <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-400">
+                {filtro === 'faltan' ? '🎉 No falta ninguna lectura por subir' : 'Sin parcelas en este filtro'}
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>
