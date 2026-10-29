@@ -9,6 +9,12 @@ import { registrar } from '@/lib/bitacora'
  *
  *   tarifa_kwh = monto_total_factura / consumo_total_kwh   ← se calcula, no se ingresa
  *
+ *   consumo_total_kwh es la suma de las lecturas de las parcelas, salvo que el
+ *   período tenga cargado "consumo_total_iel" (el consumo efectivo que informa
+ *   IEL): ahí la tarifa se fija con ese total, para que lecturas faltantes o
+ *   dudosas no encarezcan el kWh de todos. Lo que no se cobra por esas lecturas
+ *   queda absorbido por el fondo de reserva y se regulariza después.
+ *
  *   monto_consumo    = consumo_kwh × tarifa_kwh
  *   monto_cargo_fijo = cargo_fijo                          ← aparte, a TODA parcela con empalme
  *   total parcela    = monto_consumo + monto_cargo_fijo
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const { data: periodo } = await supabase
     .from('periodos_facturacion')
-    .select('monto_total_factura, cargo_fijo, prorrateo_calculado, fecha_vencimiento')
+    .select('monto_total_factura, cargo_fijo, prorrateo_calculado, fecha_vencimiento, consumo_total_iel')
     .eq('id', periodo_id)
     .single()
 
@@ -81,7 +87,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'El consumo total es 0, no se puede derivar la tarifa desde la factura' }, { status: 400 })
   }
 
-  const tarifa = periodo.monto_total_factura / consumoTotal // $/kWh: la factura completa se paga solo con consumo
+  const consumoIEL = Number(periodo.consumo_total_iel ?? 0)
+  const consumoBase = consumoIEL > 0 ? consumoIEL : consumoTotal
+  const tarifa = periodo.monto_total_factura / consumoBase // $/kWh: la factura completa se paga solo con consumo
 
   // Si se está RECALCULANDO (ya existían cuentas para este período), hay que
   // preservar los pagos ya validados en vez de resetearlos a $0 — de lo
@@ -144,7 +152,10 @@ export async function POST(req: NextRequest) {
   // al peso. El cargo fijo (fondo de reserva) no entra en este ajuste: es
   // un monto fijo aparte, siempre exacto.
   const totalConsumoCobrado = cuentas.reduce((s, c) => s + c.monto_consumo, 0)
-  const diferencia = Math.round(periodo.monto_total_factura - totalConsumoCobrado)
+  // Con consumo_total_iel el objetivo no es la factura completa, sino la parte
+  // que corresponde a los kWh realmente registrados en las lecturas.
+  const objetivoConsumo = Math.round(periodo.monto_total_factura * consumoTotal / consumoBase)
+  const diferencia = objetivoConsumo - totalConsumoCobrado
   if (diferencia !== 0 && cuentas.length > 0) {
     const mayor = cuentas.reduce((a, b) => (b.monto_consumo > a.monto_consumo ? b : a))
     mayor.monto_consumo += diferencia
@@ -167,7 +178,7 @@ export async function POST(req: NextRequest) {
   const totalFinal = totalConsumoFinal + totalCargoFijoFinal
 
   await registrar(sesion, periodo.prorrateo_calculado ? 'recalcular_prorrateo' : 'calcular_prorrateo', 'periodo_facturacion', periodo_id, {
-    tarifa_calculada: Math.round(tarifa * 100) / 100, consumo_total: consumoTotal, parcelas: cuentas.length,
+    tarifa_calculada: Math.round(tarifa * 100) / 100, consumo_total: consumoTotal, consumo_total_iel: consumoIEL > 0 ? consumoIEL : null, parcelas: cuentas.length,
   })
 
   return NextResponse.json({
