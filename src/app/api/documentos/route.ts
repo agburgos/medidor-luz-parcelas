@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
   const categoria = (fd.get('categoria') as string) || 'general'
   const asamblea_id = (fd.get('asamblea_id') as string) || null
   const solo_comite = fd.get('solo_comite') === 'true'
+  const fecha = (fd.get('fecha') as string) || null
 
   if (!archivo || !nombre) return NextResponse.json({ error: 'Archivo y nombre son requeridos' }, { status: 400 })
 
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
       archivo_url,
       subido_por: sesion.userId,
       solo_comite,
+      fecha,
     })
     .select()
     .single()

@@ -32,6 +32,7 @@ const GRUPOS_COMITE: Grupo[] = [
     { href: '/comite/votaciones', label: '🗳️ Votaciones' },
     { href: '/comite/mensajes', label: '💬 Mensajería vecinal' },
     { href: '/comite/asambleas', label: '🗓️ Asambleas y actas' },
+    { href: '/comite/presentaciones', label: '📽️ Presentaciones asambleas' },
     { href: '/comite/anuncios', label: '📢 Anuncios' },
     { href: '/comite/documentos', label: '📎 Documentos' },
     { href: '/comite/informacion', label: 'ℹ️ Información fija' },

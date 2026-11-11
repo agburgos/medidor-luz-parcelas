@@ -7,7 +7,7 @@ interface Documento {
   asamblea_id: string | null; solo_comite: boolean
 }
 
-const CATEGORIAS: Record<string, string> = { acta: '📋 Acta', contable: '💰 Contable', reglamento: '📜 Reglamento', general: '📄 General' }
+const CATEGORIAS: Record<string, string> = { acta: '📋 Acta', contable: '💰 Contable', reglamento: '📜 Reglamento', presentacion: '📽️ Presentación', general: '📄 General' }
 
 export default function DocumentosComitePage() {
   const [documentos, setDocumentos] = useState<Documento[]>([])

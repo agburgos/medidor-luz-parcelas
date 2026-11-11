@@ -324,7 +324,7 @@ export default function DetalleAsambleaPage() {
                 <tr key={d.id} className="border-t">
                   <td className="px-4 py-2">{d.nombre}</td>
                   <td className="px-4 py-2 text-gray-500 capitalize">{d.categoria}</td>
-                  <td className="px-4 py-2"><a href={d.archivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Ver</a></td>
+                  <td className="px-4 py-2"><a href={d.archivo_url.toLowerCase().endsWith('.html') ? `/api/documentos/${d.id}/ver` : d.archivo_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{d.categoria === 'presentacion' ? 'Presentar' : 'Ver'}</a></td>
                 </tr>
               ))}
               {documentos.length === 0 && <tr><td className="px-4 py-4 text-center text-gray-400">Sin documentos subidos</td></tr>}
@@ -337,6 +337,7 @@ export default function DetalleAsambleaPage() {
             <option value="acta">Acta</option>
             <option value="contable">Contable</option>
             <option value="reglamento">Reglamento</option>
+            <option value="presentacion">Presentación</option>
             <option value="general">General</option>
           </select>
           <input type="file" onChange={e => setArchivo(e.target.files?.[0] || null)} className="text-sm" />
